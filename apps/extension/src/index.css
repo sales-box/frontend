@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #3b82f6; /* Placeholder primary color */
+  --font-sans: "Inter", system-ui, sans-serif;
+}

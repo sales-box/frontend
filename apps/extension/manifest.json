@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Inbox Sales Copilot",
+  "version": "1.0.0",
+  "description": "Sales Copilot for Gmail",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content.tsx"]
+    }
+  ]
+}

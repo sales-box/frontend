@@ -1,0 +1,5 @@
+{
+  "name": "@inbox-sales/shared",
+  "version": "1.0.0",
+  "main": "src/api-client.ts"
+}
