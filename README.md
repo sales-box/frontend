@@ -25,7 +25,7 @@ frontend-repo/
 - **Icons:** Lucide React
 - **Extension Bundler:** `@crxjs/vite-plugin` (allows building Manifest V3 extensions seamlessly with Vite)
 
-##  فلسفة العمل (Mock-First Philosophy)
+## (Mock-First Philosophy)
 
 The project currently operates on a **Mock-First** basis to unblock frontend development while the backend is being finalized. 
 
@@ -42,7 +42,7 @@ Run the following command at the **root** of the repository (`frontend-repo/`). 
 npm install
 ```
 
-### 2. Admin Dashboard (رنا)
+### 2. Admin Dashboard
 To start the Admin Dashboard in development mode with Hot Module Replacement (HMR):
 
 ```bash
@@ -50,7 +50,7 @@ npm run dev -w apps/dashboard
 ```
 *The dashboard will be available at `http://localhost:5173` (or similar).*
 
-### 3. Gmail Extension (محمد)
+### 3. Gmail Extension 
 Because Chrome Extensions cannot use standard HMR easily for content scripts, you should run the build command. The CRXJS plugin supports watching for changes.
 
 ```bash
