@@ -8,4 +8,15 @@ export default defineConfig({
     tailwindcss(),
     react()
   ],
+  server: {
+    proxy: {
+      '/auth': 'http://localhost:3000',
+      '/clients': 'http://localhost:3000',
+      '/emails': 'http://localhost:3000',
+      '/knowledge-base': 'http://localhost:3000',
+      '/health': 'http://localhost:3000',
+      '/queue': 'http://localhost:3000',
+      '/gmail': 'http://localhost:3000'
+    }
+  }
 })
