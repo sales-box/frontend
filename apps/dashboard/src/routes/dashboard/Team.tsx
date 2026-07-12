@@ -25,7 +25,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
     allowlist.list()
@@ -34,7 +34,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
         const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
         return { ...m, initials, role: "Sales Engineer" };
       })))
-      .catch(err => setError(err.message || "Failed to load team data"))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
