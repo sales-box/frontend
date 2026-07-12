@@ -1,12 +1,14 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+let _jwt: string | null = sessionStorage.getItem("jwt");
+let _tid: string | null = sessionStorage.getItem("tenantId");
+
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("jwt");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return _jwt ? { Authorization: `Bearer ${_jwt}` } : {};
 }
 
 function tenantId(): string {
-  return localStorage.getItem("tenantId") ?? "";
+  return _tid ?? "";
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -217,15 +219,19 @@ export const analytics = {
 // ─── Session helpers ─────────────────────────────────────────
 
 export function saveSession(token: string, tid: string) {
-  localStorage.setItem("jwt", token);
-  localStorage.setItem("tenantId", tid);
+  _jwt = token;
+  _tid = tid;
+  sessionStorage.setItem("jwt", token);
+  sessionStorage.setItem("tenantId", tid);
 }
 
 export function clearSession() {
-  localStorage.removeItem("jwt");
-  localStorage.removeItem("tenantId");
+  _jwt = null;
+  _tid = null;
+  sessionStorage.removeItem("jwt");
+  sessionStorage.removeItem("tenantId");
 }
 
 export function isLoggedIn(): boolean {
-  return !!localStorage.getItem("jwt");
+  return !!_jwt;
 }
