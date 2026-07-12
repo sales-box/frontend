@@ -1,11 +1,13 @@
 // src/api-client.ts
+// Params prefixed with _ are intentionally unused — mock stubs for Sprint 3.
+// They will be replaced with real fetch() calls when the backend is ready.
 
 // ── Admin / Tenant ───────────────────────────────────────────────
-export async function signup(company: string, email: string, password: string, tier: string): Promise<{ tenantId: string }> {
+export async function signup(_company: string, _email: string, _password: string, _tier: string): Promise<{ tenantId: string }> {
   return { tenantId: "mock-tenant-001" };
 }
 
-export async function verifyEmail(token: string): Promise<{ verified: boolean }> {
+export async function verifyEmail(_token: string): Promise<{ verified: boolean }> {
   return { verified: true };
 }
 
@@ -17,30 +19,30 @@ export async function listDocuments(): Promise<{ filename: string; uploadDate: s
   ];
 }
 
-export async function uploadDocument(file: File): Promise<{ status: "ok" | "quality_warning"; message?: string }> {
+export async function uploadDocument(_file: File): Promise<{ status: "ok" | "quality_warning"; message?: string }> {
   return { status: "ok" };
 }
 
-export async function deleteDocument(filename: string): Promise<void> {}
+export async function deleteDocument(_filename: string): Promise<void> {}
 
 // ── Allowlist ─────────────────────────────────────────────────────
-export async function getAllowlist(tenantId: string): Promise<{ email: string; status: "pending" | "verified" | "revoked" }[]> {
+export async function getAllowlist(_tenantId: string): Promise<{ email: string; status: "pending" | "verified" | "revoked" }[]> {
   return [
     { email: "se1@company.com", status: "verified" },
     { email: "se2@company.com", status: "pending" },
   ];
 }
 
-export async function grantAccess(tenantId: string, email: string): Promise<void> {}
-export async function revokeAccess(tenantId: string, email: string): Promise<void> {}
+export async function grantAccess(_tenantId: string, _email: string): Promise<void> {}
+export async function revokeAccess(_tenantId: string, _email: string): Promise<void> {}
 
 // ── CRM ───────────────────────────────────────────────────────────
-export async function getCRMStatus(tenantId: string): Promise<{ connected: boolean }> {
+export async function getCRMStatus(_tenantId: string): Promise<{ connected: boolean }> {
   return { connected: false };
 }
 
 // ── Analytics (matches CONTRACTS.md Role 4 — Khaled) ─────────────
-export async function getAnalyticsSummary(days = 7): Promise<{
+export async function getAnalyticsSummary(_days = 7): Promise<{
   totalEmailsProcessed: number;
   byClassification: Record<string, number>;
   averageConfidence: number;
@@ -63,11 +65,12 @@ export async function getKnowledgeGapAlerts(): Promise<{ id: string; topic: stri
   ];
 }
 
-export async function resolveGap(id: string): Promise<void> {}
+export async function resolveGap(_id: string): Promise<void> {}
 
 // ── SE / Extension (matches CONTRACTS.md Role 2) ─────────────────
-export async function seLogin(googleToken: string): Promise<{ jwt: string } | { error: "invalid_allowlist" }> {
-  return { jwt: "mock-se-jwt-token" };
+// ⚠️ MOCK — POST /auth/se/login does not exist on the backend yet
+export async function seLoginWithCode(_code: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
+  return { token: "mock-se-jwt-token" };
 }
 
 export async function getClientContext(tenantId: string, email: string): Promise<{
@@ -79,15 +82,55 @@ export async function getClientContext(tenantId: string, email: string): Promise
   history: { date: string; type: string; subject: string; summary: string | null }[];
   crmId: string | null;
 }> {
+  // Using import.meta.env for Vite apps. If VITE_API_BASE_URL is undefined, we default to empty string,
+  // which will cause fetch to throw or use relative path. I will report this back to the user.
+  const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || "";
+  const params = new URLSearchParams({ email });
+  const res = await fetch(`${baseUrl}/clients/context?${params.toString()}`, {
+    headers: {
+      "x-tenant-id": tenantId,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch client context: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+
+/**
+ * Get AI-generated reply suggestion for an email thread.
+ * ⚠️ MOCK — POST /ai/process always returns 501
+ * Returns suggested reply + dual confidence scores.
+ *
+ * Mock returns high-confidence data. To test LowConfidenceScreen,
+ * return productConfidence < 70 and historyConfidence < 60.
+ */
+export async function getSuggestion(
+  _tenantId: string,
+  _emailId: string,
+): Promise<{
+  reply: string;
+  productConfidence: number;   // 0–100 integer
+  clientHistoryConfidence: number;   // 0–100 integer
+  hasHallucination: boolean;
+  clientName: string;
+  company: string;
+  role: string;
+  dealStatus: "active" | "prospect";
+  emailTimestamp: string;
+}> {
+  // Mock: swap to low numbers (e.g. 45, 38) to trigger LowConfidenceScreen
   return {
-    isNewClient: false,
-    clientId: "client-mock-001",
-    status: "active",
-    company: "Acme Corp",
-    productsDiscussed: ["Solar Panel X200"],
-    history: [
-      { date: "2026-07-08", type: "inbound", subject: "Pricing inquiry", summary: "Asked about bulk pricing for X200", },
-    ],
-    crmId: "hubspot-mock-123",
+    reply:
+      "Hi Marcus,\n\nThanks for reaching out. Based on our conversation last week, I wanted to follow up on the Solar Panel X200 pricing you requested.\n\nOur standard bulk pricing for 50+ units starts at $2,400/unit with a 90-day delivery window. Happy to arrange a technical demo this week if helpful.\n\nBest,",
+    productConfidence: 82,
+    clientHistoryConfidence: 65,
+    hasHallucination: false,
+    clientName: "Marcus Reid",
+    company: "Brightwave Technologies",
+    role: "VP Engineering",
+    dealStatus: "active",
+    emailTimestamp: new Date().toISOString(),
   };
 }

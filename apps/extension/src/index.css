@@ -1,6 +1,201 @@
 @import "tailwindcss";
 
+/* ── Class-based dark mode: follows prefers-color-scheme via JS in content.tsx ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Bundled fonts (safe offline approach — no CDN in extension) ── */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('./assets/fonts/Fraunces-upright-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  src: url('./assets/fonts/Fraunces-italic-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/fonts/Inter-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./assets/fonts/JetBrainsMono-latin.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Design Tokens (light mode = default) ── */
 @theme {
-  --color-primary: #3b82f6; /* Placeholder primary color */
-  --font-sans: "Inter", system-ui, sans-serif;
+  /* Colors */
+  --color-primary:          #1C1917;
+  --color-primary-hover:    #292524;
+  --color-accent:           #3F6C51;
+  --color-accent-hover:     #345A43;
+  --color-accent-light:     #EAF1EC;
+
+  --color-surface:          #FFFFFF;
+  --color-surface-secondary: #F5F1E8;
+  --color-surface-tertiary: #FAF8F3;
+
+  --color-border:           #E7E2D6;
+  --color-border-focus:     #3F6C51;
+
+  --color-text-primary:     #1C1917;
+  --color-text-secondary:   #57534E;
+  --color-text-tertiary:    #78716C;
+  --color-text-on-primary:  #F5F1E8;
+
+  --color-success:          #3F6C51;
+  --color-success-light:    #EAF1EC;
+  --color-warning:          #A16207;
+  --color-warning-light:    #FEF9C3;
+  --color-danger:           #B7410E;
+  --color-danger-light:     #FBEAE3;
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* Fonts */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* ── Dark mode overrides (warm charcoal — never pure black) ── */
+.dark {
+  --color-primary:          #F5F1E8;
+  --color-primary-hover:    #EDE7D9;
+  --color-accent:           #6B9E80;
+  --color-accent-hover:     #7FB093;
+  --color-accent-light:     rgba(107, 158, 128, 0.14);
+
+  --color-surface:          #262420;
+  --color-surface-secondary: #1C1B17;
+  --color-surface-tertiary: #2E2C27;
+
+  --color-border:           #3D3A34;
+  --color-border-focus:     #6B9E80;
+
+  --color-text-primary:     #F5F1E8;
+  --color-text-secondary:   #C7C2B8;
+  --color-text-tertiary:    #8F8A7F;
+  --color-text-on-primary:  #1C1917;
+
+  --color-success:          #6B9E80;
+  --color-success-light:    rgba(107, 158, 128, 0.14);
+  --color-warning:          #D9A441;
+  --color-warning-light:    rgba(217, 164, 65, 0.14);
+  --color-danger:           #E2795A;
+  --color-danger-light:     rgba(226, 121, 90, 0.14);
+}
+
+/* ── Base ── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ── Typography utilities ── */
+@layer components {
+  .font-display  { font-family: var(--font-display); }
+  .font-body     { font-family: var(--font-body); }
+  .font-mono     { font-family: var(--font-mono); }
+
+  /* Eyebrow label — tiny uppercase above a serif heading */
+  .text-eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.6875rem;      /* 11px */
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    line-height: 1.2;
+  }
+
+  /* The ONE hero numeral per screen (confidence %, analytics stat) */
+  .text-numeral-display {
+    font-family: var(--font-display);
+    font-size: 2.5rem;          /* 40px */
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  /* Serif heading for full-panel emotional states */
+  .text-heading {
+    font-family: var(--font-display);
+    font-size: 1.375rem;        /* 22px — comfortable in 360px panel */
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+  }
+
+  .text-subheading {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;       /* 15px */
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .text-body {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  .text-caption {
+    font-family: var(--font-body);
+    font-size: 0.8125rem;       /* 13px */
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  .text-small {
+    font-family: var(--font-body);
+    font-size: 0.75rem;         /* 12px */
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+  }
+
+  .text-mono {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+}
+
+/* ── Shimmer animation for skeleton screens ── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
 }
