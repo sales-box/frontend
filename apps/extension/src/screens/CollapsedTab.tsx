@@ -31,6 +31,7 @@ export function CollapsedTab({ onExpand, collapseMode = false }: CollapsedTabPro
         w-10 h-full min-h-[120px]
         flex flex-col items-center justify-center gap-3
         bg-[var(--color-surface)] border-l border-[var(--color-border)]
+        shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.1)]
         cursor-pointer select-none
         hover:bg-[var(--color-surface-tertiary)]
         transition-colors duration-150

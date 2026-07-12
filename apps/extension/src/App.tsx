@@ -180,7 +180,10 @@ export default function App({ panelHost }: AppProps = {}) {
   // The tab strip stays visible so the user can click it to collapse the
   // panel again — same affordance as expanding it.
   return (
-    <div style={{ display: 'flex', height: '100%', alignItems: 'stretch' }}>
+    <div 
+      className="shadow-[-12px_0_24px_-12px_rgba(0,0,0,0.15)]"
+      style={{ display: 'flex', height: '100%', alignItems: 'stretch' }}
+    >
       {/* Collapse toggle — same tab the user clicked to open */}
       <CollapsedTab onExpand={handleClose} collapseMode />
 
