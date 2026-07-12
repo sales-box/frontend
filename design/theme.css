@@ -1,0 +1,284 @@
+/* ============================================================
+   Inbox Sales Copilot — Design Tokens (Tailwind v4)
+   Source of truth: DESIGN.md — do NOT hand-edit hex values here
+   without updating DESIGN.md first.
+
+   Verified against official Tailwind v4 docs (tailwindcss.com/docs/theme
+   and tailwindcss.com/docs/functions-and-directives):
+   - Colors/fonts/radius live directly inside @theme (light values).
+   - Dark mode overrides the SAME custom property names inside .dark{}
+     — this is the documented pattern, no @theme inline needed here
+     since we're not renaming any variables.
+   ============================================================ */
+
+@import "tailwindcss";
+
+/* Class-based dark mode (toggle via <html class="dark">) instead of
+   the default prefers-color-scheme media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Fonts ----------
+  Add to index.html <head>:
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+------------------------------------------------------------------------- */
+
+@theme {
+  /* ── Colors (light mode = default, from DESIGN.md) ── */
+  --color-primary: #1C1917;
+  --color-primary-hover: #292524;
+  --color-accent: #3F6C51;
+  --color-accent-hover: #345A43;
+  --color-accent-light: #EAF1EC;
+
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F1E8;
+  --color-surface-tertiary: #FAF8F3;
+
+  --color-border: #E7E2D6;
+  --color-border-focus: #3F6C51;
+
+  --color-text-primary: #1C1917;
+  --color-text-secondary: #57534E;
+  --color-text-tertiary: #78716C;
+  --color-text-on-primary: #F5F1E8;
+
+  --color-success: #3F6C51;
+  --color-success-light: #EAF1EC;
+  --color-warning: #A16207;
+  --color-warning-light: #FEF9C3;
+  --color-danger: #B7410E;
+  --color-danger-light: #FBEAE3;
+
+  --color-overlay: rgba(28, 25, 23, 0.5);
+
+  /* ── Radius (DESIGN.md → rounded) ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ── Spacing scale (DESIGN.md → spacing) ── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* ── Fonts ── */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ---------- Dark mode overrides ----------
+   Same custom property names as @theme above — Tailwind's generated
+   utilities (bg-primary, text-accent, etc.) reference these CSS vars,
+   so redeclaring them here is enough; no utility-class changes needed.
+------------------------------------------------------------------------- */
+.dark {
+  --color-primary: #F5F1E8;
+  --color-primary-hover: #EDE7D9;
+  --color-accent: #6B9E80;
+  --color-accent-hover: #7FB093;
+  --color-accent-light: rgba(107, 158, 128, 0.14);
+
+  --color-surface: #262420;
+  --color-surface-secondary: #1C1B17;
+  --color-surface-tertiary: #2E2C27;
+
+  --color-border: #3D3A34;
+  --color-border-focus: #6B9E80;
+
+  --color-text-primary: #F5F1E8;
+  --color-text-secondary: #C7C2B8;
+  --color-text-tertiary: #8F8A7F;
+  --color-text-on-primary: #1C1917;
+
+  --color-success: #6B9E80;
+  --color-success-light: rgba(107, 158, 128, 0.14);
+  --color-warning: #D9A441;
+  --color-warning-light: rgba(217, 164, 65, 0.14);
+  --color-danger: #E2795A;
+  --color-danger-light: rgba(226, 121, 90, 0.14);
+
+  --color-overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Base element defaults ---------- */
+@layer base {
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+  }
+}
+
+/* ---------- Typography utility classes (DESIGN.md → typography) ----------
+   Rule of thumb from DESIGN.md: ONE serif moment per screen.
+   e.g. <h1 class="text-display">Reply <em class="text-display-italic">smarter</em>.</h1>
+------------------------------------------------------------------------- */
+@layer components {
+  .text-display {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 400;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+
+  .text-display-italic {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    /* ONE emotional word/phrase per headline — never a full sentence */
+  }
+
+  .text-heading {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+  }
+
+  .text-subheading {
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .text-numeral-display {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 400;
+    line-height: 1;
+    /* ONE hero stat per screen — Analytics top metric, Briefing Sheet confidence */
+  }
+
+  .text-eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    /* Pair above a .text-display / .text-heading / .text-numeral-display element */
+  }
+
+  .text-body {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  .text-body-italic {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    /* Pull-quote lines only */
+  }
+
+  .text-caption {
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  .text-small {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+  }
+
+  .text-mono {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+    /* Table cells, IDs, timestamps, raw counts — the "scan" register */
+  }
+}
+
+/* ---------- Component primitives (DESIGN.md → components) ---------- */
+@layer components {
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-on-primary);
+    border-radius: var(--radius-sm);
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+    /* Ink-filled, not colored — editorial confidence, not another indigo SaaS button */
+  }
+  .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 24px;
+  }
+
+  .btn-danger {
+    background-color: var(--color-danger);
+    color: #FFFFFF;
+    border-radius: var(--radius-sm);
+    padding: 12px 24px;
+  }
+
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: none;
+    /* Flat — definition comes from the border, not a shadow */
+  }
+
+  .input {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-border-focus);
+  }
+
+  .badge-success {
+    background-color: var(--color-success-light);
+    color: var(--color-success);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+  }
+  .badge-warning {
+    background-color: var(--color-warning-light);
+    color: var(--color-warning);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+  }
+  .badge-danger {
+    background-color: var(--color-danger-light);
+    color: var(--color-danger);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+  }
+}
