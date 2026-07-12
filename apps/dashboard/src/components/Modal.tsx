@@ -18,6 +18,8 @@ export function Modal({ open, onClose, title, children, footer }: {
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const titleId = useId();
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function Modal({ open, onClose, title, children, footer }: {
     focusable()[0]?.focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
+      if (e.key === "Escape") { e.preventDefault(); onCloseRef.current(); return; }
       if (e.key === "Tab") {
         const els = focusable();
         if (els.length === 0) return;
@@ -51,7 +53,7 @@ export function Modal({ open, onClose, title, children, footer }: {
       scroller.style.overflow = prevOverflow;
       prevFocus.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
