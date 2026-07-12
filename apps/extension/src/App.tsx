@@ -181,8 +181,12 @@ export default function App({ panelHost }: AppProps = {}) {
   // panel again — same affordance as expanding it.
   return (
     <div 
-      className="shadow-[-12px_0_24px_-12px_rgba(0,0,0,0.15)]"
-      style={{ display: 'flex', height: '100%', alignItems: 'stretch' }}
+      style={{ 
+        display: 'flex', 
+        height: '100%', 
+        alignItems: 'stretch',
+        boxShadow: '-8px 0 24px rgba(0, 0, 0, 0.1)'
+      }}
     >
       {/* Collapse toggle — same tab the user clicked to open */}
       <CollapsedTab onExpand={handleClose} collapseMode />

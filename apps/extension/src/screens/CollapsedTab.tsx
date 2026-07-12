@@ -31,12 +31,12 @@ export function CollapsedTab({ onExpand, collapseMode = false }: CollapsedTabPro
         w-10 h-full min-h-[120px]
         flex flex-col items-center justify-center gap-3
         bg-[var(--color-surface)] border-l border-[var(--color-border)]
-        shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.1)]
         cursor-pointer select-none
         hover:bg-[var(--color-surface-tertiary)]
         transition-colors duration-150
         rounded-l-[var(--radius-lg)]
       "
+      style={{ boxShadow: '-8px 0 24px rgba(0, 0, 0, 0.1)' }}
     >
       {/* Logo mark */}
       <div className="w-6 h-6 rounded-[var(--radius-md)] bg-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
