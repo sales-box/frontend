@@ -1,4 +1,4 @@
 export type Screen =
-  | "landing" | "signin" | "signup" | "verify" | "auth-callback" | "overview"
-  | "knowledge-base" | "team" | "crm" | "analytics"
+  | "landing" | "signin" | "signup" | "verify" | "auth-callback" | "set-password"
+  | "overview" | "knowledge-base" | "team" | "crm" | "analytics"
   | "clients" | "client-record";

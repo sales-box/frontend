@@ -25,12 +25,12 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
 
     if (status === "connected") {
       setState("success");
-      setMessage("Google account connected successfully.");
       if (isLoggedIn()) {
+        setMessage("Google account connected successfully. Redirecting…");
         setTimeout(() => onNav("overview"), 1500);
       } else {
-        setMessage("Google account connected. Redirecting to sign in…");
-        setTimeout(() => onNav("signin"), 2000);
+        setMessage("Google account connected! Set your password to continue.");
+        setTimeout(() => onNav("set-password"), 2000);
       }
       return;
     }
