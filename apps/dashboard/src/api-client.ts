@@ -4,7 +4,10 @@ let _jwt: string | null = sessionStorage.getItem("jwt");
 let _tid: string | null = sessionStorage.getItem("tenantId");
 
 function authHeaders(): Record<string, string> {
-  return _jwt ? { Authorization: `Bearer ${_jwt}` } : {};
+  const h: Record<string, string> = {};
+  if (_jwt) h["Authorization"] = `Bearer ${_jwt}`;
+  if (_tid) h["x-tenant-id"] = _tid;
+  return h;
 }
 
 function tenantId(): string {
