@@ -4,6 +4,7 @@ import {
   ChevronLeft, ChevronRight, Contact,
 } from "lucide-react";
 import type { Screen } from "../types";
+import { getUserInfo } from "../api-client";
 
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "overview", icon: <LayoutDashboard size={18} strokeWidth={1.5} />, label: "Overview" },
@@ -33,6 +34,7 @@ function useIsMobile() {
 export function Shell({ active, onNav, onLogout, children }: {
   active: Screen; onNav: (s: Screen) => void; onLogout?: () => void; children: ReactNode;
 }) {
+  const user = getUserInfo();
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -97,7 +99,7 @@ export function Shell({ active, onNav, onLogout, children }: {
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0"><Inbox size={16} strokeWidth={1.5} className="text-text-on-primary" /></div>
           <div className={`min-w-0 flex-1 ${hideLabel}`}>
             <div className="font-display font-semibold text-sm text-text-primary truncate">Inbox Copilot</div>
-            <div className="text-xs text-text-tertiary truncate">Acme Corp</div>
+            <div className="text-xs text-text-tertiary truncate">{user.email.split("@")[1] ?? ""}</div>
           </div>
           <button onClick={close} aria-label="Close navigation menu" className={`md:hidden text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>
             <X size={17} strokeWidth={1.5} />
@@ -126,10 +128,10 @@ export function Shell({ active, onNav, onLogout, children }: {
         {/* Profile */}
         <div className="px-3 py-3">
           <div className={`flex items-center gap-2.5 px-2 py-1.5 ${collapsed ? "md:justify-center md:px-0" : ""}`}>
-            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">JD</div>
+            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">{user.initials}</div>
             <div className={`flex-1 min-w-0 ${hideLabel}`}>
-              <div className="text-xs font-medium text-text-primary truncate">Jane Doe</div>
-              <div className="text-xs text-text-tertiary">Admin</div>
+              <div className="text-xs font-medium text-text-primary truncate">{user.name}</div>
+              <div className="text-xs text-text-tertiary">{user.isAdmin ? "Admin" : "User"}</div>
             </div>
             <button
               onClick={onLogout}

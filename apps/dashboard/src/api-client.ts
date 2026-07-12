@@ -281,3 +281,20 @@ export function clearSession() {
 export function isLoggedIn(): boolean {
   return !!_jwt;
 }
+
+export interface UserInfo {
+  email: string;
+  name: string;
+  initials: string;
+  isAdmin: boolean;
+}
+
+export function getUserInfo(): UserInfo {
+  if (!_jwt) return { email: "", name: "User", initials: "U", isAdmin: false };
+  const p = parseJwtPayload(_jwt);
+  const email = (p.email as string) ?? "";
+  const name = email ? email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "User";
+  const parts = name.split(" ");
+  const initials = parts.map(w => w[0]?.toUpperCase() ?? "").join("").slice(0, 2) || "U";
+  return { email, name, initials, isAdmin: !!(p.isAdmin) };
+}

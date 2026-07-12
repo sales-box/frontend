@@ -13,7 +13,7 @@ export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
   const [searchParams] = useSearchParams();
   const [resent, setResent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const emailParam = searchParams.get("email") ?? "jane@acme.com";
+  const emailParam = searchParams.get("email") ?? "";
   const tokenParam = searchParams.get("token");
 
   useEffect(() => {
