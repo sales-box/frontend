@@ -2,6 +2,7 @@ import { useEffect, useReducer, useCallback } from 'react'
 import { seLoginWithCode, getSuggestion } from '@inbox-sales/shared'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
+import { InboxStatsScreen, type InboxStatsData } from './screens/InboxStatsScreen'
 
 import { CollapsedTab }       from './screens/CollapsedTab'
 import { AuthScreen }         from './screens/AuthScreen'
@@ -17,6 +18,7 @@ type PanelState =
   | { type: 'auth' }
   | { type: 'invalid'; email?: string }
   | { type: 'loading' }
+  | { type: 'stats'; data: InboxStatsData }
   | { type: 'briefing'; data: BriefingData }
   | { type: 'low-confidence'; data: LowConfidenceData }
   | { type: 'revoked' }
@@ -28,6 +30,7 @@ type PanelAction =
   | { type: 'AUTH_SUCCESS' }
   | { type: 'REVOKED' }
   | { type: 'LOAD_BRIEFING' }
+  | { type: 'SHOW_STATS'; data: InboxStatsData }
   | { type: 'SHOW_BRIEFING'; data: BriefingData }
   | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
   | { type: 'RESET' }
@@ -40,6 +43,7 @@ function panelReducer(state: PanelState, action: PanelAction): PanelState {
     case 'AUTH_SUCCESS':  return { type: 'loading' }
     case 'REVOKED':       return { type: 'revoked' }
     case 'LOAD_BRIEFING': return { type: 'loading' }
+    case 'SHOW_STATS':    return { type: 'stats', data: action.data }
     case 'SHOW_BRIEFING': return { type: 'briefing', data: action.data }
     case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
     case 'RESET':         return { type: 'auth' }
@@ -117,7 +121,7 @@ export default function App({ panelHost }: AppProps = {}) {
     dispatch({ type: 'AUTH_SUCCESS' })
     try {
       // In the real extension, we'll receive a Google auth code from the OAuth popup.
-      // For now, mock it.
+      // For now, mock it. DO NOT CHANGE — Karim owns the real auth flow.
       const result = await seLoginWithCode('mock-google-auth-code')
 
       if ('error' in result) {
@@ -129,7 +133,25 @@ export default function App({ panelHost }: AppProps = {}) {
       // Store JWT for persistence
       const tenantId = 'mock-tenant-001'
       await chrome.storage.local.set({ jwt: result.token, tenantId })
-      await loadSuggestion(tenantId, 'current-email')
+
+      // Real inbox stats — independent of the mocked auth above.
+      // Background worker owns chrome.identity + the real backend fetch (CORS-exempt).
+      const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
+      if (statsResult?.error) {
+        // Real failure — surface it, do NOT silently fall back to mock briefing.
+        console.error('[Copilot] Inbox stats failed:', statsResult.error)
+        dispatch({ type: 'AUTH_FAILED' })
+        return
+      }
+
+      dispatch({
+        type: 'SHOW_STATS',
+        data: {
+          totalEmails: statsResult.totalEmails,
+          processedByAI: 0, // ⚠️ MOCK — /ai/process is still a 501 stub on the backend
+          syncedAt: statsResult.syncedAt,
+        },
+      })
     } catch {
       dispatch({ type: 'AUTH_FAILED' })
     }
@@ -209,6 +231,19 @@ export default function App({ panelHost }: AppProps = {}) {
 
             case 'loading':
               return <LoadingScreen />
+
+            case 'stats':
+              return (
+                <InboxStatsScreen
+                  data={panel.data}
+                  onClose={handleClose}
+                  onContinue={async () => {
+                    dispatch({ type: 'LOAD_BRIEFING' })
+                    const { tenantId } = await chrome.storage.local.get('tenantId')
+                    if (tenantId) await loadSuggestion(tenantId, 'current-email')
+                  }}
+                />
+              )
 
             case 'briefing':
               return (

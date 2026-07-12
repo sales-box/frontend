@@ -3,14 +3,20 @@
   "name": "Inbox Sales Copilot",
   "version": "1.0.0",
   "description": "AI-powered sales reply assistant for Gmail",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
+  "permissions": ["activeTab", "scripting", "storage", "identity"],
   "host_permissions": [
-    "https://mail.google.com/*"
+    "https://mail.google.com/*",
+    "https://salesbox.dev/*",
+    "http://localhost:3000/*"
   ],
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "oauth2": {
+    "client_id": "1050030057920-obg6q5m8qiuv1v05au6dd9li845qo3gr.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
