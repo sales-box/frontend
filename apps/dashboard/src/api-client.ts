@@ -42,15 +42,15 @@ export const auth = {
   },
 
   adminLogin: (email: string, password: string) =>
-    request<{ token: string; tenantId: string }>("/auth/admin/login", {
+    request<{ token: string }>("/auth/admin/login", {
       method: "POST",
       ...json({ email, password }),
     }),
 
-  setPassword: (email: string, password: string) =>
-    request<{ success: boolean }>("/auth/admin/set-password", {
+  setPassword: (email: string, password: string, tenantId: string) =>
+    request<{ linked: true }>("/auth/admin/set-password", {
       method: "POST",
-      ...json({ email, password }),
+      ...json({ email, password, tenantId }),
     }),
 };
 
@@ -233,11 +233,20 @@ export const analytics = {
 
 // ─── Session helpers ─────────────────────────────────────────
 
-export function saveSession(token: string, tid: string) {
+function parseJwtPayload(token: string): Record<string, unknown> {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return {};
+  }
+}
+
+export function saveSession(token: string, tid?: string) {
+  const payload = parseJwtPayload(token);
   _jwt = token;
-  _tid = tid;
+  _tid = tid ?? (payload.tenantId as string) ?? null;
   sessionStorage.setItem("jwt", token);
-  sessionStorage.setItem("tenantId", tid);
+  if (_tid) sessionStorage.setItem("tenantId", _tid);
 }
 
 export function clearSession() {

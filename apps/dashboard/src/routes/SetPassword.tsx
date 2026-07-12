@@ -8,41 +8,44 @@ import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
 
 export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
   const [email, setEmail] = useState(params.get("email") ?? "");
+  const [tenantId, setTenantId] = useState(params.get("tenantId") ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [touched, setTouched] = useState({ email: false, password: false, confirm: false });
+  const [touched, setTouched] = useState({ email: false, tenantId: false, password: false, confirm: false });
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [done, setDone] = useState(false);
 
   const errs = {
     email: !email.trim() ? "Email is required" : !EMAIL_RE.test(email) ? "Enter a valid email" : "",
+    tenantId: !tenantId.trim() ? "Tenant ID is required" : !UUID_RE.test(tenantId) ? "Enter a valid tenant ID" : "",
     password: !password ? "Password is required" : password.length < 8 ? "Minimum 8 characters" : "",
     confirm: confirm !== password ? "Passwords don't match" : "",
   };
-  const valid = !errs.email && !errs.password && !errs.confirm;
+  const valid = !errs.email && !errs.tenantId && !errs.password && !errs.confirm;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setTouched({ email: true, password: true, confirm: true });
+    setTouched({ email: true, tenantId: true, password: true, confirm: true });
     if (!valid) return;
 
     setSubmitting(true);
     setServerError("");
     try {
-      await auth.setPassword(email, password);
+      await auth.setPassword(email, password, tenantId);
       setDone(true);
       setTimeout(() => onNav("signin"), 2000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("404")) {
-        setServerError("No Google account found for this email. Connect Google first.");
+      if (msg.includes("400")) {
+        setServerError("Tenant is not active or Google account not connected yet.");
       } else if (msg.includes("409")) {
         setServerError("Password already set. Sign in instead.");
       } else {
@@ -90,6 +93,17 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
               onBlur={() => setTouched(t => ({ ...t, email: true }))}
               error={touched.email ? errs.email : ""}
               autoComplete="email"
+              required
+            />
+
+            <FormInput
+              label="Tenant ID"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={tenantId}
+              onChange={v => { setTenantId(v); setServerError(""); }}
+              onBlur={() => setTouched(t => ({ ...t, tenantId: true }))}
+              error={touched.tenantId ? errs.tenantId : ""}
+              hint="Your company's tenant ID from signup"
               required
             />
 

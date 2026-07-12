@@ -32,7 +32,7 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
     setServerError("");
     try {
       const res = await auth.adminLogin(email, password);
-      saveSession(res.token, res.tenantId);
+      saveSession(res.token);
       onNav("overview");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";
