@@ -78,9 +78,17 @@ export async function getClientContext(tenantId: string, email: string): Promise
   clientId: string | null;
   status: string;
   company: string;
-  productsDiscussed: string[];
-  history: { date: string; type: string; subject: string; summary: string | null }[];
   crmId: string | null;
+  // NOTE: no productsDiscussed — field does not exist on this endpoint.
+  // NOTE: no confidence fields — those only come from getSuggestion.
+  history: {
+    date: string;
+    type: string;
+    subject: string;
+    summary: string | null;
+    classification: string | null;   // added: real backend returns this
+    recommendation: string | null;   // added: real backend returns this
+  }[];
 }> {
   // Using import.meta.env for Vite apps. If VITE_API_BASE_URL is undefined, we default to empty string,
   // which will cause fetch to throw or use relative path. I will report this back to the user.
@@ -103,8 +111,11 @@ export async function getClientContext(tenantId: string, email: string): Promise
  * ⚠️ MOCK — POST /ai/process always returns 501
  * Returns suggested reply + dual confidence scores.
  *
+ * Confidence fields (productConfidence, clientHistoryConfidence) come ONLY
+ * from this endpoint — never from getClientContext.
+ *
  * Mock returns high-confidence data. To test LowConfidenceScreen,
- * return productConfidence < 70 and historyConfidence < 60.
+ * return productConfidence < 70 and clientHistoryConfidence < 60.
  */
 export async function getSuggestion(
   _tenantId: string,
