@@ -1,122 +1,227 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useReducer, useCallback } from 'react'
+import { seLoginWithCode, getSuggestion } from '@inbox-sales/shared'
+import type { BriefingData } from './screens/BriefingSheet'
+import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 
-function App() {
-  const [count, setCount] = useState(0)
+import { CollapsedTab }       from './screens/CollapsedTab'
+import { AuthScreen }         from './screens/AuthScreen'
+import { InvalidScreen }      from './screens/InvalidScreen'
+import { LoadingScreen }      from './screens/LoadingScreen'
+import { BriefingSheet }      from './screens/BriefingSheet'
+import { LowConfidenceScreen }from './screens/LowConfidenceScreen'
+import { RevokedScreen }      from './screens/RevokedScreen'
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// ── State machine ──────────────────────────────────────────────────────────
+type PanelState =
+  | { type: 'collapsed' }
+  | { type: 'auth' }
+  | { type: 'invalid'; email?: string }
+  | { type: 'loading' }
+  | { type: 'briefing'; data: BriefingData }
+  | { type: 'low-confidence'; data: LowConfidenceData }
+  | { type: 'revoked' }
 
-      <div className="ticks"></div>
+type PanelAction =
+  | { type: 'EXPAND' }
+  | { type: 'COLLAPSE' }
+  | { type: 'AUTH_FAILED'; email?: string }
+  | { type: 'AUTH_SUCCESS' }
+  | { type: 'REVOKED' }
+  | { type: 'LOAD_BRIEFING' }
+  | { type: 'SHOW_BRIEFING'; data: BriefingData }
+  | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
+  | { type: 'RESET' }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function panelReducer(state: PanelState, action: PanelAction): PanelState {
+  switch (action.type) {
+    case 'EXPAND':        return { type: 'auth' }
+    case 'COLLAPSE':      return { type: 'collapsed' }
+    case 'AUTH_FAILED':   return { type: 'invalid', email: action.email }
+    case 'AUTH_SUCCESS':  return { type: 'loading' }
+    case 'REVOKED':       return { type: 'revoked' }
+    case 'LOAD_BRIEFING': return { type: 'loading' }
+    case 'SHOW_BRIEFING': return { type: 'briefing', data: action.data }
+    case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
+    case 'RESET':         return { type: 'auth' }
+    default:              return state
+  }
 }
 
-export default App
+// ── Confidence threshold for low-confidence state ──────────────────────────
+const CONFIDENCE_THRESHOLD = 60
+
+// ── Main component ─────────────────────────────────────────────────────────
+export default function App() {
+  const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
+
+  // On mount: we no longer auto-expand. We just wait for user action.
+  useEffect(() => {
+    // Intentionally empty. Decoupled auth state from panel expansion.
+  }, [])
+
+  const loadSuggestion = useCallback(async (tenantId: string, emailId: string) => {
+    try {
+      const suggestion = await getSuggestion(tenantId, emailId)
+      const isLowConfidence =
+        suggestion.productConfidence < CONFIDENCE_THRESHOLD ||
+        suggestion.clientHistoryConfidence < CONFIDENCE_THRESHOLD ||
+        suggestion.hasHallucination
+
+      if (isLowConfidence) {
+        dispatch({
+          type: 'SHOW_LOW_CONFIDENCE',
+          data: {
+            clientName:              suggestion.clientName,
+            company:                 suggestion.company,
+            role:                    suggestion.role,
+            emailTimestamp:          suggestion.emailTimestamp,
+            productConfidence:       suggestion.productConfidence,
+            clientHistoryConfidence: suggestion.clientHistoryConfidence,
+            missingContext: {
+              hasProductDocs:     suggestion.productConfidence >= CONFIDENCE_THRESHOLD,
+              hasPreviousEmails:  suggestion.clientHistoryConfidence >= CONFIDENCE_THRESHOLD,
+              hasAccountHistory:  suggestion.clientHistoryConfidence >= 50,
+            },
+          },
+        })
+      } else {
+        dispatch({
+          type: 'SHOW_BRIEFING',
+          data: {
+            clientName:              suggestion.clientName,
+            company:                 suggestion.company,
+            role:                    suggestion.role,
+            dealStatus:              suggestion.dealStatus,
+            emailTimestamp:          suggestion.emailTimestamp,
+            productConfidence:       suggestion.productConfidence,
+            clientHistoryConfidence: suggestion.clientHistoryConfidence,
+            suggestedReply:          suggestion.reply,
+          },
+        })
+      }
+    } catch (err) {
+      console.error('[Copilot] Failed to load suggestion:', err)
+      dispatch({ type: 'RESET' })
+    }
+  }, [])
+
+  // ── Auth flow ────────────────────────────────────────────────────────────
+  const handleSignIn = useCallback(async () => {
+    dispatch({ type: 'AUTH_SUCCESS' })
+    try {
+      // In the real extension, we'll receive a Google auth code from the OAuth popup.
+      // For now, mock it.
+      const result = await seLoginWithCode('mock-google-auth-code')
+
+      if ('error' in result) {
+        // invalid_allowlist — not on the approved SE list
+        dispatch({ type: 'AUTH_FAILED' })
+        return
+      }
+
+      // Store JWT for persistence
+      const tenantId = 'mock-tenant-001'
+      await chrome.storage.local.set({ jwt: result.token, tenantId })
+      await loadSuggestion(tenantId, 'current-email')
+    } catch {
+      dispatch({ type: 'AUTH_FAILED' })
+    }
+  }, [loadSuggestion])
+
+  const handleRefresh = useCallback(async () => {
+    dispatch({ type: 'LOAD_BRIEFING' })
+    const { tenantId } = await chrome.storage.local.get('tenantId')
+    if (tenantId) await loadSuggestion(tenantId, 'current-email')
+  }, [loadSuggestion])
+
+  const handleClose = useCallback(() => dispatch({ type: 'COLLAPSE' }), [])
+  const handleSwitchAccount = useCallback(async () => {
+    await chrome.storage.local.remove(['jwt', 'tenantId'])
+    dispatch({ type: 'RESET' })
+  }, [])
+
+  const handleExpand = useCallback(async () => {
+    dispatch({ type: 'EXPAND' })
+    const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
+    if (jwt && tenantId) {
+      dispatch({ type: 'LOAD_BRIEFING' })
+      await loadSuggestion(tenantId, 'current-email')
+    }
+  }, [loadSuggestion])
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  if (panel.type === 'collapsed') {
+    return <CollapsedTab onExpand={handleExpand} />
+  }
+
+  const panelClasses = `
+    w-[360px] h-full flex flex-col
+    bg-[var(--color-surface)]
+    border-l border-[var(--color-border)]
+    text-[var(--color-text-primary)]
+    overflow-hidden
+  `
+
+  return (
+    <div id="inbox-copilot-panel" className={panelClasses} style={{ fontFamily: 'var(--font-body)' }}>
+      {(() => {
+        switch (panel.type) {
+          case 'auth':
+            return <AuthScreen onClose={handleClose} onSignIn={handleSignIn} />
+
+          case 'invalid':
+            return (
+              <InvalidScreen
+                email={panel.email}
+                onClose={handleClose}
+                onSwitchAccount={handleSwitchAccount}
+              />
+            )
+
+          case 'loading':
+            return <LoadingScreen />
+
+          case 'briefing':
+            return (
+              <BriefingSheet
+                data={panel.data}
+                onClose={handleClose}
+                onRefresh={handleRefresh}
+                onSend={(reply) => {
+                  // TODO: inject reply into Gmail compose
+                  console.log('[Copilot] Send reply:', reply)
+                }}
+                onEditInGmail={() => {
+                  // TODO: focus Gmail compose window
+                  console.log('[Copilot] Open in Gmail compose')
+                }}
+              />
+            )
+
+          case 'low-confidence':
+            return (
+              <LowConfidenceScreen
+                data={panel.data}
+                onClose={handleClose}
+                onRefresh={handleRefresh}
+                onComposeManually={() => {
+                  // TODO: focus Gmail compose
+                  console.log('[Copilot] Compose manually')
+                }}
+                onUploadDoc={() => {
+                  // Open admin dashboard KB upload in new tab
+                  chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
+                }}
+              />
+            )
+
+          case 'revoked':
+            return <RevokedScreen onClose={handleClose} />
+
+          default:
+            return null
+        }
+      })()}
+    </div>
+  )
+}

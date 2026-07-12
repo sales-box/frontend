@@ -101,3 +101,20 @@ docker-compose.override.yml
 # Misc
 # =========================
 *.pem
+
+# =========================
+# Generated & AI Tool Files
+# =========================
+repomix-output.xml
+repomix-output.txt
+repomix-output.md
+.cursor/
+.claude/
+
+# =========================
+# Local Reference & Assets
+# =========================
+docs/
+design/*
+!design/theme.css
+DESIGN.mdInpox_Sales_Copilot_API_Endpoints.updated.json

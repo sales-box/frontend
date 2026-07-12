@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Inbox Sales Copilot",
   "version": "1.0.0",
-  "description": "Sales Copilot for Gmail",
+  "description": "AI-powered sales reply assistant for Gmail",
   "permissions": [
     "activeTab",
     "scripting",
@@ -15,6 +15,17 @@
     {
       "matches": ["https://mail.google.com/*"],
       "js": ["src/content.tsx"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/assets/fonts/Fraunces-upright-latin.woff2",
+        "src/assets/fonts/Fraunces-italic-latin.woff2",
+        "src/assets/fonts/Inter-latin.woff2",
+        "src/assets/fonts/JetBrainsMono-latin.woff2"
+      ],
+      "matches": ["https://mail.google.com/*"]
     }
   ]
 }
