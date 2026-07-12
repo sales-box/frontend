@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inbox-sales/shared": "^1.0.0",
+    "@inbox-sales/shared": "workspace:*",
     "@tailwindcss/vite": "^4.3.2",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",

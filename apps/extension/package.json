@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inbox-sales/shared": "^1.0.0",
+    "@inbox-sales/shared": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
