@@ -16,7 +16,7 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   const [showPass, setShowPass] = useState(false);
   const [touched, setTouched] = useState({ company: false, email: false, password: false });
   const [submitting, setSubmitting] = useState(false);
-  const [_serverError, setServerError] = useState("");
+  const [serverError, setServerError] = useState("");
 
   const errs = {
     company: !company.trim() ? "Company name is required" : "",
@@ -99,6 +99,10 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
                 </button>
               }
             />
+            {serverError && (
+              <p className="text-xs text-danger text-center">{serverError}</p>
+            )}
+
             <Btn type="submit" variant="primary" size="lg" className="w-full" loading={submitting}>
               {submitting ? "Creating account…" : "Create account"}
             </Btn>
