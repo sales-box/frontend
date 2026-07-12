@@ -51,7 +51,14 @@ function panelReducer(state: PanelState, action: PanelAction): PanelState {
 const CONFIDENCE_THRESHOLD = 60
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function App() {
+interface AppProps {
+  /** The host element in Gmail's real DOM that content.tsx created.
+   *  App.tsx dispatches custom events on it to trigger syncGmailLayout
+   *  without reaching outside the shadow root itself. */
+  panelHost?: HTMLElement
+}
+
+export default function App({ panelHost }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
 
   // On mount: we no longer auto-expand. We just wait for user action.
@@ -134,20 +141,25 @@ export default function App() {
     if (tenantId) await loadSuggestion(tenantId, 'current-email')
   }, [loadSuggestion])
 
-  const handleClose = useCallback(() => dispatch({ type: 'COLLAPSE' }), [])
+  const handleClose = useCallback(() => {
+    panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
+    dispatch({ type: 'COLLAPSE' })
+  }, [panelHost])
   const handleSwitchAccount = useCallback(async () => {
     await chrome.storage.local.remove(['jwt', 'tenantId'])
     dispatch({ type: 'RESET' })
   }, [])
 
   const handleExpand = useCallback(async () => {
+    // Notify content.tsx to push Gmail layout before the panel renders
+    panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
     dispatch({ type: 'EXPAND' })
     const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
     if (jwt && tenantId) {
       dispatch({ type: 'LOAD_BRIEFING' })
       await loadSuggestion(tenantId, 'current-email')
     }
-  }, [loadSuggestion])
+  }, [loadSuggestion, panelHost])
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (panel.type === 'collapsed') {
@@ -155,7 +167,7 @@ export default function App() {
   }
 
   const panelClasses = `
-    w-[360px] h-full flex flex-col
+    w-[var(--panel-open-width)] h-full flex flex-col
     bg-[var(--color-surface)]
     border-l border-[var(--color-border)]
     text-[var(--color-text-primary)]
