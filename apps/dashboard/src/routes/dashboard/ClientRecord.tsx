@@ -6,7 +6,6 @@ import { clients, type Client, type Interaction } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
-import { Btn } from "../../components/Btn";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";

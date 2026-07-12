@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Mail, CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
-import { tenants, saveSession } from "../api-client";
+import { tenants } from "../api-client";
 import { Btn } from "../components/Btn";
 import { Card } from "../components/Card";
 

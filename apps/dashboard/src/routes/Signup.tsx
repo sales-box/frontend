@@ -16,7 +16,7 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   const [showPass, setShowPass] = useState(false);
   const [touched, setTouched] = useState({ company: false, email: false, password: false });
   const [submitting, setSubmitting] = useState(false);
-  const [serverError, setServerError] = useState("");
+  const [_serverError, setServerError] = useState("");
 
   const errs = {
     company: !company.trim() ? "Company name is required" : "",

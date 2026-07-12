@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning } from "lucide-react";
 import type { Screen } from "../../types";
-import { knowledgeBase, type KBDocument } from "../../api-client";
+import { knowledgeBase } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";

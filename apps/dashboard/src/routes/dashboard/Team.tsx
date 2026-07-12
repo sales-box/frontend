@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Plus, X, CheckCircle2, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
+import { Plus, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
 import type { Screen } from "../../types";
 import { allowlist, tenants } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
-import { Badge } from "../../components/Badge";
 import { Btn } from "../../components/Btn";
 import { FormInput } from "../../components/FormInput";
 import { Modal } from "../../components/Modal";
@@ -47,11 +46,6 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const used = members.filter(m => m.status !== "Revoked").length;
   const atLimit = used >= total;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";
-
-  const statusBadge = (s: string) =>
-    s === "Verified" ? <Badge variant="success"><CheckCircle2 size={11} strokeWidth={1.5} /> Verified</Badge>
-    : s === "Invited" ? <Badge variant="warning"><Clock size={11} strokeWidth={1.5} /> Invited</Badge>
-    : <Badge variant="danger"><X size={11} strokeWidth={1.5} /> Revoked</Badge>;
 
   const closeModal = () => { setShowModal(false); setNewEmail(""); setEmailTouched(false); };
 
