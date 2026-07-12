@@ -38,6 +38,11 @@
 
 /* ── Design Tokens (light mode = default) ── */
 @theme {
+  /* Panel layout — single source of truth for the open-panel width.
+     content.tsx reads this via getComputedStyle so the Gmail margin
+     always matches what the panel actually renders. */
+  --panel-open-width: 360px;
+
   /* Colors */
   --color-primary:          #1C1917;
   --color-primary-hover:    #292524;
