@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Mail, CheckCircle2 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants } from "../api-client";
 import { Btn } from "../components/Btn";
@@ -9,6 +9,7 @@ import { Card } from "../components/Card";
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
 
 export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [resent, setResent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -18,7 +19,10 @@ export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
   useEffect(() => {
     if (!tokenParam) return;
     tenants.verify(tokenParam, emailParam)
-      .then(() => onNav("overview"))
+      .then(res => {
+        const q = new URLSearchParams({ email: emailParam, ...(res.tenantId ? { tenantId: res.tenantId } : {}) });
+        navigate(`/set-password?${q.toString()}`);
+      })
       .catch(() => {});
   }, [tokenParam]);
 

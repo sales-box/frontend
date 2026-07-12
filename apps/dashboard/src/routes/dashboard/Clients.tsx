@@ -42,7 +42,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
   useEffect(() => {
     setLoading(true);
     clients.list(page, limit, debouncedQuery)
-      .then(res => { setData(res.clients); setTotal(res.total); })
+      .then(res => { setData(res.data); setTotal(res.pagination.total); })
       .catch(err => setError(err.message || "Failed to load clients"))
       .finally(() => setLoading(false));
   }, [page, debouncedQuery]);
@@ -101,8 +101,8 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                     <th scope="col" className="text-eyebrow text-left px-5 py-2.5">Client</th>
                     <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-36">Company</th>
                     <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Status</th>
-                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-24">Deal Stage</th>
-                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Last Contact</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-24">CRM ID</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Last Updated</th>
                     <th scope="col" className="px-5 py-2.5 w-10"><span className="sr-only">View</span></th>
                   </tr>
                 </thead>
@@ -126,8 +126,8 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                         </td>
                         <td className="px-5 py-3.5 text-[13px] text-text-secondary truncate">{c.company}</td>
                         <td className="px-5 py-3.5">{statusBadge(c.status)}</td>
-                        <td className="px-5 py-3.5 text-xs text-text-tertiary">{c.dealStage}</td>
-                        <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{c.lastContact}</td>
+                        <td className="px-5 py-3.5 text-xs text-text-tertiary">{c.crmId ?? "—"}</td>
+                        <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{c.updatedAt}</td>
                         <td className="px-5 py-3.5 text-right">
                           <ChevronRight size={14} strokeWidth={1.5} className="text-text-tertiary" />
                         </td>

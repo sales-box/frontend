@@ -30,16 +30,8 @@ const ROW2: Kpi[] = [
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
 
-const emailChartData = [
-  { date: "Jun 1", emails: 18 }, { date: "Jun 3", emails: 24 }, { date: "Jun 5", emails: 31 },
-  { date: "Jun 7", emails: 29 }, { date: "Jun 9", emails: 42 }, { date: "Jun 11", emails: 38 },
-  { date: "Jun 13", emails: 55 }, { date: "Jun 15", emails: 61 },
-];
-const repChartData = [
-  { name: "T. Harris", sent: 42, edited: 18 },
-  { name: "S. Chen", sent: 38, edited: 7 },
-  { name: "M. Patel", sent: 17, edited: 11 },
-];
+type EmailChartPoint = { date: string; emails: number };
+type RepChartPoint = { name: string; sent: number; edited: number };
 
 // recharts renders stroke/fill as SVG presentation attributes, where CSS
 // var() does NOT resolve — so read the token values from computed styles
@@ -60,7 +52,7 @@ function useChartColors() {
   return colors;
 }
 
-type Gap = { id?: string; topic: string; count: number; firstSeen: string; resolved: boolean };
+type Gap = { id?: string; topic: string; occurrences: number; resolved: boolean; tenantId?: string | null; createdAt: string; updatedAt?: string };
 
 export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -73,8 +65,8 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
   const [gaps, setGaps] = useState<Gap[]>([]);
   const [kpiRow1, setKpiRow1] = useState<Kpi[] | null>(null);
   const [kpiRow2, setKpiRow2] = useState<Kpi[] | null>(null);
-  const [emailData, setEmailData] = useState<typeof emailChartData | null>(null);
-  const [repData, setRepData] = useState<typeof repChartData | null>(null);
+  const [emailData] = useState<EmailChartPoint[] | null>(null);
+  const [repData] = useState<RepChartPoint[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,22 +74,32 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     Promise.all([
       analyticsApi.summary()
         .then(res => {
+          const total = res.totalEmailsProcessed;
+          // Derive most common classification from byClassification map
+          const classEntries = Object.entries(res.byClassification ?? {} as Record<string, number>);
+          const topClass = classEntries.length > 0
+            ? classEntries.reduce((a, b) => (b[1] > a[1] ? b : a))
+            : null;
+          const topClassLabel = topClass ? topClass[0] : "—";
+          const topClassPct = topClass && total > 0
+            ? Math.round((topClass[1] / total) * 100)
+            : 0;
+
           setKpiRow1([
-            { ...ROW1[0], value: String(res.emailsProcessed) },
-            { ...ROW1[1], value: `${Math.round((res.repliesSentAsIs / res.emailsProcessed) * 100)}%`, sub: `${res.repliesSentAsIs} of ${res.emailsProcessed} replies` },
-            { ...ROW1[2], value: `${Math.round((res.repliesEdited / res.emailsProcessed) * 100)}%`, sub: `${res.repliesEdited} of ${res.emailsProcessed} replies` },
-            { ...ROW1[3], value: String(res.activeSEs), sub: `of ${res.totalSEs} invited` },
+            { ...ROW1[0], value: String(total) },
+            ROW1[1], // Replies Sent As-Is — no longer in API
+            ROW1[2], // Replies Edited — no longer in API
+            ROW1[3], // Active SEs — no longer in API
           ]);
           setKpiRow2([
-            { ...ROW2[0], value: `${res.avgConfidence}%` },
-            { ...ROW2[1], value: res.mostCommonType },
-            { ...ROW2[2], value: `${Math.round((res.escalatedCount / res.emailsProcessed) * 100)}%`, sub: `${res.escalatedCount} of ${res.emailsProcessed} emails` },
+            { ...ROW2[0], value: `${res.averageConfidence}%` },
+            { ...ROW2[1], value: topClassLabel, sub: `${topClassPct}% of all emails` },
+            { ...ROW2[2], value: `${total > 0 ? Math.round((res.lowConfidenceCount / total) * 100) : 0}%`, sub: `${res.lowConfidenceCount} of ${total} emails` },
           ]);
-          if (res.emailChartData?.length) setEmailData(res.emailChartData);
-          if (res.repChartData?.length) setRepData(res.repChartData);
+          // emailChartData / repChartData no longer provided by API
         }),
       analyticsApi.gaps()
-        .then(res => setGaps(res.gaps)),
+        .then(res => setGaps(res)),
     ])
       .catch(err => setError(err.message || "Failed to load analytics"))
       .finally(() => setLoading(false));
@@ -105,8 +107,8 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
   const TOTAL_GAPS = Math.max(gaps.length, 6);
   const resolvedCount = gaps.filter(g => g.resolved).length;
-  const gapSeverity = (count: number) =>
-    count >= 12 ? "danger" as const : count >= 8 ? "warning" as const : "muted" as const;
+  const gapSeverity = (occurrences: number) =>
+    occurrences >= 12 ? "danger" as const : occurrences >= 8 ? "warning" as const : "muted" as const;
 
 
   const resolveGap = (gap: Gap) => {
@@ -204,13 +206,13 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
                 <div key={g.topic} className={`flex items-center gap-3 py-3 flex-wrap transition-opacity duration-300 ${g.resolved ? "opacity-60" : ""}`}>
                   {g.resolved
                     ? <CheckCircle2 size={15} strokeWidth={1.5} className="text-success" />
-                    : <AlertTriangle size={15} strokeWidth={1.5} className={gapSeverity(g.count) === "danger" ? "text-danger" : gapSeverity(g.count) === "warning" ? "text-warning" : "text-text-tertiary"} />
+                    : <AlertTriangle size={15} strokeWidth={1.5} className={gapSeverity(g.occurrences) === "danger" ? "text-danger" : gapSeverity(g.occurrences) === "warning" ? "text-warning" : "text-text-tertiary"} />
                   }
                   <div className="flex-1 min-w-0">
                     <div className={`text-[13px] font-medium ${g.resolved ? "line-through text-text-tertiary" : "text-text-primary"}`}>{g.topic}</div>
-                    <div className="text-xs text-text-tertiary mt-0.5 font-mono">First seen {g.firstSeen}</div>
+                    <div className="text-xs text-text-tertiary mt-0.5 font-mono">First seen {g.createdAt}</div>
                   </div>
-                  <Badge variant={g.resolved ? "success" : gapSeverity(g.count)}>{g.resolved ? "Resolved" : `${g.count} occurrences`}</Badge>
+                  <Badge variant={g.resolved ? "success" : gapSeverity(g.occurrences)}>{g.resolved ? "Resolved" : `${g.occurrences} occurrences`}</Badge>
                   <button
                     onClick={() => resolveGap(g)}
                     disabled={g.resolved}
