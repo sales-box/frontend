@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { BookOpen, Users, Link2, BarChart2, ChevronRight, CheckCircle2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { tenants, knowledgeBase, crm } from "../../api-client";
+import { tenants, knowledgeBase, crm, setCompanyName } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
@@ -23,7 +23,7 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   useEffect(() => {
     Promise.allSettled([
       knowledgeBase.list(1, 1).then(res => (res?.meta?.total ?? 0) > 0),
-      tenants.get().then(t => t.status === "active"),
+      tenants.get().then(t => { if (t?.companyName) setCompanyName(t.companyName); return t?.status === "active"; }),
       crm.status().then(res => res.connected),
     ]).then(([docs, team, crmRes]) => {
       setStatus({
