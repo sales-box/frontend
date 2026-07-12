@@ -166,74 +166,84 @@ export default function App({ panelHost }: AppProps = {}) {
     return <CollapsedTab onExpand={handleExpand} />
   }
 
+  // The panel body — left border is 2px with an accent tint so it reads as
+  // a clear separator from the Gmail mail list.
   const panelClasses = `
     w-[var(--panel-open-width)] h-full flex flex-col
     bg-[var(--color-surface)]
-    border-l border-[var(--color-border)]
+    border-l-2 border-[var(--color-border-focus)]
     text-[var(--color-text-primary)]
     overflow-hidden
   `
 
+  // Render the collapsed tab strip + the open panel side-by-side.
+  // The tab strip stays visible so the user can click it to collapse the
+  // panel again — same affordance as expanding it.
   return (
-    <div id="inbox-copilot-panel" className={panelClasses} style={{ fontFamily: 'var(--font-body)' }}>
-      {(() => {
-        switch (panel.type) {
-          case 'auth':
-            return <AuthScreen onClose={handleClose} onSignIn={handleSignIn} />
+    <div style={{ display: 'flex', height: '100%', alignItems: 'stretch' }}>
+      {/* Collapse toggle — same tab the user clicked to open */}
+      <CollapsedTab onExpand={handleClose} collapseMode />
 
-          case 'invalid':
-            return (
-              <InvalidScreen
-                email={panel.email}
-                onClose={handleClose}
-                onSwitchAccount={handleSwitchAccount}
-              />
-            )
+      {/* Panel body */}
+      <div id="inbox-copilot-panel" className={panelClasses} style={{ fontFamily: 'var(--font-body)' }}>
+        {(() => {
+          switch (panel.type) {
+            case 'auth':
+              return <AuthScreen onClose={handleClose} onSignIn={handleSignIn} />
 
-          case 'loading':
-            return <LoadingScreen />
+            case 'invalid':
+              return (
+                <InvalidScreen
+                  email={panel.email}
+                  onClose={handleClose}
+                  onSwitchAccount={handleSwitchAccount}
+                />
+              )
 
-          case 'briefing':
-            return (
-              <BriefingSheet
-                data={panel.data}
-                onClose={handleClose}
-                onRefresh={handleRefresh}
-                onSend={(reply) => {
-                  // TODO: inject reply into Gmail compose
-                  console.log('[Copilot] Send reply:', reply)
-                }}
-                onEditInGmail={() => {
-                  // TODO: focus Gmail compose window
-                  console.log('[Copilot] Open in Gmail compose')
-                }}
-              />
-            )
+            case 'loading':
+              return <LoadingScreen />
 
-          case 'low-confidence':
-            return (
-              <LowConfidenceScreen
-                data={panel.data}
-                onClose={handleClose}
-                onRefresh={handleRefresh}
-                onComposeManually={() => {
-                  // TODO: focus Gmail compose
-                  console.log('[Copilot] Compose manually')
-                }}
-                onUploadDoc={() => {
-                  // Open admin dashboard KB upload in new tab
-                  chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
-                }}
-              />
-            )
+            case 'briefing':
+              return (
+                <BriefingSheet
+                  data={panel.data}
+                  onClose={handleClose}
+                  onRefresh={handleRefresh}
+                  onSend={(reply) => {
+                    // TODO: inject reply into Gmail compose
+                    console.log('[Copilot] Send reply:', reply)
+                  }}
+                  onEditInGmail={() => {
+                    // TODO: focus Gmail compose window
+                    console.log('[Copilot] Open in Gmail compose')
+                  }}
+                />
+              )
 
-          case 'revoked':
-            return <RevokedScreen onClose={handleClose} />
+            case 'low-confidence':
+              return (
+                <LowConfidenceScreen
+                  data={panel.data}
+                  onClose={handleClose}
+                  onRefresh={handleRefresh}
+                  onComposeManually={() => {
+                    // TODO: focus Gmail compose
+                    console.log('[Copilot] Compose manually')
+                  }}
+                  onUploadDoc={() => {
+                    chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
+                  }}
+                />
+              )
 
-          default:
-            return null
-        }
-      })()}
+            case 'revoked':
+              return <RevokedScreen onClose={handleClose} />
+
+            default:
+              return null
+          }
+        })()}
+      </div>
     </div>
   )
 }

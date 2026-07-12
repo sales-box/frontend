@@ -1,19 +1,30 @@
-import { ChevronRight, Inbox } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 
 interface CollapsedTabProps {
+  /** Called on click — App wires expand OR collapse depending on context */
   onExpand: () => void
+  /**
+   * When true the chevron flips left and the label reads "Close" —
+   * used when the tab sits beside the open panel as a collapse toggle.
+   */
+  collapseMode?: boolean
 }
 
 /**
  * 40px wide vertical strip — the panel's resting state inside Gmail.
- * No serif — this is pure utility chrome per DESIGN.md §4.
+ * Also re-used as a collapse toggle when `collapseMode` is true, so the
+ * user always has a consistent affordance to open/close the panel.
+ *
+ * No serif — pure utility chrome per DESIGN.md §4.
  */
-export function CollapsedTab({ onExpand }: CollapsedTabProps) {
+export function CollapsedTab({ onExpand, collapseMode = false }: CollapsedTabProps) {
+  const Chevron = collapseMode ? ChevronRight : ChevronLeft
+
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label="Open Inbox Copilot"
+      aria-label={collapseMode ? 'Close Inbox Copilot' : 'Open Inbox Copilot'}
       onClick={onExpand}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onExpand()}
       className="
@@ -36,11 +47,11 @@ export function CollapsedTab({ onExpand }: CollapsedTabProps) {
         className="text-[10px] font-semibold tracking-widest uppercase text-[var(--color-text-tertiary)] whitespace-nowrap"
         style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontFamily: 'var(--font-body)' }}
       >
-        Copilot
+        {collapseMode ? 'Close' : 'Copilot'}
       </span>
 
-      {/* Open chevron */}
-      <ChevronRight size={13} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" />
+      {/* Direction chevron */}
+      <Chevron size={13} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" />
     </div>
   )
 }
