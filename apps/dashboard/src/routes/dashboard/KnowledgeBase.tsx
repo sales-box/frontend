@@ -26,7 +26,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
 
   useEffect(() => {
     knowledgeBase.list()
-      .then(res => setDocs(res.data.map(d => ({ ...d, size: "", uploadDate: d.uploadDate }))))
+      .then(res => setDocs((res?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }))))
       .catch(err => setError(err.message || "Failed to load documents"))
       .finally(() => setLoading(false));
   }, []);

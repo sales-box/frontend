@@ -29,9 +29,9 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
     if (!id) { setError("No client ID"); setLoading(false); return; }
     clients.get(id)
       .then(res => {
-        const { interactions: ix, ...c } = res;
-        setClient(c);
-        setInteractions(ix);
+        const { interactions: ix, ...c } = res ?? {};
+        setClient(c as Client);
+        setInteractions(ix ?? []);
       })
       .catch(err => setError(err.message || "Failed to load client"))
       .finally(() => setLoading(false));
