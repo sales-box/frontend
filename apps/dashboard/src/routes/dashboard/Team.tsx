@@ -29,7 +29,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
 
   useEffect(() => {
     allowlist.list()
-      .then(res => setMembers(res.members.map(m => {
+      .then(res => setMembers((res?.members ?? []).map(m => {
         const parts = m.name.split(" ");
         const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
         return { ...m, initials, role: "Sales Engineer" };

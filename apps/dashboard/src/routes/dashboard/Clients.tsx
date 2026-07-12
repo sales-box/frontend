@@ -42,7 +42,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
   useEffect(() => {
     setLoading(true);
     clients.list(page, limit, debouncedQuery)
-      .then(res => { setData(res.data); setTotal(res.pagination.total); })
+      .then(res => { setData(res?.data ?? []); setTotal(res?.pagination?.total ?? 0); })
       .catch(err => setError(err.message || "Failed to load clients"))
       .finally(() => setLoading(false));
   }, [page, debouncedQuery]);

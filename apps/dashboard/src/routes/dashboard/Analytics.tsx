@@ -74,8 +74,8 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     Promise.all([
       analyticsApi.summary()
         .then(res => {
-          const total = res.totalEmailsProcessed;
-          // Derive most common classification from byClassification map
+          if (!res) return;
+          const total = res.totalEmailsProcessed ?? 0;
           const classEntries = Object.entries(res.byClassification ?? {} as Record<string, number>);
           const topClass = classEntries.length > 0
             ? classEntries.reduce((a, b) => (b[1] > a[1] ? b : a))
@@ -87,19 +87,18 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
           setKpiRow1([
             { ...ROW1[0], value: String(total) },
-            ROW1[1], // Replies Sent As-Is — no longer in API
-            ROW1[2], // Replies Edited — no longer in API
-            ROW1[3], // Active SEs — no longer in API
+            ROW1[1],
+            ROW1[2],
+            ROW1[3],
           ]);
           setKpiRow2([
-            { ...ROW2[0], value: `${res.averageConfidence}%` },
+            { ...ROW2[0], value: `${res.averageConfidence ?? 0}%` },
             { ...ROW2[1], value: topClassLabel, sub: `${topClassPct}% of all emails` },
-            { ...ROW2[2], value: `${total > 0 ? Math.round((res.lowConfidenceCount / total) * 100) : 0}%`, sub: `${res.lowConfidenceCount} of ${total} emails` },
+            { ...ROW2[2], value: `${total > 0 ? Math.round(((res.lowConfidenceCount ?? 0) / total) * 100) : 0}%`, sub: `${res.lowConfidenceCount ?? 0} of ${total} emails` },
           ]);
-          // emailChartData / repChartData no longer provided by API
         }),
       analyticsApi.gaps()
-        .then(res => setGaps(res)),
+        .then(res => setGaps(Array.isArray(res) ? res : [])),
     ])
       .catch(err => setError(err.message || "Failed to load analytics"))
       .finally(() => setLoading(false));
