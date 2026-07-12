@@ -4,20 +4,23 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy root configurations and dependency manifests to cache layers
-COPY package.json package-lock.json ./
+# Install pnpm globally
+RUN npm install -g pnpm@9
+
+# Copy root configurations, workspace definition, and dependency manifests to cache layers
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/dashboard/package.json ./apps/dashboard/
 COPY apps/extension/package.json ./apps/extension/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install dependencies using clean install
-RUN npm ci
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the workspace files
 COPY . .
 
-# Build the dashboard app (which also builds and links @inbox-sales/shared)
-RUN npm run build -w apps/dashboard
+# Build the dashboard app
+RUN pnpm --filter dashboard build
 
 # ----- Runtime Stage -----
 FROM nginx:alpine AS runtime
