@@ -24,7 +24,10 @@ import styles from './index.css?inline'   // Vite ?inline — bundles CSS as a s
  */
 
 const CONTAINER_ID = 'inbox-copilot-root'
-const DARK_CLASS   = 'dark'
+
+// Gmail's top toolbar is always ~64 px. We offset the panel below it so it
+// doesn't cover the avatar / settings icons in the top-right corner.
+const GMAIL_HEADER_HEIGHT = 64
 
 // ── Gmail layout push ────────────────────────────────────────────────────────
 
@@ -144,14 +147,14 @@ function mount() {
   // Avoid double injection
   if (document.getElementById(CONTAINER_ID)) return
 
-  // Host element — fixed to the right edge of the viewport
+  // Host element — fixed below Gmail's header so the avatar is never covered
   const host = document.createElement('div')
   host.id = CONTAINER_ID
   host.style.cssText = `
     position: fixed;
-    top: 0;
+    top: ${GMAIL_HEADER_HEIGHT}px;
     right: 0;
-    height: 100vh;
+    height: calc(100vh - ${GMAIL_HEADER_HEIGHT}px);
     width: auto;
     z-index: 9999;
     display: flex;
@@ -174,8 +177,7 @@ function mount() {
   wrapper.style.cssText = 'pointer-events: auto; height: 100%; display: flex; align-items: stretch;'
   shadow.appendChild(wrapper)
 
-  // Apply dark mode class based on device preference
-  applyColorScheme(wrapper)
+  // Gmail is always light-mode. The extension matches it — no dark class applied.
 
   // Expose syncGmailLayout to App.tsx via a custom event bridge.
   // App.tsx dispatches 'copilot:panel-open' / 'copilot:panel-close' on
@@ -203,18 +205,10 @@ function injectFontUrls(css: string): string {
   return css.replace(/url\(['\"]?\.\/assets\/fonts\/([^'"\)\s]+)['\"]?\)/g, `url(${base}$1)`)
 }
 
-/**
- * Apply the `dark` class based on prefers-color-scheme.
- * The panel follows device preference — no manual toggle needed.
- */
-function applyColorScheme(el: HTMLElement) {
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  const apply = (dark: boolean) => {
-    el.classList.toggle(DARK_CLASS, dark)
-  }
-  apply(mq.matches)
-  mq.addEventListener('change', (e) => apply(e.matches))
-}
+// applyColorScheme intentionally removed:
+// Gmail's UI is always light-mode. The extension must match it.
+// If dark mode support is added in future, re-introduce this function
+// and ensure Gmail itself has been switched to dark mode first.
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 // Wait for Gmail's DOM to be ready before injecting the panel
