@@ -22,8 +22,8 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
 
   useEffect(() => {
     Promise.allSettled([
-      knowledgeBase.list(1, 1).then(res => res.total > 0),
-      tenants.get().then(t => t.verified),
+      knowledgeBase.list(1, 1).then(res => res.meta.total > 0),
+      tenants.get().then(t => t.status === "active"),
       crm.status().then(res => res.connected),
     ]).then(([docs, team, crmRes]) => {
       setStatus({

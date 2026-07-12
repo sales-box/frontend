@@ -13,7 +13,7 @@ import { useToast } from "../../components/Toast";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
 
-type Doc = { id?: string; name: string; size: string; status: string; uploaded: string; chunks: number | null };
+type Doc = { id?: string; filename: string; size: string; status: string; uploadDate: string; chunkCount: number | null; fileType?: string; isLowConfidence?: boolean; qualityReason?: string | null; processingError?: string | null };
 
 export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -26,7 +26,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
 
   useEffect(() => {
     knowledgeBase.list()
-      .then(res => setDocs(res.documents.map(d => ({ ...d, uploaded: d.uploaded }))))
+      .then(res => setDocs(res.data.map(d => ({ ...d, size: "", uploadDate: d.uploadDate }))))
       .catch(err => setError(err.message || "Failed to load documents"))
       .finally(() => setLoading(false));
   }, []);
@@ -34,7 +34,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const readyCount = docs.filter(d => d.status === "ready").length;
   const processingCount = docs.filter(d => d.status === "processing").length;
   const warningCount = docs.filter(d => d.status === "warning").length;
-  const totalChunks = docs.reduce((sum, d) => sum + (d.chunks ?? 0), 0);
+  const totalChunks = docs.reduce((sum, d) => sum + (d.chunkCount ?? 0), 0);
 
   const fileIcon = (name: string) => {
     const ext = name.split(".").pop()?.toLowerCase();
@@ -55,24 +55,24 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     );
   };
 
-  const filtered = docs.filter(d => d.name.toLowerCase().includes(query.toLowerCase()));
+  const filtered = docs.filter(d => d.filename.toLowerCase().includes(query.toLowerCase()));
 
   const removeDoc = (doc: Doc) => {
     if (doc.id) knowledgeBase.delete(doc.id).catch(() => {});
-    setDocs(p => p.filter(d => d.name !== doc.name));
+    setDocs(p => p.filter(d => d.filename !== doc.filename));
     setDeleteConfirm(null);
-    toast(`Deleted "${doc.name}"`);
+    toast(`Deleted "${doc.filename}"`);
   };
 
   const handleUpload = (files: FileList | null) => {
     if (!files) return;
     Array.from(files).forEach(file => {
-      const tempDoc: Doc = { name: file.name, size: `${(file.size / 1024).toFixed(0)} KB`, status: "processing", uploaded: "Just now", chunks: null };
+      const tempDoc: Doc = { filename: file.name, size: `${(file.size / 1024).toFixed(0)} KB`, status: "processing", uploadDate: "Just now", chunkCount: null };
       setDocs(p => [tempDoc, ...p]);
       knowledgeBase.upload(file)
-        .then(res => setDocs(p => p.map(d => d.name === file.name ? { ...res, uploaded: res.uploaded } : d)))
+        .then(res => setDocs(p => p.map(d => d.filename === file.name ? { ...d, filename: res.filename, chunkCount: res.chunksCreated, status: res.status, isLowConfidence: res.isLowConfidence, qualityReason: res.qualityReason } : d)))
         .catch(() => {
-          setDocs(p => p.map(d => d.name === file.name ? { ...d, status: "warning" } : d));
+          setDocs(p => p.map(d => d.filename === file.name ? { ...d, status: "warning" } : d));
           toast(`Failed to upload "${file.name}"`);
         });
     });
@@ -220,32 +220,32 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
           ) : (
             <div className="divide-y divide-border">
               {filtered.map((doc, i) => {
-                const fi = fileIcon(doc.name);
+                const fi = fileIcon(doc.filename);
                 return (
-                <div key={doc.name}>
+                <div key={doc.filename}>
                   <div className={`flex items-center gap-3 px-5 py-3.5 hover:bg-surface-secondary/50 transition-colors ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}>
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: fi.bg }}>
                       <FileText size={16} strokeWidth={1.5} className={fi.color} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-text-primary truncate">{doc.name}</div>
+                      <div className="text-[13px] font-medium text-text-primary truncate">{doc.filename}</div>
                       <div className="text-xs text-text-tertiary flex items-center gap-1.5 font-mono flex-wrap">
-                        <span>{doc.size}</span><span>·</span><span>{doc.uploaded}</span>
-                        {doc.chunks !== null && (<><span>·</span><span>{doc.chunks} chunks</span></>)}
+                        <span>{doc.size}</span><span>·</span><span>{doc.uploadDate}</span>
+                        {doc.chunkCount !== null && (<><span>·</span><span>{doc.chunkCount} chunks</span></>)}
                       </div>
                     </div>
                     {statusDot(doc.status)}
                     <button
-                      onClick={() => setDeleteConfirm(doc.name)}
-                      aria-label={`Delete ${doc.name}`}
+                      onClick={() => setDeleteConfirm(doc.filename)}
+                      aria-label={`Delete ${doc.filename}`}
                       className={`w-8 h-8 rounded-lg border border-border flex items-center justify-center text-text-tertiary hover:text-danger hover:border-danger/40 hover:bg-danger-light transition-colors cursor-pointer ${focusRing}`}
                     >
                       <Trash2 size={14} strokeWidth={1.5} />
                     </button>
                   </div>
-                  {deleteConfirm === doc.name && (
+                  {deleteConfirm === doc.filename && (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-danger-light border-t border-danger/15 px-5 py-3">
-                      <span className="text-[13px] text-danger">Permanently delete <strong>{doc.name}</strong> and its embeddings?</span>
+                      <span className="text-[13px] text-danger">Permanently delete <strong>{doc.filename}</strong> and its embeddings?</span>
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => setDeleteConfirm(null)} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer px-2 py-1 rounded-sm ${focusRing}`}>Cancel</button>
                         <Btn variant="danger" size="sm" onClick={() => removeDoc(doc)}>Delete permanently</Btn>

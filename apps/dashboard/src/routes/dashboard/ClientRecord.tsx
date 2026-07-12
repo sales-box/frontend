@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Mail, Building2, Briefcase, Clock, Gauge, Tag } from "lucide-react";
+import { ArrowLeft, Mail, Building2, Clock, Gauge } from "lucide-react";
 import { useParams } from "react-router-dom";
 import type { Screen } from "../../types";
 import { clients, type Client, type Interaction } from "../../api-client";
@@ -27,10 +27,12 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
 
   useEffect(() => {
     if (!id) { setError("No client ID"); setLoading(false); return; }
-    Promise.all([
-      clients.get(id).then(setClient),
-      clients.interactions(id).then(res => setInteractions(res.interactions)),
-    ])
+    clients.get(id)
+      .then(res => {
+        const { interactions: ix, ...c } = res;
+        setClient(c);
+        setInteractions(ix);
+      })
       .catch(err => setError(err.message || "Failed to load client"))
       .finally(() => setLoading(false));
   }, [id]);
@@ -69,16 +71,12 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                     <Building2 size={14} strokeWidth={1.5} className="text-text-tertiary shrink-0" />
                     <span className="text-[13px] text-text-primary">{client.company}</span>
                   </div>
-                  {client.title && (
+                  {client.updatedAt && (
                     <div className="flex items-center gap-3">
-                      <Briefcase size={14} strokeWidth={1.5} className="text-text-tertiary shrink-0" />
-                      <span className="text-[13px] text-text-primary">{client.title}</span>
+                      <Clock size={14} strokeWidth={1.5} className="text-text-tertiary shrink-0" />
+                      <span className="text-[13px] text-text-primary">Updated {new Date(client.updatedAt).toLocaleDateString()}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-3">
-                    <Tag size={14} strokeWidth={1.5} className="text-text-tertiary shrink-0" />
-                    <span className="text-[13px] text-text-primary">{client.dealStage}</span>
-                  </div>
                 </div>
 
                 <div className="border-t border-border mt-4 pt-4">
@@ -93,8 +91,8 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
               <Reveal delay={70} className="lg:col-span-2">
               <Card className="p-5">
                 <h2 className="text-subheading text-text-primary mb-3">AI Summary</h2>
-                {client.aiSummary ? (
-                  <p className="text-[13px] text-text-secondary leading-relaxed">{client.aiSummary}</p>
+                {interactions.length > 0 && interactions[0].aiSummary ? (
+                  <p className="text-[13px] text-text-secondary leading-relaxed">{interactions[0].aiSummary}</p>
                 ) : (
                   <p className="text-[13px] text-text-tertiary italic">No AI summary available yet. Summary will be generated after more interactions.</p>
                 )}
@@ -128,12 +126,14 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                         <span className="text-xs text-text-tertiary font-mono whitespace-nowrap shrink-0">{ix.date}</span>
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
-                        <Badge variant="muted">{ix.classification}</Badge>
-                        <div className="flex items-center gap-1.5">
-                          <Gauge size={12} strokeWidth={1.5} className={confidenceColor(ix.confidence)} />
-                          <span className={`text-xs font-medium ${confidenceColor(ix.confidence)}`}>{ix.confidence}%</span>
-                        </div>
-                        <span className="text-xs text-text-tertiary">{ix.actionTaken}</span>
+                        {ix.classification && <Badge variant="muted">{ix.classification}</Badge>}
+                        {ix.productConfidence != null && (
+                          <div className="flex items-center gap-1.5">
+                            <Gauge size={12} strokeWidth={1.5} className={confidenceColor(ix.productConfidence)} />
+                            <span className={`text-xs font-medium ${confidenceColor(ix.productConfidence)}`}>{ix.productConfidence}%</span>
+                          </div>
+                        )}
+                        {ix.recommendation && <span className="text-xs text-text-tertiary">{ix.recommendation}</span>}
                       </div>
                     </div>
                   ))}

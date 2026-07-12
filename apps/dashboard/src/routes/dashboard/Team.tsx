@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
 import type { Screen } from "../../types";
-import { allowlist, tenants } from "../../api-client";
+import { allowlist } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
@@ -28,21 +28,17 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      allowlist.list()
-        .then(res => setMembers(res.members.map(m => {
-          const parts = m.name.split(" ");
-          const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-          return { ...m, initials, role: "Sales Engineer" };
-        }))),
-      tenants.get()
-        .then(t => setTotal(t.seatLimit)),
-    ])
+    allowlist.list()
+      .then(res => setMembers(res.members.map(m => {
+        const parts = m.name.split(" ");
+        const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+        return { ...m, initials, role: "Sales Engineer" };
+      })))
       .catch(err => setError(err.message || "Failed to load team data"))
       .finally(() => setLoading(false));
   }, []);
 
-  const [total, setTotal] = useState(5);
+  const total = 5;
   const used = members.filter(m => m.status !== "Revoked").length;
   const atLimit = used >= total;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";

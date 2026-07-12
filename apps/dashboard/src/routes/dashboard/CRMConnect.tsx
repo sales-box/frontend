@@ -15,7 +15,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const toast = useToast();
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [syncInfo, setSyncInfo] = useState<{ lastSynced: string; contacts: number; deals: number } | null>(null);
+  const [syncInfo, setSyncInfo] = useState<{ lastSync: string; importedCount: number } | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
@@ -24,7 +24,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     crm.status()
       .then(res => {
         setConnected(res.connected);
-        setSyncInfo({ lastSynced: res.lastSynced ?? "just now", contacts: res.contacts, deals: res.deals });
+        setSyncInfo({ lastSync: res.lastSync ?? "just now", importedCount: 0 });
       })
       .catch(() => {});
   }, []);
@@ -38,7 +38,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     crm.connect("hubspot", apiKey)
       .then(res => {
         setConnected(true);
-        setSyncInfo({ lastSynced: res.lastSynced ?? "just now", contacts: res.contacts, deals: res.deals });
+        setSyncInfo({ lastSync: "just now", importedCount: res.importedCount });
         toast("HubSpot connected");
         setShowKeyModal(false);
         setApiKey("");
@@ -78,8 +78,8 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
                 <div className="flex items-center gap-2 text-[13px] text-success"><CheckCircle2 size={13} strokeWidth={1.5} /> Connected to HubSpot</div>
                 {syncInfo ? (
                   <>
-                    <div className="text-xs text-text-tertiary flex items-center gap-1.5"><RefreshCw size={11} strokeWidth={1.5} /> Last synced: {syncInfo.lastSynced}</div>
-                    <div className="text-xs text-text-tertiary">{syncInfo.contacts} contacts · {syncInfo.deals} deals synced</div>
+                    <div className="text-xs text-text-tertiary flex items-center gap-1.5"><RefreshCw size={11} strokeWidth={1.5} /> Last synced: {syncInfo.lastSync}</div>
+                    <div className="text-xs text-text-tertiary">{syncInfo.importedCount} records imported</div>
                   </>
                 ) : (
                   <div className="text-xs text-text-tertiary">Not yet synced</div>
