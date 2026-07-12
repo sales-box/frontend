@@ -9,6 +9,7 @@ import { SignIn } from "./routes/SignIn";
 import { Signup } from "./routes/Signup";
 import { VerifyEmail } from "./routes/VerifyEmail";
 import { AuthCallback } from "./routes/AuthCallback";
+import { SetPassword } from "./routes/SetPassword";
 import { NotFound } from "./routes/NotFound";
 import { Overview } from "./routes/dashboard/Overview";
 import { KnowledgeBase } from "./routes/dashboard/KnowledgeBase";
@@ -25,6 +26,7 @@ const PATHS: Record<Screen, string> = {
   signup: "/signup",
   verify: "/verify",
   "auth-callback": "/callback",
+  "set-password": "/set-password",
   overview: "/dashboard",
   "knowledge-base": "/dashboard/knowledge",
   team: "/dashboard/team",
@@ -71,6 +73,7 @@ export default function App() {
         <Route path="/signup" element={<Signup onNav={onNav} />} />
         <Route path="/verify" element={<VerifyEmail onNav={onNav} />} />
         <Route path="/callback" element={<AuthCallback onNav={onNav} />} />
+        <Route path="/set-password" element={<SetPassword onNav={onNav} />} />
         <Route path="/dashboard" element={<ProtectedRoute><Overview onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/knowledge" element={<ProtectedRoute><KnowledgeBase onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/team" element={<ProtectedRoute><Team onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />

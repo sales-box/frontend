@@ -40,6 +40,18 @@ export const auth = {
     const redirect = encodeURIComponent(`${window.location.origin}/callback`);
     window.location.href = `${BASE}/auth/google?redirect=${redirect}`;
   },
+
+  adminLogin: (email: string, password: string) =>
+    request<{ token: string; tenantId: string }>("/auth/admin/login", {
+      method: "POST",
+      ...json({ email, password }),
+    }),
+
+  setPassword: (email: string, password: string) =>
+    request<{ success: boolean }>("/auth/admin/set-password", {
+      method: "POST",
+      ...json({ email, password }),
+    }),
 };
 
 // ─── Tenants & Onboarding ────────────────────────────────────
