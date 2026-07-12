@@ -99,7 +99,7 @@ export function Shell({ active, onNav, onLogout, children }: {
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0"><Inbox size={16} strokeWidth={1.5} className="text-text-on-primary" /></div>
           <div className={`min-w-0 flex-1 ${hideLabel}`}>
             <div className="font-display font-semibold text-sm text-text-primary truncate">Inbox Copilot</div>
-            <div className="text-xs text-text-tertiary truncate">{user.email.split("@")[1] ?? ""}</div>
+            {user.companyName && <div className="text-xs text-text-tertiary truncate">{user.companyName}</div>}
           </div>
           <button onClick={close} aria-label="Close navigation menu" className={`md:hidden text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>
             <X size={17} strokeWidth={1.5} />

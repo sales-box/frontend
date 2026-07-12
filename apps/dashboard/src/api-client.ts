@@ -2,6 +2,7 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 let _jwt: string | null = sessionStorage.getItem("jwt");
 let _tid: string | null = sessionStorage.getItem("tenantId");
+let _companyName: string | null = sessionStorage.getItem("companyName");
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
@@ -274,8 +275,10 @@ export function saveSession(token: string, tid?: string) {
 export function clearSession() {
   _jwt = null;
   _tid = null;
+  _companyName = null;
   sessionStorage.removeItem("jwt");
   sessionStorage.removeItem("tenantId");
+  sessionStorage.removeItem("companyName");
 }
 
 export function isLoggedIn(): boolean {
@@ -287,14 +290,20 @@ export interface UserInfo {
   name: string;
   initials: string;
   isAdmin: boolean;
+  companyName: string;
 }
 
 export function getUserInfo(): UserInfo {
-  if (!_jwt) return { email: "", name: "User", initials: "U", isAdmin: false };
+  if (!_jwt) return { email: "", name: "User", initials: "U", isAdmin: false, companyName: "" };
   const p = parseJwtPayload(_jwt);
   const email = (p.email as string) ?? "";
   const name = email ? email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "User";
   const parts = name.split(" ");
   const initials = parts.map(w => w[0]?.toUpperCase() ?? "").join("").slice(0, 2) || "U";
-  return { email, name, initials, isAdmin: !!(p.isAdmin) };
+  return { email, name, initials, isAdmin: !!(p.isAdmin), companyName: _companyName ?? "" };
+}
+
+export function setCompanyName(name: string) {
+  _companyName = name;
+  sessionStorage.setItem("companyName", name);
 }
