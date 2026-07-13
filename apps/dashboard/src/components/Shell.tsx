@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Contact,
 } from "lucide-react";
 import type { Screen } from "../types";
-import { getUserInfo } from "../api-client";
+import { useAuthStore } from "../store/auth";
 import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
 
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
@@ -35,7 +35,7 @@ function useIsMobile() {
 export function Shell({ active, onNav, onLogout, children }: {
   active: Screen; onNav: (s: Screen) => void; onLogout?: () => void; children: ReactNode;
 }) {
-  const user = getUserInfo();
+  const user = useAuthStore(s => s.user);
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);

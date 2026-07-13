@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Database, Link2, RefreshCw, CheckCircle2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { crm } from "../../api-client";
+import { useCrmStatus, useConnectCrm } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -13,43 +13,39 @@ import { useToast } from "../../components/Toast";
 
 export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
-  const [connected, setConnected] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [syncInfo, setSyncInfo] = useState<{ lastSync: string; importedCount: number } | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
+  const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [locallyDisconnected, setLocallyDisconnected] = useState(false);
 
-  useEffect(() => {
-    crm.status()
-      .then(res => {
-        setConnected(res.connected);
-        setSyncInfo({ lastSync: res.lastSync ?? "just now", importedCount: 0 });
-      })
-      .catch(() => {});
-  }, []);
+  const { data: status } = useCrmStatus();
+  const connectCrm = useConnectCrm();
+
+  const connected = (status?.connected ?? false) && !locallyDisconnected;
+  const connecting = connectCrm.isPending;
+  const syncInfo = connected
+    ? { lastSync: status?.lastSync ?? "just now", importedCount: importedCount ?? 0 }
+    : null;
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
 
-  const submitConnect = () => {
+  const submitConnect = async () => {
     setKeyTouched(true);
     if (keyError || connecting) return;
-    setConnecting(true);
-    crm.connect("hubspot", apiKey)
-      .then(res => {
-        setConnected(true);
-        setSyncInfo({ lastSync: "just now", importedCount: res.importedCount });
-        toast("HubSpot connected");
-        setShowKeyModal(false);
-        setApiKey("");
-        setKeyTouched(false);
-      })
-      .catch(() => {
-        toast("Failed to connect to HubSpot");
-      })
-      .finally(() => setConnecting(false));
+    try {
+      const res = await connectCrm.mutateAsync({ provider: "hubspot", apiKey });
+      setImportedCount(res.importedCount);
+      setLocallyDisconnected(false);
+      toast("HubSpot connected");
+      setShowKeyModal(false);
+      setApiKey("");
+      setKeyTouched(false);
+    } catch {
+      toast("Failed to connect to HubSpot");
+    }
   };
-  const disconnect = () => { setConnected(false); setSyncInfo(null); toast("HubSpot disconnected"); };
+  const disconnect = () => { setLocallyDisconnected(true); setImportedCount(null); toast("HubSpot disconnected"); };
 
   return (
     <Shell active="crm" onNav={onNav} onLogout={onLogout}>

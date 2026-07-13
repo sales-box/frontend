@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Inbox, Eye, EyeOff } from "lucide-react";
 import type { Screen } from "../types";
-import { auth, saveSession } from "../api-client";
+import { auth } from "../api-client";
+import { useAuthStore } from "../store/auth";
 import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
@@ -10,6 +11,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
+  const login = useAuthStore(s => s.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -32,7 +34,7 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
     setServerError("");
     try {
       const res = await auth.adminLogin(email, password);
-      saveSession(res.token);
+      login(res.token);
       onNav("overview");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Login failed";

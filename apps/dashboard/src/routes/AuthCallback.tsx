@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Inbox, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import type { Screen } from "../types";
-import { saveSession, isLoggedIn } from "../api-client";
+import { isLoggedIn } from "../api-client";
+import { useAuthStore } from "../store/auth";
 import { Card } from "../components/Card";
 
 export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
+  const login = useAuthStore(s => s.login);
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -16,7 +18,7 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
     const status = params.get("status");
 
     if (token && tenantId) {
-      saveSession(token, tenantId);
+      login(token, tenantId);
       setState("success");
       setMessage("Signed in successfully. Redirecting…");
       setTimeout(() => onNav("overview"), 1200);

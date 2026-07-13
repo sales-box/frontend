@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
 import type { Screen } from "./types";
-import { clearSession, isLoggedIn } from "./api-client";
+import { useAuthStore } from "./store/auth";
 import { ToastProvider } from "./components/Toast";
 import { Landing } from "./routes/Landing";
 import { SignIn } from "./routes/SignIn";
@@ -37,7 +37,8 @@ const PATHS: Record<Screen, string> = {
 };
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  if (!isLoggedIn()) return <Navigate to="/signin" replace />;
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
   return <>{children}</>;
 }
 
@@ -56,8 +57,9 @@ function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void })
 
 export default function App() {
   const navigate = useNavigate();
+  const logout = useAuthStore(s => s.logout);
   const onNav = (s: Screen) => navigate(PATHS[s]);
-  const onLogout = () => { clearSession(); navigate("/signin"); };
+  const onLogout = () => { logout(); navigate("/signin"); };
   const [dark, setDark] = useState(false);
 
   useEffect(() => {

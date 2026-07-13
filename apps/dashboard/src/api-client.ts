@@ -61,6 +61,9 @@ export const auth = {
       method: "POST",
       ...json({ email, password, tenantId: tid }),
     }),
+
+  me: () =>
+    request<{ tenantId: string; email: string; isAdmin: boolean }>("/auth/me"),
 };
 
 // ─── Tenants & Onboarding ────────────────────────────────────
@@ -74,7 +77,7 @@ export interface SignupPayload {
 export interface Tenant {
   id: string;
   companyName: string;
-  tier: string;
+  tier: number;
   status: string;
 }
 
@@ -105,13 +108,11 @@ export interface KBDocument {
   qualityReason: string | null;
 }
 
-interface PaginationMeta {
+export interface PaginationMeta {
   total: number;
-  lastPage: number;
-  currentPage: number;
+  page: number;
   limit: number;
-  prev: number | null;
-  next: number | null;
+  totalPages: number;
 }
 
 export const knowledgeBase = {
@@ -135,11 +136,11 @@ export const knowledgeBase = {
 // ─── Access Control (Allowlist / Team) ───────────────────────
 
 export interface SEMember {
+  id: string;
+  tenantId: string;
   email: string;
   status: "granted" | "verified" | "revoked";
-  grantedAt: string;
-  verifiedAt: string | null;
-  revokedAt: string | null;
+  createdAt: string;
 }
 
 export const allowlist = {
@@ -157,6 +158,9 @@ export const allowlist = {
       `/tenants/${id ?? tenantId()}/allowlist/${encodeURIComponent(email)}`,
       { method: "DELETE" }
     ),
+
+  offboard: (id?: string) =>
+    request<void>(`/tenants/${id ?? tenantId()}/offboard`, { method: "POST" }),
 };
 
 // ─── Clients ────────────────────────────────────────────────
