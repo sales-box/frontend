@@ -21,6 +21,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { ...authHeaders(), ...init?.headers },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      clearSession();
+      window.location.replace("/signin");
+      throw new Error("Session expired");
+    }
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}: ${body}`);
   }
@@ -276,7 +281,13 @@ export function clearSession() {
 }
 
 export function isLoggedIn(): boolean {
-  return !!_jwt;
+  if (!_jwt) return false;
+  const p = parseJwtPayload(_jwt);
+  if (p.exp && (p.exp as number) * 1000 < Date.now()) {
+    clearSession();
+    return false;
+  }
+  return true;
 }
 
 export interface UserInfo {

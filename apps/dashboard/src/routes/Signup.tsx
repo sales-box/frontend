@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Inbox, Zap, Eye, EyeOff } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants, auth } from "../api-client";
 import { Btn } from "../components/Btn";
@@ -10,6 +11,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
+  const [params] = useSearchParams();
+  const plan = params.get("plan") ?? "Growth";
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,7 +60,7 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
           <div className="flex items-center gap-2 bg-accent-cool-light rounded-md px-3 py-2.5 mb-5">
             <Zap size={13} strokeWidth={1.5} className="text-accent-cool" />
             <span className="text-[13px] text-text-primary">
-              Selected plan: <span className="font-semibold text-accent-cool">Growth</span>
+              Selected plan: <span className="font-semibold text-accent-cool">{plan}</span>
             </span>
             <button onClick={() => onNav("landing")} className={`ml-auto text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer ${focusRing}`}>Change</button>
           </div>
