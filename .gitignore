@@ -108,6 +108,7 @@ docker-compose.override.yml
 repomix-output.xml
 repomix-output.txt
 repomix-output.md
+*.xml
 .cursor/
 .claude/
 
@@ -117,4 +118,5 @@ repomix-output.md
 docs/
 design/*
 !design/theme.css
-DESIGN.mdInpox_Sales_Copilot_API_Endpoints.updated.json
+DESIGN.md
+Inpox_Sales_Copilot_API_Endpoints.updated.json

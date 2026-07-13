@@ -14,7 +14,7 @@ import { useToast } from "../../components/Toast";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
 
-type Member = { email: string; name: string; initials: string; role: string; status: string; added: string };
+type Member = { email: string; initials: string; role: string; status: "granted" | "verified" | "revoked"; grantedAt: string };
 
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -27,19 +27,21 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const [loading, setLoading] = useState(true);
   const [error] = useState<string | null>(null);
 
-  useEffect(() => {
-    allowlist.list()
-      .then(res => setMembers((res?.members ?? []).map(m => {
-        const parts = m.name.split(" ");
-        const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+  const fetchMembers = () => {
+    return allowlist.list()
+      .then(res => setMembers((res ?? []).map(m => {
+        const initials = m.email.substring(0, 2).toUpperCase();
         return { ...m, initials, role: "Sales Engineer" };
       })))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchMembers().finally(() => setLoading(false));
   }, []);
 
   const total = 5;
-  const used = members.filter(m => m.status !== "Revoked").length;
+  const used = members.filter(m => m.status !== "revoked").length;
   const atLimit = used >= total;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";
 
@@ -50,12 +52,10 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
     if (emailError || sending) return;
     setSending(true);
     allowlist.grant(newEmail)
-      .then(res => {
-        const parts = res.name.split(" ");
-        const initials = parts.map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
-        setMembers(p => [...p, { ...res, initials, role: "Sales Engineer" }]);
+      .then(() => {
         toast(`Invite sent to ${newEmail}`);
         closeModal();
+        return fetchMembers();
       })
       .catch(() => {
         toast("Failed to send invite — please try again");
@@ -65,7 +65,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
 
   const revoke = (email: string) => {
     allowlist.revoke(email).catch(() => {});
-    setMembers(p => p.map(x => x.email === email ? { ...x, status: "Revoked" } : x));
+    setMembers(p => p.map(x => x.email === email ? { ...x, status: "revoked" } : x));
     setConfirmRevoke(null);
     toast(`Access revoked for ${email}`);
   };
@@ -124,7 +124,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
               </div>
               <div className="text-xs text-text-tertiary">Verified</div>
             </div>
-            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "Verified").length}</div>
+            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "verified").length}</div>
             <div className="text-xs text-success mt-1">Extension active</div>
           </Card>
           </Reveal>
@@ -137,7 +137,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
               </div>
               <div className="text-xs text-text-tertiary">Pending</div>
             </div>
-            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "Invited").length}</div>
+            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "granted").length}</div>
             <div className="text-xs text-warning mt-1">Awaiting activation</div>
           </Card>
           </Reveal>
@@ -175,20 +175,20 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{m.initials}</div>
                         <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-text-primary truncate">{m.name}</div>
-                          <div className="text-xs text-text-tertiary truncate">{m.email}</div>
+                          <div className="text-[13px] font-medium text-text-primary truncate">{m.email}</div>
+                          <div className="text-xs text-text-tertiary truncate">{m.role}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${m.status === "Verified" ? "bg-success" : m.status === "Invited" ? "bg-warning" : "bg-danger"}`} />
-                        <span className={`text-xs font-medium ${m.status === "Verified" ? "text-success" : m.status === "Invited" ? "text-warning" : "text-danger"}`}>{m.status}</span>
+                        <span className={`w-2 h-2 rounded-full ${m.status === "verified" ? "bg-success" : m.status === "granted" ? "bg-warning" : "bg-danger"}`} />
+                        <span className={`text-xs font-medium capitalize ${m.status === "verified" ? "text-success" : m.status === "granted" ? "text-warning" : "text-danger"}`}>{m.status}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.added}</td>
+                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt}</td>
                     <td className="px-5 py-3.5 text-right">
-                      {m.status === "Revoked" ? (
+                      {m.status === "revoked" ? (
                         <span className="text-xs text-text-tertiary">—</span>
                       ) : confirmRevoke === m.email ? (
                         <div className="flex items-center justify-end gap-2">

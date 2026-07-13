@@ -126,22 +126,21 @@ export const knowledgeBase = {
 };
 
 // ─── Access Control (Allowlist / Team) ───────────────────────
-// NOTE: Allowlist endpoints are not yet implemented in the backend.
-// Karim (owner) is building the AdminTenantGuard + allowlist routes.
 
 export interface SEMember {
   email: string;
-  name: string;
-  status: "Verified" | "Invited" | "Revoked";
-  added: string;
+  status: "granted" | "verified" | "revoked";
+  grantedAt: string;
+  verifiedAt: string | null;
+  revokedAt: string | null;
 }
 
 export const allowlist = {
   list: (id?: string) =>
-    request<{ members: SEMember[] }>(`/tenants/${id ?? tenantId()}/allowlist`),
+    request<SEMember[]>(`/tenants/${id ?? tenantId()}/allowlist`),
 
   grant: (email: string, id?: string) =>
-    request<SEMember>(`/tenants/${id ?? tenantId()}/allowlist`, {
+    request<void>(`/tenants/${id ?? tenantId()}/allowlist`, {
       method: "POST",
       ...json({ email }),
     }),
@@ -178,16 +177,9 @@ export interface Interaction {
   recommendation: string | null;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
 export const clients = {
   list: (page = 1, limit = 10, search = "") =>
-    request<{ data: Client[]; pagination: Pagination }>(
+    request<{ data: Client[]; meta: PaginationMeta }>(
       `/clients?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`
     ),
 
@@ -195,7 +187,7 @@ export const clients = {
     request<Client & { interactions: Interaction[] }>(`/clients/${id}`),
 
   interactions: (clientId: string, page = 1, limit = 20) =>
-    request<{ data: Interaction[]; pagination: Pagination }>(
+    request<{ data: Interaction[]; meta: PaginationMeta }>(
       `/clients/${clientId}/interactions?page=${page}&limit=${limit}`
     ),
 };
@@ -204,9 +196,9 @@ export const clients = {
 
 export interface CRMStatus {
   connected: boolean;
-  provider: string | null;
   status: string;
-  lastSync: string | null;
+  provider?: string | null;
+  lastSync?: string | null;
 }
 
 export const crm = {
