@@ -44,7 +44,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
     clients.list(page, limit, debouncedQuery)
       .then((res: any) => {
         const items = Array.isArray(res) ? res : (res?.data ?? []);
-        const count = res?.pagination?.total ?? res?.meta?.total ?? res?.total ?? items.length;
+        const count = res.meta?.total ?? 0;
         setData(items);
         setTotal(count);
       })

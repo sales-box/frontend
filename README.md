@@ -27,9 +27,11 @@ frontend-repo/
 
 ## (Mock-First Philosophy)
 
-The project currently operates on a **Mock-First** basis to unblock frontend development while the backend is being finalized. 
+The project implements a **Dual-Client Architecture** tailored to its distinct application contexts.
 
-All API calls across **both** the Dashboard and the Extension **MUST** go through `packages/shared/src/api-client.ts`. This file currently returns mock data structured exactly according to the backend's `CONTRACTS.md`. When the real API is ready, we will only need to update the logic inside `api-client.ts`, and the rest of the components will continue to work without modification.
+The `apps/dashboard` application maintains its own dedicated `api-client.ts` which is wired to real, live backend endpoints for admin, tenant, allowlist, CRM, knowledge base, and client interactions.
+
+The `apps/extension` application routes its API calls through `packages/shared/src/api-client.ts`. This shared client is currently heavily mocked (pending the finalization of the SE login and `/ai/process` endpoints), but will be updated to hit the live backend once those services are ready.
 
 ---
 
