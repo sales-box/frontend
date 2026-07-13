@@ -26,9 +26,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/assets/fonts/Fraunces-upright-latin.woff2",
-        "src/assets/fonts/Fraunces-italic-latin.woff2",
-        "src/assets/fonts/Inter-latin.woff2",
+        "src/assets/fonts/Baloo2-latin.woff2",
+        "src/assets/fonts/PlusJakartaSans-latin.woff2",
         "src/assets/fonts/JetBrainsMono-latin.woff2"
       ],
       "matches": ["https://mail.google.com/*"]

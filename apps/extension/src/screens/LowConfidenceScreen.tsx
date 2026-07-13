@@ -159,8 +159,8 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
           onClick={onUploadDoc}
           className="
             flex items-center justify-center gap-1.5
-            text-small text-[var(--color-accent)]
-            hover:text-[var(--color-accent-hover)]
+            text-small text-[var(--color-secondary)]
+            hover:text-[var(--color-secondary-hover)]
             transition-colors cursor-pointer
             bg-transparent border-none p-0
           "

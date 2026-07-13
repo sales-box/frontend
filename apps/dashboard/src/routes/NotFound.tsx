@@ -2,7 +2,7 @@ import { Inbox } from "lucide-react";
 import type { Screen } from "../types";
 import { Card } from "../components/Card";
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function NotFound({ onNav }: { onNav: (s: Screen) => void }) {
   return (

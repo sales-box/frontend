@@ -7,7 +7,7 @@ import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   const [company, setCompany] = useState("");
@@ -54,10 +54,10 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
             <p className="text-body text-text-secondary">Set up your admin account and start your 14-day trial.</p>
           </div>
 
-          <div className="flex items-center gap-2 bg-accent-light rounded-md px-3 py-2.5 mb-5">
-            <Zap size={13} strokeWidth={1.5} className="text-accent" />
+          <div className="flex items-center gap-2 bg-accent-cool-light rounded-md px-3 py-2.5 mb-5">
+            <Zap size={13} strokeWidth={1.5} className="text-accent-cool" />
             <span className="text-[13px] text-text-primary">
-              Selected plan: <span className="font-semibold text-accent">Growth</span>
+              Selected plan: <span className="font-semibold text-accent-cool">Growth</span>
             </span>
             <button onClick={() => onNav("landing")} className={`ml-auto text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer ${focusRing}`}>Change</button>
           </div>
@@ -127,12 +127,12 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
           </form>
 
           <p className="text-xs text-text-tertiary text-center mt-4">
-            By registering you agree to our <a href="#" className={`text-accent underline ${focusRing}`}>Terms</a> and <a href="#" className={`text-accent underline ${focusRing}`}>Privacy Policy</a>.
+            By registering you agree to our <a href="#" className={`text-secondary underline ${focusRing}`}>Terms</a> and <a href="#" className={`text-secondary underline ${focusRing}`}>Privacy Policy</a>.
           </p>
         </Card>
 
         <p className="text-center text-sm text-text-secondary mt-5">
-          Already have an account? <button onClick={() => onNav("signin")} className={`text-accent font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
+          Already have an account? <button onClick={() => onNav("signin")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
         </p>
       </div>
     </div>

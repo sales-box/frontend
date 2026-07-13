@@ -11,7 +11,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 import { useToast } from "../../components/Toast";
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 type Doc = { id?: string; filename: string; size: string; status: string; uploadDate: string; chunkCount: number | null; fileType?: string; isLowConfidence?: boolean; qualityReason?: string | null; processingError?: string | null };
 

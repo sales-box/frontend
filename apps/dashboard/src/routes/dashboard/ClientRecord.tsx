@@ -10,7 +10,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 function confidenceColor(score: number) {
   if (score >= 80) return "text-success";
@@ -94,7 +94,7 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                 {interactions.length > 0 && interactions[0].aiSummary ? (
                   <p className="text-[13px] text-text-secondary leading-relaxed">{interactions[0].aiSummary}</p>
                 ) : (
-                  <p className="text-[13px] text-text-tertiary italic">No AI summary available yet. Summary will be generated after more interactions.</p>
+                  <p className="text-[13px] text-text-tertiary">No AI summary available yet. Summary will be generated after more interactions.</p>
                 )}
               </Card>
               </Reveal>

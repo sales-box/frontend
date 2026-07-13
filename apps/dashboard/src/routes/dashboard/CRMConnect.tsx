@@ -101,7 +101,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-surface-secondary border border-border flex items-center justify-center">
-                  <span className="text-accent font-bold text-[13px] font-mono">SF</span>
+                  <span className="text-accent-cool font-bold text-[13px] font-mono">SF</span>
                 </div>
                 <div><div className="text-sm font-semibold text-text-primary">Salesforce</div><div className="text-xs text-text-tertiary">CRM</div></div>
               </div>

@@ -12,7 +12,7 @@ import { Reveal } from "../../components/Reveal";
 import { useToast } from "../../components/Toast";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 type Member = { email: string; initials: string; role: string; status: "granted" | "verified" | "revoked"; grantedAt: string };
 

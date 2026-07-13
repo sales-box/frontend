@@ -76,7 +76,7 @@ export function Modal({ open, onClose, title, children, footer }: {
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            className="text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
           >
             <X size={17} strokeWidth={1.5} />
           </button>

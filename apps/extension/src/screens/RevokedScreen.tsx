@@ -1,5 +1,6 @@
-import { ShieldX } from 'lucide-react'
+
 import { PanelHeader } from '../components/PanelHeader'
+import mascotSleepy from '../assets/mascot-sleepy.png'
 
 interface RevokedScreenProps {
   onClose?: () => void
@@ -22,10 +23,7 @@ export function RevokedScreen({ onClose }: RevokedScreenProps) {
 
       {/* Body */}
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
-        {/* Icon in danger container */}
-        <div className="w-14 h-14 rounded-[var(--radius-xl)] bg-[var(--color-danger-light)] border border-[var(--color-danger)]/20 flex items-center justify-center mb-6">
-          <ShieldX size={24} strokeWidth={1.25} className="text-[var(--color-danger)]" />
-        </div>
+        <img src={mascotSleepy} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
 
         {/* Eyebrow + heading */}
         <p className="text-eyebrow mb-2">ACCESS STATUS</p>
@@ -34,7 +32,7 @@ export function RevokedScreen({ onClose }: RevokedScreenProps) {
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Access{' '}
-          <em className="italic">revoked.</em>
+          <em className="text-primary not-italic">revoked.</em>
         </h1>
 
         <p className="text-small text-[var(--color-text-secondary)] leading-relaxed max-w-[220px]">

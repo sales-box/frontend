@@ -56,7 +56,7 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
         <Card className="p-6 sm:p-8 text-center">
           {state === "loading" && (
             <>
-              <Loader2 size={28} strokeWidth={1.5} className="text-accent mx-auto mb-4 animate-spin" />
+              <Loader2 size={28} strokeWidth={1.5} className="text-accent-cool mx-auto mb-4 animate-spin" />
               <p className="text-body text-text-secondary">Processing authentication…</p>
             </>
           )}
@@ -77,7 +77,7 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
               <button
                 type="button"
                 onClick={() => onNav("signin")}
-                className="px-5 py-2.5 text-[13px] font-medium text-text-on-primary bg-primary rounded-sm hover:opacity-90 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                className="px-5 py-2.5 text-[13px] font-medium text-text-on-primary bg-primary rounded-sm hover:opacity-90 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
               >
                 Back to Sign In
               </button>

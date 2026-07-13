@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import {
-  LayoutDashboard, BookOpen, Users, Link2, BarChart2, Inbox, LogOut, Menu, X,
+  LayoutDashboard, BookOpen, Users, Link2, BarChart2, LogOut, Menu, X,
   ChevronLeft, ChevronRight, Contact,
 } from "lucide-react";
 import type { Screen } from "../types";
 import { getUserInfo } from "../api-client";
+import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
 
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "overview", icon: <LayoutDashboard size={18} strokeWidth={1.5} />, label: "Overview" },
@@ -15,7 +16,7 @@ const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "analytics", icon: <BarChart2 size={18} strokeWidth={1.5} />, label: "Analytics" },
 ];
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 const TINT = { background: "color-mix(in srgb, var(--color-primary) 9%, var(--color-surface))" };
 
 function useIsMobile() {
@@ -69,7 +70,9 @@ export function Shell({ active, onNav, onLogout, children }: {
           <Menu size={18} strokeWidth={1.5} />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center"><Inbox size={14} strokeWidth={1.5} className="text-text-on-primary" /></div>
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:rotate-6">
+            <img src={mascotIconSilhouette} alt="" className="w-4.5 h-4.5 brightness-0 invert" aria-hidden="true" />
+          </div>
           <span className="font-display font-semibold text-sm text-text-primary">Inbox Copilot</span>
         </div>
       </header>
@@ -96,7 +99,9 @@ export function Shell({ active, onNav, onLogout, children }: {
 
         {/* Header */}
         <div className={`px-4 py-4 flex items-center gap-2.5 ${collapsed ? "md:justify-center md:px-3" : ""}`}>
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0"><Inbox size={16} strokeWidth={1.5} className="text-text-on-primary" /></div>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:rotate-6">
+            <img src={mascotIconSilhouette} alt="" className="w-5 h-5 brightness-0 invert" aria-hidden="true" />
+          </div>
           <div className={`min-w-0 flex-1 ${hideLabel}`}>
             <div className="font-display font-semibold text-sm text-text-primary truncate">Inbox Copilot</div>
             {user.companyName && <div className="text-xs text-text-tertiary truncate">{user.companyName}</div>}

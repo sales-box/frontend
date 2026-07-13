@@ -1,5 +1,6 @@
-import { AlertCircle } from 'lucide-react'
+
 import { PanelHeader } from '../components/PanelHeader'
+import mascotLocked from '../assets/mascot-locked.png'
 
 interface InvalidScreenProps {
   /** The unauthorized email address — shown in mono (scan element) */
@@ -20,10 +21,7 @@ export function InvalidScreen({ email, onClose, onSwitchAccount }: InvalidScreen
 
       {/* Body */}
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
-        {/* Icon in warning container */}
-        <div className="w-14 h-14 rounded-[var(--radius-xl)] bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 flex items-center justify-center mb-6">
-          <AlertCircle size={24} strokeWidth={1.25} className="text-[var(--color-warning)]" />
-        </div>
+        <img src={mascotLocked} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
 
         {/* Eyebrow + heading */}
         <p className="text-eyebrow mb-2">ACCESS DENIED</p>
@@ -32,7 +30,7 @@ export function InvalidScreen({ email, onClose, onSwitchAccount }: InvalidScreen
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Not{' '}
-          <em className="italic">authorized.</em>
+          <em className="text-primary not-italic">authorized.</em>
         </h1>
 
         <p className="text-small text-[var(--color-text-secondary)] leading-relaxed mb-4 max-w-[220px]">
@@ -55,7 +53,7 @@ export function InvalidScreen({ email, onClose, onSwitchAccount }: InvalidScreen
         <button
           id="ext-switch-account-btn"
           onClick={onSwitchAccount}
-          className="text-small text-[var(--color-accent)] underline underline-offset-2 hover:text-[var(--color-accent-hover)] transition-colors cursor-pointer bg-transparent border-none p-0"
+          className="text-small text-[var(--color-secondary)] underline underline-offset-2 hover:text-[var(--color-secondary-hover)] transition-colors cursor-pointer bg-transparent border-none p-0"
           style={{ fontFamily: 'var(--font-body)' }}
         >
           Sign in with a different account
