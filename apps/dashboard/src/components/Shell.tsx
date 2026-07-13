@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import {
   LayoutDashboard, BookOpen, Users, Link2, BarChart2, LogOut, Menu, X,
-  ChevronLeft, ChevronRight, Contact,
+  ChevronLeft, ChevronRight, Contact, Activity, Settings as SettingsIcon,
 } from "lucide-react";
 import type { Screen } from "../types";
 import { useAuthStore } from "../store/auth";
@@ -9,11 +9,13 @@ import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
 
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "overview", icon: <LayoutDashboard size={18} strokeWidth={1.5} />, label: "Overview" },
+  { id: "activity-feed", icon: <Activity size={18} strokeWidth={1.5} />, label: "Activity Feed" },
   { id: "clients", icon: <Contact size={18} strokeWidth={1.5} />, label: "Clients" },
   { id: "knowledge-base", icon: <BookOpen size={18} strokeWidth={1.5} />, label: "Knowledge Base" },
   { id: "team", icon: <Users size={18} strokeWidth={1.5} />, label: "Team" },
   { id: "crm", icon: <Link2 size={18} strokeWidth={1.5} />, label: "CRM Connect" },
   { id: "analytics", icon: <BarChart2 size={18} strokeWidth={1.5} />, label: "Analytics" },
+  { id: "settings", icon: <SettingsIcon size={18} strokeWidth={1.5} />, label: "Settings" },
 ];
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";

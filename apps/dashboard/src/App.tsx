@@ -18,8 +18,9 @@ import { CRMConnect } from "./routes/dashboard/CRMConnect";
 import { Analytics } from "./routes/dashboard/Analytics";
 import { Clients } from "./routes/dashboard/Clients";
 import { ClientRecord } from "./routes/dashboard/ClientRecord";
+import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
+import { Settings } from "./routes/dashboard/Settings";
 
-// Screen id -> URL path (per FE-Flow-Admin-Dashboard.md)
 const PATHS: Record<Screen, string> = {
   landing: "/",
   signin: "/signin",
@@ -34,6 +35,8 @@ const PATHS: Record<Screen, string> = {
   analytics: "/dashboard/analytics",
   clients: "/dashboard/clients",
   "client-record": "/dashboard/clients/:id",
+  "activity-feed": "/dashboard/activity",
+  settings: "/dashboard/settings",
 };
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -83,6 +86,8 @@ export default function App() {
         <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/clients" element={<ProtectedRoute><Clients onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/clients/:id" element={<ProtectedRoute><ClientRecord onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityFeed onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="*" element={<NotFound onNav={onNav} />} />
       </Routes>
     </ToastProvider>

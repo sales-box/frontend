@@ -79,6 +79,14 @@ export function useRevokeAccess() {
   });
 }
 
+export function useOffboard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => allowlist.offboard(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["allowlist"] }),
+  });
+}
+
 // ─── CRM ─────────────────────────────────────────────────────
 
 export function useCrmStatus() {
