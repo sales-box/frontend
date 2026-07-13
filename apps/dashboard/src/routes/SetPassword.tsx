@@ -9,7 +9,7 @@ import { Btn } from "../components/Btn";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
@@ -153,7 +153,7 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
 
         <p className="text-center text-sm text-text-secondary mt-5">
           Already have a password?{" "}
-          <button onClick={() => onNav("signin")} className={`text-accent font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
+          <button onClick={() => onNav("signin")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
         </p>
       </div>
     </div>

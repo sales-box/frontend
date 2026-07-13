@@ -1,4 +1,5 @@
-import { RefreshCw, X, Inbox } from 'lucide-react'
+import { RefreshCw, X } from 'lucide-react'
+import mascotIconSilhouette from '../assets/mascot-icon-silhouette.svg'
 
 interface PanelHeaderProps {
   showRefresh?: boolean
@@ -27,7 +28,7 @@ export function PanelHeader({ showRefresh, onRefresh, onClose, muted }: PanelHea
         <div
           className={`w-6 h-6 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 transition-colors ${logoColor}`}
         >
-          <Inbox size={12} strokeWidth={1.5} className="text-[var(--color-text-on-primary)]" />
+          <img src={mascotIconSilhouette} alt="" className="w-4 h-4" aria-hidden="true" />
         </div>
         <span
           className={`text-caption font-semibold tracking-tight transition-colors ${wordmarkColor}`}

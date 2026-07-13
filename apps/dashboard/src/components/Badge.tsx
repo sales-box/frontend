@@ -2,13 +2,13 @@ import type { ReactNode } from "react";
 
 export function Badge({ children, variant = "muted" }: {
   children: ReactNode;
-  variant?: "success" | "warning" | "danger" | "muted" | "accent";
+  variant?: "success" | "warning" | "danger" | "muted" | "accentCool";
 }) {
   const styles: Record<string, string> = {
     success: "bg-success-light text-success",
     warning: "bg-warning-light text-warning",
     danger: "bg-danger-light text-danger",
-    accent: "bg-accent-light text-accent",
+    accentCool: "bg-accent-cool-light text-accent-cool",
     muted: "bg-surface-secondary text-text-tertiary",
   };
   return (

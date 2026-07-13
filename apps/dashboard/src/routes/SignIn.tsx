@@ -7,7 +7,7 @@ import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-sm";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
   const [email, setEmail] = useState("");
@@ -129,7 +129,7 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
 
         <p className="text-center text-sm text-text-secondary mt-5">
           Don't have an account?{" "}
-          <button onClick={() => onNav("signup")} className={`text-accent font-medium hover:underline cursor-pointer ${focusRing}`}>Register your company</button>
+          <button onClick={() => onNav("signup")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Register your company</button>
         </p>
       </div>
     </div>

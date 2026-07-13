@@ -47,7 +47,7 @@ function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void })
       onClick={onToggle}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       aria-pressed={dark}
-      className="fixed top-3 right-3 z-[550] w-9 h-9 flex items-center justify-center bg-surface border border-border text-text-secondary rounded-sm cursor-pointer hover:bg-surface-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+      className="fixed top-3 right-3 z-[550] w-9 h-9 flex items-center justify-center bg-surface border border-border text-text-secondary rounded-sm cursor-pointer hover:bg-surface-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
     >
       {dark ? <Sun size={15} strokeWidth={1.5} /> : <Moon size={15} strokeWidth={1.5} />}
     </button>

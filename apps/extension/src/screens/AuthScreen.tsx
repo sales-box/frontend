@@ -1,4 +1,4 @@
-import { Shield } from 'lucide-react'
+import mascotAuth from '../assets/mascot-auth.png'
 import { PanelHeader } from '../components/PanelHeader'
 
 interface AuthScreenProps {
@@ -19,10 +19,13 @@ export function AuthScreen({ onClose, onSignIn }: AuthScreenProps) {
 
       {/* Body */}
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
-        {/* Icon */}
-        <div className="w-14 h-14 rounded-[var(--radius-xl)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border)] flex items-center justify-center mb-6">
-          <Shield size={24} strokeWidth={1.25} className="text-[var(--color-text-secondary)]" />
-        </div>
+        {/* Mascot */}
+        <img
+          src={mascotAuth}
+          alt=""
+          className="w-32 h-32 mb-6 object-contain"
+          aria-hidden="true"
+        />
 
         {/* Eyebrow + heading — the serif moment */}
         <p className="text-eyebrow mb-2">SIGN IN</p>
@@ -31,7 +34,7 @@ export function AuthScreen({ onClose, onSignIn }: AuthScreenProps) {
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Sign in to{' '}
-          <em className="italic">continue.</em>
+          <em className="text-primary not-italic">continue.</em>
         </h1>
 
         {/* Sub-caption */}

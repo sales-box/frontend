@@ -30,12 +30,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className="flex items-center gap-2.5 bg-primary text-text-on-primary rounded-md px-4 py-2.5 text-[13px] font-body border border-border/30 min-w-[220px] max-w-[92vw]"
           >
-            <CheckCircle2 size={15} strokeWidth={1.5} className="text-accent flex-shrink-0" />
+            <CheckCircle2 size={15} strokeWidth={1.5} className="text-accent-cool flex-shrink-0" />
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Dismiss notification"
-              className="text-text-on-primary/60 hover:text-text-on-primary cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+              className="text-text-on-primary/60 hover:text-text-on-primary cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
             >
               <X size={13} strokeWidth={1.5} />
             </button>

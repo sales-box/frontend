@@ -22,7 +22,7 @@ const TONE: Record<string, string> = {
   blue: "var(--color-primary)",
   green: "var(--color-success)",
   amber: "var(--color-warning)",
-  red: "var(--color-accent)",
+  red: "var(--color-danger)",
 };
 
 export function StatCard({ label, value, sub, subTone = "muted", size = "md", icon, tone = "blue" }: {

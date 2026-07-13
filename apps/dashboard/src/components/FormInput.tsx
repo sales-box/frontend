@@ -36,7 +36,7 @@ export function FormInput({
           onChange={e => onChange?.(e.target.value)}
           onBlur={onBlur}
           className={`w-full px-3.5 py-2.5 text-sm font-body bg-surface text-text-primary rounded-md border focus:outline-none focus:ring-2 placeholder:text-text-tertiary transition-colors ${trailing ? "pr-10" : ""} ${
-            error ? "border-danger focus:border-danger focus:ring-danger/25" : "border-border focus:border-border-focus focus:ring-accent/25"
+            error ? "border-danger focus:border-danger focus:ring-danger/25" : "border-border focus:border-border-focus focus:ring-secondary/25"
           }`}
         />
         {trailing && <div className="absolute right-2.5 top-1/2 -translate-y-1/2">{trailing}</div>}

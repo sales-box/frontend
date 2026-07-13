@@ -10,7 +10,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 const statusBadge = (s: string) => {
   const v = s === "Active" ? "success" as const

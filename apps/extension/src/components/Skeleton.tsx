@@ -17,7 +17,7 @@ export function Skeleton({ width = 'w-full', height = 'h-4', className = '' }: S
       className={`relative overflow-hidden rounded-[var(--radius-sm)] bg-[var(--color-surface-tertiary)] ${width} ${height} ${className}`}
       aria-hidden="true"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.25)] to-transparent animate-shimmer" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(108,79,232,0.06)] to-transparent animate-shimmer" />
     </div>
   )
 }

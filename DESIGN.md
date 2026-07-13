@@ -1,115 +1,225 @@
 ---
-version: "beta-1"
+version: "v2 — Beacon"
+supersedes: "beta-1 (editorial/Fraunces)"
 name: "Inbox Sales Copilot"
-description: "B2B SaaS multi-tenant AI copilot. Two surfaces: Admin Dashboard (desktop) and Gmail Extension Panel (360px sidebar). Editorial, warm, trust-first design language with a distinct typographic signature."
+description: "B2B SaaS multi-tenant AI copilot. Two surfaces: Admin Dashboard (desktop-first, responsive) and Gmail Extension Panel (360px sidebar). Warm, vivid, mascot-led design language built around the 'Beacon' bot — friendly and energetic without losing B2B credibility."
 appearance: "light-dark"
+source_of_truth_for: "apps/dashboard, apps/extension, packages/shared, design/theme.css"
+---
 
+## 0. What changed and why (read this first)
+
+This file **replaces** the `beta-1` editorial system (Fraunces serif, cream/ink,
+flat/no-shadow, "one serif hero moment per screen"). That system is fully
+implemented today in `design/theme.css`, `apps/dashboard/src/theme.css`, and
+`apps/extension/src/index.css` — all three are token-identical, which is good
+news: the plumbing for a shared token system already exists and this redesign
+reuses it, it just repaints it.
+
+**One thing to fix, not just repaint.** `apps/dashboard/src/index.css` currently
+contains a second block, layered on top of `theme.css` via `@import`, titled
+*"Gmail palette + Bauhaus Bounce dark mode"*. It silently overrides every
+color token at `:root` and `.dark` with a Google-blue/red Gmail palette and
+swaps the display font to Plus Jakarta Sans — none of which is documented
+anywhere, none of which matches `theme.css`, and none of which exists in the
+Extension. **This means the Dashboard and Extension are already visually two
+different products in production right now**, silently, because of one
+undocumented CSS block. That block must be deleted (not merged, not adapted —
+deleted) as step one of implementing this spec. See the coding-agent prompt
+for the exact instruction.
+
+**Source of the new visual identity:** the attached logo/mascot artwork
+("INBOX SALES COPILOT" wordmark + envelope-bot mascot + 6-dot color strip).
+Every hex value below was pixel-sampled directly from that image, not
+eyeballed — sampled swatches are marked `[sampled]`; anything derived or
+added for functional reasons (e.g. a dedicated success-green) is marked
+`[derived]`.
+
+---
+
+## 1. Brand colors — sampled from the mascot artwork
+
+```
+colors-brand:                              # [sampled] — pixel-sampled from the 6-dot strip + wordmark
+  rose:    "#DF2A57"   # dot 1 — also the "S" in SALES / envelope gradient warm end
+  orange:  "#FB7229"   # dot 2 — envelope gradient midtone
+  gold:    "#FDC033"   # dot 3 — sparkles, envelope gradient warm-to-light transition
+  teal:    "#03ABC4"   # dot 4 — mascot eyes / antenna glow
+  blue:    "#0670F0"   # dot 5 — envelope gradient cool end
+  violet:  "#6C4FE8"   # dot 6 — "COPILOT" wordmark, sparkles
+  ink:     "#0B1B3E"   # mascot body / "INBOX" wordmark, refined for AA contrast from raw sample #081947
+```
+
+These seven are the **entire decorative palette**. Do not introduce an eighth
+brand hue. The mascot artwork itself never uses more than these — that
+restraint is what keeps it feeling designed instead of confetti.
+
+### Assigning brand colors to functional roles
+
+| Role | Color | Why |
+|---|---|---|
+| **Primary** (main CTA fill, active nav, brand anchor) | Violet `#6C4FE8` | It's the "COPILOT" word — the AI half of the product name. Distinct from any status color, so it never gets ambiguous next to a confidence badge. |
+| **Secondary / links / focus ring** | Blue `#0670F0` | Reads as "trustworthy business tool," balances the warmth of violet, doubles as the focus-ring color for accessibility. |
+| **Warm accent** (illustration, marketing hero moments, upsell banners) | Orange `#FB7229` + Gold `#FDC033` as a gradient pair | This is the envelope gradient. Reserved for hero/illustration contexts — see §6, gradients are not an every-button device. |
+| **Cool accent** (secondary badges, "new" tags, informational highlights) | Teal `#03ABC4` | Balances the orange/gold warmth, doesn't compete with primary violet. |
+| **Alert/energy accent** (Urgent tab indicator, decorative only) | Rose `#DF2A57` | Also doubles as the `danger` status color below — see §2 for why that dual-purpose is intentional here, not an accident. |
+| **Ink** | `#0B1B3E` | Primary text color, dark-mode-adjacent surfaces, mascot line work. Replaces `#1C1917` (the old warm-black) with a brand-true navy-black. |
+
+---
+
+## 2. Full color tokens
+
+```
 colors:
   # ── Light Mode (default) ──
-  primary: "#1C1917"
-  primary-hover: "#292524"
-  accent: "#3F6C51"
-  accent-hover: "#345A43"
-  accent-light: "#EAF1EC"
-  surface: "#FFFFFF"
-  surface-secondary: "#F5F1E8"
-  surface-tertiary: "#FAF8F3"
-  border: "#E7E2D6"
-  border-focus: "#3F6C51"
-  text-primary: "#1C1917"
-  text-secondary: "#57534E"
-  text-tertiary: "#78716C"
-  text-on-primary: "#F5F1E8"
-  success: "#3F6C51"
-  success-light: "#EAF1EC"
-  warning: "#A16207"
-  warning-light: "#FEF9C3"
-  danger: "#B7410E"
-  danger-light: "#FBEAE3"
-  overlay: "rgba(28, 25, 23, 0.5)"
+  primary:            "#6C4FE8"   # violet
+  primary-hover:       "#5A3FD1"
+  secondary:           "#0670F0"   # blue
+  secondary-hover:     "#0559C2"
+  accent-warm:         "#FB7229"   # orange — illustration/marketing only, see §6
+  accent-warm-2:       "#FDC033"   # gold — illustration/marketing only, see §6
+  accent-cool:         "#03ABC4"   # teal — informational badges/tags
+  accent-cool-light:   "#E3F7FA"
+
+  surface:             "#FFFFFF"
+  surface-secondary:   "#F6F5FC"   # faint violet-tinted neutral — ties surfaces back to brand without becoming a "colored app"
+  surface-tertiary:    "#EFEDF9"
+  border:              "#E3E1F1"
+  border-focus:        "#0670F0"   # secondary blue — distinct from primary violet so focus state never reads as "hover"
+
+  text-primary:        "#0B1B3E"   # ink
+  text-secondary:      "#4B5468"
+  text-tertiary:       "#7A8194"
+  text-on-primary:     "#FFFFFF"
+  text-on-brand-warm:  "#0B1B3E"   # ink text on gold/orange fills — white fails contrast on gold
+
+  success:             "#1FAB6B"   # [derived] — see rationale below
+  success-light:       "#E4F7EE"
+  warning:              "#FDC033"   # gold — reused directly, warning = caution is an intuitive fit
+  warning-light:        "#FFF6E0"
+  danger:               "#DF2A57"   # rose — reused directly, see rationale below
+  danger-light:          "#FDE7EC"
+
+  overlay:              "rgba(11, 27, 62, 0.55)"   # ink-tinted, not pure black
 
 colors-dark:
   # ── Dark Mode ──
-  primary: "#F5F1E8"
-  primary-hover: "#EDE7D9"
-  accent: "#6B9E80"
-  accent-hover: "#7FB093"
-  accent-light: "rgba(107, 158, 128, 0.14)"
-  surface: "#262420"
-  surface-secondary: "#1C1B17"
-  surface-tertiary: "#2E2C27"
-  border: "#3D3A34"
-  border-focus: "#6B9E80"
-  text-primary: "#F5F1E8"
-  text-secondary: "#C7C2B8"
-  text-tertiary: "#8F8A7F"
-  text-on-primary: "#1C1917"
-  success: "#6B9E80"
-  success-light: "rgba(107, 158, 128, 0.14)"
-  warning: "#D9A441"
-  warning-light: "rgba(217, 164, 65, 0.14)"
-  danger: "#E2795A"
-  danger-light: "rgba(226, 121, 90, 0.14)"
-  overlay: "rgba(0, 0, 0, 0.6)"
+  primary:             "#8B72FF"
+  primary-hover:        "#A08CFF"
+  secondary:            "#4C93FF"
+  secondary-hover:      "#6FA8FF"
+  accent-warm:          "#FF9A57"
+  accent-warm-2:        "#FFD766"
+  accent-cool:          "#29C6DF"
+  accent-cool-light:     "rgba(41, 198, 223, 0.14)"
 
+  surface:              "#0F1530"
+  surface-secondary:     "#0A0F24"
+  surface-tertiary:      "#161C3B"
+  border:                "#2A2F52"
+  border-focus:           "#4C93FF"
+
+  text-primary:          "#F2F2FA"
+  text-secondary:         "#B7BBD6"
+  text-tertiary:          "#7E84A8"
+  text-on-primary:        "#0B1330"
+  text-on-brand-warm:      "#0B1330"
+
+  success:                "#34D399"
+  success-light:            "rgba(52, 211, 153, 0.16)"
+  warning:                  "#FFD766"
+  warning-light:              "rgba(255, 215, 102, 0.16)"
+  danger:                     "#FF5C81"
+  danger-light:                 "rgba(255, 92, 129, 0.16)"
+
+  overlay:                     "rgba(0, 0, 0, 0.65)"
+```
+
+### Why `success` is the one color NOT sampled from the artwork
+
+The 6-dot strip has no green. That's fine for a logo, but the product has a
+real, load-bearing three-tier confidence system (≥80% / 60–79% / <60%,
+`ConfidencePill.tsx`) that Sales Engineers read at a glance, dozens of times a
+day, to decide whether to trust an AI-drafted reply. Green/amber/red is a
+convention SEs already have muscle memory for from every other tool they use
+(CRM health scores, deal-stage indicators, etc.) — breaking it to stay
+artwork-pure would cost real usability for zero brand benefit. `#1FAB6B` was
+chosen to sit comfortably in the same "vivid, rounded, friendly" family as the
+rest of the palette (same saturation/lightness range as teal and violet) so
+it doesn't look like a bolted-on Bootstrap green.
+
+`warning` and `danger` **are** reused directly from the artwork (gold,
+rose) rather than adding two more derived colors — gold-as-caution and
+rose-as-alert both already carry that meaning intuitively, so no
+justification gap there.
+
+### The one real constraint this creates: rose is dual-purpose
+
+Rose `#DF2A57` is both a **decorative brand color** (mascot line accents,
+suggested Urgent-tab indicator) and the **functional `danger` token**
+(low-confidence score, destructive-action buttons). This is intentional, not
+sloppy — but it means: **never use rose decoratively on the same screen where
+it's also carrying a low-confidence or destructive-action meaning**, or the
+two meanings will bleed together. Concretely: fine to use rose in the
+Extension's collapsed-tab icon or the landing-page mascot illustration; not
+fine to add a rose "New!" ribbon on a card that's sitting next to a
+low-confidence badge in the same view.
+
+---
+
+## 3. Typography
+
+The artwork's wordmark is a bold, geometric, rounded sans — thick strokes,
+open counters, soft terminals. A delicate serif (the old Fraunces system)
+actively fights that character. New pairing:
+
+```
 typography:
   display:
-    fontFamily: "'Fraunces', Georgia, serif"
+    fontFamily: "'Baloo 2', 'Poppins', system-ui, sans-serif"
     fontSize: "3rem"
-    fontWeight: 400
+    fontWeight: 700
     lineHeight: 1.08
-    letterSpacing: "-0.01em"
-  display-italic:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontStyle: "italic"
-    fontWeight: 400
-    note: "Reserved for the one emotional word or phrase per headline. Never a whole sentence."
-  heading:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontSize: "1.75rem"
-    fontWeight: 400
-    lineHeight: 1.2
     letterSpacing: "-0.005em"
+    note: "Rounded, bold, geometric — matches the wordmark's character. Google Fonts, open-license, has a usable weight range (400–800)."
+  heading:
+    fontFamily: "'Baloo 2', 'Poppins', system-ui, sans-serif"
+    fontSize: "1.75rem"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-0.003em"
   subheading:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 600
     lineHeight: 1.35
-    letterSpacing: "-0.01em"
   numeral-display:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontSize: "2.5rem"
-    fontWeight: 400
+    fontFamily: "'Baloo 2', 'Poppins', system-ui, sans-serif"
+    fontSize: "2.75rem"
+    fontWeight: 700
     lineHeight: 1
-    note: "Serif numerals for the ONE hero stat per screen (Analytics top metric, Briefing Sheet confidence scores). Everywhere else, numbers stay in body/mono."
+    note: "The ONE hero numeral per screen — confidence score, Analytics headline stat. Same rule as before, new font."
   eyebrow:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
     fontSize: "0.6875rem"
-    fontWeight: 600
+    fontWeight: 700
     letterSpacing: "0.08em"
     textTransform: "uppercase"
     color: "{colors.text-tertiary}"
-    note: "The small-caps label that sits above a display/heading/numeral-display element. This pairing (tiny uppercase label + large serif value) is the signature move — use it consistently."
+    note: "Kept from the old system — the tiny-uppercase-label-above-a-big-value pairing is a good pattern independent of typeface, reuse it."
   body:
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif"
+    fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.6
-    letterSpacing: "0"
-  body-italic:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontStyle: "italic"
-    fontSize: "0.9375rem"
-    lineHeight: 1.55
-    note: "Reserved for pull-quote style lines only (e.g. a one-line testimonial, a Briefing Sheet insight sentence). Not for general body copy."
   caption:
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif"
+    fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0.01em"
   small:
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif"
+    fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.35
@@ -119,8 +229,73 @@ typography:
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.5
-    note: "Table cells, IDs, timestamps, raw counts. This is the 'scan' register — the opposite job of numeral-display."
+    note: "UNCHANGED. Tables, IDs, timestamps. No reason to touch the one typeface that was purely functional."
+```
 
+**No italics in this system.** The old system's "one italic word per
+headline" move depended on Fraunces having a genuinely different italic
+personality. Baloo 2's italic is a mechanical slant with no character —
+using it would look like a bug, not a flourish. If a headline needs
+emphasis now, use the primary/violet color on the emphasized word instead
+of italics.
+
+**Arabic content:** the team already has an established convention for this
+(the Sadaqati project used Cairo for RTL/Arabic UI). Use **Cairo** for any
+Arabic-language strings in this product too, paired with the same weight
+logic (bold Cairo for display/heading contexts, regular for body) — do not
+introduce a different Arabic typeface just because the Latin pairing changed.
+
+### Font loading
+
+- **Dashboard:** Google Fonts CDN is fine (already how Fraunces/Inter were
+  loaded). Swap the `<link>` in `index.html`.
+- **Extension:** per the existing `index.css` comment, fonts are
+  **self-hosted as woff2**, not CDN-loaded — Chrome extensions shouldn't
+  phone home to Google Fonts at runtime. This means Baloo 2 and Plus Jakarta
+  Sans need to be downloaded, subsetted (Latin, and Arabic if Cairo is also
+  bundled), converted to woff2, and dropped into
+  `apps/extension/src/assets/fonts/`, replacing the Fraunces/Inter files.
+  `manifest.json`'s `web_accessible_resources` font list needs the filenames
+  updated to match. This is spelled out step-by-step in the coding-agent
+  prompt.
+
+---
+
+## 4. Shape language
+
+The mascot artwork is built entirely from rounded forms — the envelope has
+soft corners, the dots are perfect circles, even the bot's antenna and eyes
+are round. The old system's shape rule ("4px buttons, sharper = more
+editorial") is the opposite instinct. New scale:
+
+```
+rounded:
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  full: "9999px"
+```
+
+- **Buttons:** `rounded.sm` (8px) minimum, `rounded.full` (pill) is also
+  acceptable for primary CTAs on marketing surfaces (Landing hero) — pick
+  one per app and stay consistent; recommend pill buttons only on Landing,
+  8–12px radius everywhere inside the actual product (Dashboard app shell,
+  Extension panel) so it still reads as software, not a marketing page.
+- **Cards / panels:** `rounded.lg` (16px).
+- **Modals:** `rounded.xl` (24px).
+- **Badges / pills / avatars:** `rounded.full`.
+- Same rule as before still holds: no mixing sharp and rounded corners on
+  the same surface.
+
+---
+
+## 5. Spacing
+
+Unchanged — this is a layout concern, not a visual-identity concern, and the
+existing scale works fine with the new shape/type system.
+
+```
 spacing:
   xs: "4px"
   sm: "8px"
@@ -129,294 +304,241 @@ spacing:
   xl: "32px"
   2xl: "48px"
   3xl: "64px"
-
-rounded:
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  xl: "12px"
-  full: "9999px"
-
-components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.text-on-primary}"
-    rounded: "{rounded.sm}"
-    padding: "12px 24px"
-    fontWeight: 600
-    fontSize: "{typography.caption.fontSize}"
-    letterSpacing: "0.01em"
-    note: "Ink-filled, not colored. This is deliberate — it reads as editorial confidence, not another indigo SaaS button."
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.text-primary}"
-    borderColor: "{colors.border}"
-    rounded: "{rounded.sm}"
-    padding: "12px 24px"
-  button-danger:
-    backgroundColor: "{colors.danger}"
-    textColor: "#FFFFFF"
-    rounded: "{rounded.sm}"
-    padding: "12px 24px"
-  card:
-    backgroundColor: "{colors.surface}"
-    borderColor: "{colors.border}"
-    rounded: "{rounded.lg}"
-    padding: "{spacing.lg}"
-    shadow: "none"
-    note: "Flat. Definition comes from the 0.5px border, not a shadow."
-  input:
-    backgroundColor: "{colors.surface}"
-    borderColor: "{colors.border}"
-    rounded: "{rounded.md}"
-    padding: "10px 14px"
-    focusBorderColor: "{colors.border-focus}"
-  badge-success:
-    backgroundColor: "{colors.success-light}"
-    textColor: "{colors.success}"
-    rounded: "{rounded.full}"
-    padding: "2px 10px"
-  badge-warning:
-    backgroundColor: "{colors.warning-light}"
-    textColor: "{colors.warning}"
-    rounded: "{rounded.full}"
-    padding: "2px 10px"
-  badge-danger:
-    backgroundColor: "{colors.danger-light}"
-    textColor: "{colors.danger}"
-    rounded: "{rounded.full}"
-    padding: "2px 10px"
----
-
-# Design System: Inbox Sales Copilot
-
-## 1. Overview
-
-Inbox Sales Copilot is a **B2B SaaS multi-tenant AI copilot** for sales teams. This is the **Editorial Mono** direction: a cream/paper surface, a single sage accent, ink-filled buttons instead of a brand color, and a deliberate typographic signature (Fraunces serif for anything meant to be *felt*, Inter sans for anything meant to be *scanned*).
-
-The two surfaces still share one design DNA:
-
-| Surface | Type | Width | Use |
-|---------|------|-------|-----|
-| **Admin Dashboard** | Web app (Desktop-first) | 1280px max | Tenant management, KB upload, allowlist, analytics |
-| **Gmail Extension Panel** | Chrome Extension sidebar | ~360px fixed | SE-facing: briefing sheet, AI suggestions, confidence indicators |
-
-- **Density:** 4/10 — Balanced, leaning airy
-- **Variance:** 3/10 — Slightly higher than before; the typographic system introduces intentional contrast (serif vs sans, large vs small) as its own form of structure
-- **Motion:** 3/10 — Subtle, functional only
-- **Style:** Editorial B2B, warm, confident, structured where it counts
-- **Keywords:** trustworthy, editorial, warm, distinctive, calm-where-it-matters
-- **Light/Dark:** ✓ Full Light / ✓ Full Dark (system preference auto-detect + manual toggle)
-
-### Design Philosophy — where the "wow" lives and where it doesn't
-
-The typographic system is meant to run through the **whole product**, not just the landing page — headlines, empty states, the Analytics hero metric, and the Briefing Sheet all get the serif/eyebrow-label treatment. That's the differentiator: this reads like nothing else in the AI-copilot space.
-
-But it is **scoped by content type, not by screen**:
-
-- **Gets the full typographic treatment:** page headlines, section intros, empty states, the single hero stat on any given screen, the Briefing Sheet's client name and confidence scores, onboarding/first-login moments, the Revoked/Invalid full-panel states in the Extension.
-- **Stays in plain sans + mono, no exceptions:** table rows, the Allowlist list, form labels and inputs, timestamps, IDs, anything a Sales Engineer is scanning under time pressure. A 48px serif number is a delight once per screen. A table full of serif numerals is unreadable at a glance — that's the actual reason for the split, not a stylistic compromise.
-
-Rule of thumb: **one serif moment per screen.** If everything is the hero, nothing is.
+```
 
 ---
 
-## 2. Colors
+## 6. Gradients — the one genuinely new tool, and its guardrails
 
-### Light Mode — Core Palette
+The artwork's envelope is a gradient (rose → orange → gold, roughly
+diagonal). This is the single biggest visual departure from the old flat
+system, and it's the easiest thing to overuse. Rule:
 
-| Token | Hex | Use |
-|---|---|---|
-| `primary` (ink) | `#1C1917` | Primary buttons, primary text, the ink-fill CTA |
-| `accent` (sage) | `#3F6C51` | Links, focus rings, "product confidence" badges, the one accent color in the whole UI |
-| `surface` | `#FFFFFF` | Cards, panels, inputs |
-| `surface-secondary` | `#F5F1E8` | Page background — warm paper tone, not white |
-| `surface-tertiary` | `#FAF8F3` | Nested/muted fills inside cards |
-| `border` | `#E7E2D6` | Default hairline |
-| `warning` (amber) | `#A16207` | "History confidence" badges, low-confidence states |
-| `danger` (terracotta) | `#B7410E` | Destructive actions only — warmer than a pure red, still unambiguous |
+```
+gradients:
+  brand-warm: "linear-gradient(135deg, #DF2A57 0%, #FB7229 55%, #FDC033 100%)"
+  brand-cool: "linear-gradient(135deg, #6C4FE8 0%, #0670F0 100%)"
+```
 
-### Dark Mode
+**Where gradients ARE allowed:**
+- The product logo/mascot mark itself (any size).
+- Landing page hero background accents, section dividers.
+- Onboarding first-run screen background.
+- Empty-state illustration accents.
+- Loading screen (Extension `LoadingScreen.tsx`) — a subtle animated
+  gradient glow behind the mascot is a good, cheap "still alive" signal.
 
-Dark mode is a **warm charcoal**, never a cool gray or pure black — `#1C1B17` / `#262420` keep the paper feeling even in dark mode. The ink/cream relationship inverts: primary buttons become cream-filled with ink text, which keeps the "confident, not corporate" feel intact rather than defaulting to a generic dark-mode blue accent.
-
-### Color usage rules
-
-- **One accent color only** (sage). Amber and terracotta are semantic (warning/danger), not decorative alternatives.
-- **Buttons are ink or ghost — never sage-filled.** Sage is reserved for text, links, focus rings, and badges. This keeps the accent feeling special instead of becoming wallpaper.
-- **Never more than one primary (ink-filled) button per view**, same rule as before.
-
----
-
-## 3. Typography — the signature system
-
-This is the part that makes the product feel premium. Three moves, used consistently:
-
-### Move 1 — Eyebrow + display pairing
-A tiny uppercase sans-serif label (`eyebrow` token) sits directly above a large serif value (`display`, `heading`, or `numeral-display`). This single pattern does most of the "editorial" work — use it for:
-- Section headers ("dashboard / analytics" above a page title)
-- Stat callouts ("sent exactly as drafted" above "72%")
-- The Briefing Sheet ("briefing sheet" above the client's name)
-
-### Move 2 — One italic accent per headline
-Never bold a headline for emphasis. Instead, italicize the single word or short phrase that carries the emotional weight ("already written", "before you do"). One italic moment per headline, never a whole italicized sentence — that reads as a disclaimer, not a flourish.
-
-### Move 3 — Serif numerals for the one hero stat
-Every screen gets **at most one** number rendered in `numeral-display` (large serif). Everything else — table cells, timestamps, counts in a list — stays in `mono` or `body`. This contrast is what makes the big number land as intentional.
-
-### Font stack
-- **Display / heading / numeral-display / italic accents:** Fraunces (variable serif — load via Google Fonts; falls back to Georgia). Fraunces specifically because its "soft" optical size axis reads as warm and editorial rather than stiff and formal at large sizes.
-- **Body / UI / eyebrow labels / captions:** Inter, unchanged from before.
-- **Mono (tables, IDs, raw data):** JetBrains Mono, unchanged.
-
-Do not introduce a third typeface anywhere. The premium feeling comes from the serif/sans contrast being the *only* variable — adding a third face dilutes it immediately.
+**Where gradients are NOT allowed:**
+- Any button that appears more than once per screen (buttons in a table row,
+  repeated card actions, etc.) — gradient fills on small/repeated elements
+  read as noisy and hurt contrast predictability. Use solid `primary` violet.
+- Status badges (`ConfidencePill`, `Badge` success/warning/danger variants) —
+  these need instantly-readable solid color, not a gradient someone has to
+  parse.
+- Table rows, list items, form inputs — anything dense/scannable stays flat,
+  same principle the old system had, just restated for a new failure mode.
+- Dark mode surfaces — gradients read muddier on dark backgrounds; prefer a
+  solid brand color with a soft glow (`box-shadow` with brand color at low
+  opacity) instead of a literal gradient fill in dark mode hero moments.
 
 ---
 
-## 4. Layout
+## 7. Elevation & depth
 
-- **Admin Dashboard:** Responsive across three breakpoints — no longer desktop-only.
-  - **Desktop:** ≥1024px, max-width 1280px. Sidebar nav (persistent, left) + main content area. CSS Grid, base unit 8px.
-  - **Tablet:** 768–1023px. Sidebar collapses to icon-only rail, or a slide-out drawer triggered by a menu icon — pick whichever the screen needs, but stay consistent across the app.
-  - **Mobile:** <768px. Sidebar nav becomes a bottom tab bar (Knowledge Base / Allowlist / Analytics / Settings) or a hamburger-triggered full-screen drawer. Single-column layout throughout.
-  - **Tables on mobile:** never shrink a data table horizontally. Convert each row into a stacked card (label above value, sans/mono, same semantic badges) instead of a scrolling table. This applies to Knowledge Base documents, the Allowlist list, and the Analytics per-SE table.
-  - **Metric grids on mobile:** the 2–4 column metric card grid (Analytics) drops to a single column, full width. The one `numeral-display` hero stat still gets a full-width moment at the top — if anything it reads even better full-width and alone on a small screen.
-  - **Forms on mobile:** full-width inputs, labels stay above fields (already the desktop pattern, so this doesn't change).
-- **Gmail Extension Panel:** 360px fixed width, injected as a sidebar inside Gmail. This is desktop-only by nature (Chrome extensions don't run in mobile Gmail), so it does not need a separate mobile treatment — its fixed 360px width already behaves like a narrow/mobile-width surface. Must still look like it belongs *inside* Gmail — no heavy branding header. The typographic system applies to the Briefing Sheet content itself (client name, confidence scores), not to chrome around it.
-- **Tables:** Full-width, row height ~48px, sans + mono only, no exceptions (see Section 1). See mobile card-conversion rule above.
-- **Collapsed Extension tab:** ~40px vertical tab, product icon only.
+The old system was intentionally flat (paper-on-paper, borders only, no
+shadows). That worked for an editorial-serif system; it fights a friendly
+mascot brand, which benefits from a little softness. New rule: **restrained
+shadows are back, but soft and brand-tinted, never harsh black shadows.**
 
-### z-index Contract
-- Base content: `0`
-- Sticky sidebar/header: `100`
-- Dropdown/Popover: `200`
-- Modal overlay: `300`
-- Toast notification: `500`
+```
+elevation:
+  0-flat: "none"                                                    # table rows, nav items — unchanged
+  1-resting: "0 1px 2px rgba(11, 27, 62, 0.06)"                      # cards, input groups
+  2-elevated: "0 4px 16px rgba(11, 27, 62, 0.10)"                    # dropdowns, popovers, toasts
+  3-modal: "0 12px 40px rgba(11, 27, 62, 0.18)"                      # modals, on top of the overlay
+  glow-primary: "0 0 24px rgba(108, 79, 232, 0.25)"                  # hero moments only — mascot, primary CTA on Landing
+```
+
+Still no pure-black shadows anywhere — every shadow is ink-tinted
+(`rgba(11, 27, 62, …)`), matching the old system's "no pure black, always
+warm/brand-tinted" instinct even though the specific hue changed.
 
 ---
 
-## 5. Component Styling
+## 8. Component styling
 
 ### Buttons
-- **Primary:** Ink fill (`#1C1917`), cream text (`#F5F1E8`), `{rounded.sm}` (4px) corners — slightly sharper than before, to match the editorial/print feel. Hover: lighten to `#292524`. Active: translate-Y 1px.
-- **Secondary / Ghost:** Transparent, 1px border, ink text. Hover: `{colors.surface-tertiary}` fill.
-- **Danger:** Terracotta fill (`#B7410E`), white text. Destructive confirmations only.
+- **Primary:** `primary` violet fill, white text, `rounded.sm` (8px) inside
+  the product, pill radius allowed on Landing only, `elevation.1-resting`.
+  Hover: `primary-hover`. Active: translate-Y 1px (unchanged mechanic from
+  old system — it's a good tactile cue, keep it).
+- **Secondary / Ghost:** Transparent, 1px `border`, `text-primary` text.
+  Hover: `surface-tertiary` fill.
+- **Danger:** `danger` (rose) fill, white text. Destructive confirmations
+  only — respect the dual-purpose-rose rule from §2.
+- **Gradient CTA (Landing hero only):** `gradients.brand-cool` fill, white
+  text, pill radius, `elevation.glow-primary` on hover.
 
 ### Cards
-- White background, 0.5px border, `{rounded.lg}` (8px), no shadow. Flat, paper-like — depth comes from the warm page background behind it, not from elevation.
+- White (or `surface`) background, `rounded.lg` (16px), `elevation.1-resting`.
+  This is the biggest mechanical change from the old system — cards now have
+  a soft shadow instead of being purely border-defined. Border can stay as a
+  faint 1px `border` color underneath the shadow for crisper edges at 100%
+  zoom, but the shadow is doing the visual separation now, not the border.
 
-### Eyebrow + Display pairing (new shared component)
-The core building block described in Section 3. Structure: `<eyebrow text>` then `<display|heading|numeral-display value>`. Optional `body-italic` pull-quote line beneath. Used on: Landing hero, Analytics hero metric, Briefing Sheet header, empty states, onboarding first-run screen.
+### Eyebrow + Display pairing
+Kept as a pattern from the old system (§3 typography). Structure unchanged:
+`<eyebrow>` then `<display|heading|numeral-display>`, optional pull-quote
+line beneath — just drop the pull-quote's old serif-italic treatment; use
+plain `body` with `text-secondary` color instead, or `accent-cool` colored
+text for something that needs a little lift without going gradient.
 
-### Confidence Badge (Shared Component)
-Two presentation modes:
-- **Inline/list context** (Dashboard Analytics table, Allowlist): stays the original small pill — `[icon] [XX%]`, sans/mono text, `{rounded.full}`.
-- **Briefing Sheet hero context** (Extension, one per email): rendered as `numeral-display` serif numerals with an `eyebrow` label beneath ("product" / "history"), color-coded sage (≥80%) or amber (60–79%) or terracotta (<60%). This is the one place the confidence score gets the full typographic treatment — because it's the actual product moment.
+### Confidence Badge (`ConfidencePill.tsx`)
+Same two-mode structure as before:
+- **Inline/list context** (Analytics table, Allowlist): small pill,
+  `rounded.full`, `caption`/`mono` text — unchanged mechanically.
+- **Briefing Sheet hero context** (Extension, one per email): `numeral-display`
+  (now Baloo 2 bold, not Fraunces) with an `eyebrow` label beneath, colored
+  by tier: `success` (≥80%), `warning` (60–79%), `danger` (<60%). Exact same
+  logic as today's `getColor()` function in `ConfidencePill.tsx` — **only the
+  hex values the tokens resolve to change, the component logic does not.**
 
-### Status Badge (Shared Component)
-Unchanged in mechanics from before — pill shape, semantic color, always paired with an icon. Stays sans/mono, never serif — it's a scan element, not a hero moment.
+### Status Badge (`Badge.tsx`)
+Unchanged in mechanics — pill shape, semantic color + icon, sans/mono text.
+The `accent` variant in the current component (`bg-accent-light text-accent`)
+should be renamed conceptually to map onto `accent-cool` (teal) going
+forward, since "accent" as a single word is now ambiguous between four new
+brand colors — see the coding-agent prompt for the exact rename.
 
-### Empty State (Shared Component)
-Now uses the eyebrow + heading pairing for the headline, `body` for the description, ink primary CTA below. This is one of the "gets the treatment" surfaces from Section 1 — empty states are a first-impression moment, not a data table.
-
-### Destructive Confirmation Modal
-Unchanged structurally. Title stays in `heading` (serif) for weight, but the consequence-explaining body text stays in plain `body` sans — this is a moment for clarity, not flourish.
+### Empty States
+Same eyebrow+heading pairing, `body` description, primary CTA below — this
+is one of the "full illustration treatment" surfaces (§6): the empty-state
+illustration itself may use the mascot + gradient envelope; the text around
+it stays in solid `text-primary`/`text-secondary`, no gradient text.
 
 ### Loading Skeleton
-Unchanged — shimmer bars matching `{colors.surface-tertiary}`, no serif, no italics. Loading states are pure utility.
+Shimmer bars, matching `surface-tertiary` — mechanically unchanged, but the
+shimmer highlight color can shift from a neutral gray-shimmer to a very
+faint violet-tinted shimmer (`rgba(108, 79, 232, 0.06)`) so it still feels
+on-brand at a glance without becoming distracting.
 
-### Toast / Notification
-Unchanged mechanically. Semantic color strip + sans text.
+### PanelHeader (`PanelHeader.tsx`)
+Currently: a Lucide `Inbox` icon in a solid dark square + "Inbox Copilot"
+wordmark text. Recommendation: replace the Lucide icon with a small, flat
+(non-gradient — see §6, gradients don't hold up below ~32px) violet-filled
+version of the bot/envelope mark at 20–24px. Wordmark text switches from
+`Inter` to `Plus Jakarta Sans` semibold automatically once the font tokens
+change; no structural change to the component needed beyond the icon swap
+and the `muted` state's gray tokens (which already reference
+`surface-tertiary`/`text-tertiary` and need no additional edits).
 
----
-
-## 6. Elevation & Depth
-
-Still flat — no shadows anywhere except functional focus rings. Depth in this direction comes from the surface/page contrast (cream page, white card) rather than from shadow layers. This is *more* editorial-feeling than a drop shadow would be, not less.
-
-- **Level 0 (Flat):** No shadow. Table rows, nav items.
-- **Level 1 (Resting):** Border only, no shadow. Cards, input groups.
-- **Level 2 (Elevated):** Border only, `{colors.surface}` on `{colors.surface-secondary}`. Dropdowns, popovers, toasts.
-- **Level 3 (Modal):** `{colors.overlay}` backdrop, `{rounded.xl}` corners. No shadow on the modal itself — the overlay does the separation work.
-
-### Animation & Transitions
-Unchanged from the original spec — 150–200ms micro-interactions, 250ms panel open/close, `ease-out`/`ease-in`, transform/opacity/background/border-color only, respect `prefers-reduced-motion`.
-
----
-
-## 7. Shapes
-
-- **Base radius:** `{rounded.sm}` (4px) for buttons — sharper than before, reads as more editorial/print, less "app."
-- **Container radius:** `{rounded.lg}` (8px) for cards, sections, panels.
-- **Modal radius:** `{rounded.xl}` (12px).
-- **Badge/Pill radius:** `{rounded.full}`.
-- No mixing sharp and rounded corners on the same surface.
+### Logo lockup
+Two forms, per the artwork:
+- **Full lockup** (Landing, marketing, onboarding): mascot illustration +
+  three-word wordmark, "INBOX" in `text-primary` ink, "SALES" in `danger`
+  rose, "COPILOT" in `primary` violet — matches the sampled artwork exactly.
+- **Compact mark** (favicon, extension toolbar icon, PanelHeader, browser
+  tab): simplified single-color bot/envelope silhouette, no gradient, no
+  wordmark. Needs to survive being rendered at 16×16 (browser favicon) —
+  test legibility at that size specifically before finalizing the SVG.
 
 ---
 
-## 8. Icon System
+## 9. Layout
 
-Unchanged — Lucide Icons, 24×24px, 1.5px stroke, `currentColor`. No emojis, ever. Icons stay purely functional; they are not part of the typographic system and should not be scaled up as decoration.
+Unchanged from the previous version — this redesign is visual identity, not
+information architecture. Restating the load-bearing facts so this file
+stays self-contained:
+
+- **Admin Dashboard:** Responsive, three breakpoints (desktop ≥1024px
+  max-width 1280px sidebar+content; tablet 768–1023px collapsed/drawer
+  sidebar; mobile <768px bottom tab bar or drawer, single column). Tables
+  convert to stacked cards on mobile, never horizontal-scroll. Metric grids
+  drop to single column on mobile.
+- **Gmail Extension Panel:** 360px fixed width, injected sidebar, desktop-only
+  by nature. Must still look like it belongs inside Gmail — the
+  "Chrome-simple, no heavy branding header" rule from the old system stays;
+  the compact logo mark (see §8) is the only branding element in the
+  always-visible chrome, full mascot illustration only appears in full-panel
+  emotional states (Loading, Invalid, Revoked, Login Required).
+- **z-index contract:** unchanged — base `0`, sticky `100`, dropdown/popover
+  `200`, modal overlay `300`, toast `500`.
 
 ---
 
-## 9. Screens Reference
+## 10. Icon system
 
-Same screen list and priorities as the original architecture doc (Section 4 of `Frontend_Architecture_Design_Doc.md`). Per-screen typography notes:
+Lucide Icons, unchanged as the icon library. One adjustment: bump default
+stroke width from `1.5px` to `1.75px` so icon weight visually matches the
+new bold/rounded type system better — 1.5px reads as slightly thin next to
+700-weight Baloo 2 headings. Size stays 24×24px, `currentColor`, no emojis.
+The mascot is brand illustration, not a UI icon — never substitute it into
+an icon slot (button icons, list-row icons, nav icons).
 
-| # | Screen | Typographic treatment |
+---
+
+## 11. Screens reference
+
+Same screen list/priorities as before. Typographic-treatment column updated
+for the new type system (display/heading/numeral-display are now Baloo 2,
+not Fraunces — the "how many hero moments per screen" rule is unchanged):
+
+| # | Screen | Treatment |
 |---|--------|------------------------|
-| D1 Landing | Full treatment — eyebrow, display headline with italic accent, hero stat if used |
-| D2 Signup / D3 Verify | Heading only, form stays plain sans |
-| D4 Dashboard Shell (empty) | Full empty-state treatment |
+| D1 Landing | Full treatment — mascot + gradient hero background, eyebrow, bold display headline, gradient CTA pill button allowed here only |
+| D2 Signup / D3 Verify | Heading only, form stays plain body sans |
+| D4 Dashboard Shell (empty) | Full empty-state treatment, mascot illustration allowed |
 | D5 Knowledge Base | Heading + eyebrow for section title; document list stays sans/mono |
-| D6 Allowlist | Heading only; list rows stay sans/mono, no exceptions |
-| D8 Analytics | One `numeral-display` hero metric at top; all other numbers in the grid stay `mono` |
-| E2 Login Required / E3 Invalid / E6 Revoked | Full treatment — these are full-panel emotional moments, not data screens |
-| E4 Briefing Sheet | Full treatment on client name + confidence scores; rest of the sheet (email metadata, suggested reply body) stays sans body text |
-| E7 Loading | No typographic treatment — skeleton only |
+| D6 Allowlist | Heading only; list rows sans/mono, no exceptions |
+| D8 Analytics | One `numeral-display` hero metric at top; rest of the grid stays `mono` |
+| E2 Login Required / E3 Invalid / E6 Revoked | Full treatment — mascot illustration appropriate to the emotional beat (e.g. a "sleepy" or "locked" mascot pose for Revoked) |
+| E4 Briefing Sheet | Full treatment on client name + confidence scores (Baloo 2 numeral, tier color); rest of sheet stays sans body |
+| E7 Loading | Skeleton + optional subtle animated gradient glow behind mascot (see §6) — no other typographic treatment |
 
 ---
 
-## 10. Do's and Don'ts
+## 12. Do's and Don'ts
 
 ### Do
-- ✅ Use the eyebrow + display/heading/numeral-display pairing consistently — it's the core signature, reuse it rather than inventing new patterns per screen
-- ✅ Limit to one serif "hero" element per screen
-- ✅ Limit to one italic phrase per headline
-- ✅ Keep all dense/scannable content (tables, lists, forms) in sans + mono, no exceptions
-- ✅ Use ink-filled buttons, not accent-colored ones
-- ✅ Support both light and dark mode with CSS custom properties + `prefers-color-scheme`
-- ✅ Pair every semantic color with an icon/shape (accessibility)
-- ✅ Show empty states for every list/table with zero data, using the full typographic treatment
-- ✅ Use double-confirmation for all destructive actions
-- ✅ Keep the Extension panel Chrome-simple — it must blend with Gmail
-- ✅ Use skeleton loading instead of spinners
-- ✅ Test contrast ratios — minimum 4.5:1 for normal text (WCAG AA), including `text-secondary` on `surface-secondary`
+- ✅ Use the eyebrow + display/heading/numeral-display pairing consistently
+- ✅ Limit to one hero numeral/display moment per screen, same rule as before
+- ✅ Keep dense/scannable content (tables, lists, forms) in `body`/`mono`, no exceptions
+- ✅ Reserve gradients for hero/illustration moments only (§6) — never on repeated small elements
+- ✅ Keep the mascot out of the always-visible Extension chrome; full illustration only in full-panel emotional states
+- ✅ Support both light and dark mode via CSS custom properties
+- ✅ Pair every semantic color with an icon/shape, not color alone
+- ✅ Test the compact logo mark at 16×16 before shipping it as a favicon
+- ✅ Keep `text-on-brand-warm` (ink, not white) on any gold/orange fill — white fails contrast there
+- ✅ Delete the undocumented Gmail-palette override in `apps/dashboard/src/index.css` rather than trying to reconcile it (§0)
 
 ### Don't
-- ❌ No gradients, glassmorphism, or decorative backgrounds
-- ❌ No pure black backgrounds — darkest surface is `#1C1B17`, always warm
-- ❌ No serif type in tables, lists, forms, or anything meant to be scanned quickly
-- ❌ No more than one serif "hero" moment per screen
-- ❌ No bold headlines for emphasis — italics only, and sparingly
-- ❌ No third typeface anywhere
-- ❌ No sage-filled buttons — sage is for text/links/badges only
-- ❌ No multiple primary (ink-filled) buttons in the same section
-- ❌ No emojis as UI elements
-- ❌ No modals stacking on modals
-- ❌ No animations longer than 300ms
-- ❌ No marketing-speak in the UI: "Elevate", "Unleash", "Supercharge", "Next-Gen"
-- ❌ No color as the sole indicator of state (accessibility)
+- ❌ No gradient text, ever — gradients are for shapes/fills/illustration, never for typography (readability + accessibility both suffer)
+- ❌ No gradient buttons outside the Landing page hero CTA
+- ❌ No third decorative hue beyond the seven in §1
+- ❌ No pure-black shadows or pure-black surfaces — everything ink-tinted (`#0B1B3E`-based)
+- ❌ No italics anywhere in this system (Baloo 2's italic has no real character — see §3)
+- ❌ No rose used decoratively on the same screen where it's also signaling low-confidence/destructive (§2)
+- ❌ No mixing sharp and rounded corners on the same surface
+- ❌ No more than one primary (violet-filled) button in the same section
+- ❌ No emojis as UI elements — the mascot is the personality budget, it doesn't need emoji backup
+- ❌ No marketing-speak in UI copy: "Elevate", "Unleash", "Supercharge", "Next-Gen"
+- ❌ No color as the sole indicator of state
 
 ---
 
-## 11. Usage Notes
+## 13. Usage notes
 
-This file is the **living source of truth** for the Inbox Sales Copilot design system, superseding the original indigo/Plus Jakarta Sans version. It is consumed by:
+This file is the **living source of truth**, superseding `beta-1`
+(editorial/Fraunces). Consumed by:
 
-1. **Mohamed and Rana**, building the Extension and Dashboard respectively, directly from these tokens — no Figma handoff needed for this sprint given the timeline.
-2. **AI coding agents** (v0, Claude, Stitch) — reference this file for any UI code generation prompts.
-3. Any future design tooling (Figma + Dev Mode MCP) — this file becomes the seed document if the team formalizes the design system post-demo.
+1. **Mohamed** (Extension) and **Rana** (Admin Dashboard) building directly
+   from these tokens.
+2. **AI coding agents** — see the companion file
+   `CODING_AGENT_PROMPT.md` for the literal implementation task built from
+   this spec, including the exact files to edit and the exact override block
+   to delete.
+3. Any future design tooling (Figma) — this file is the seed document if the
+   team formalizes a design system post-demo.
 
-**Update protocol unchanged:** any new design decision must be recorded here immediately, same as before.
+**Update protocol unchanged:** any new design decision gets recorded here
+immediately.

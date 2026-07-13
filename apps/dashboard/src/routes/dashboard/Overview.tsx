@@ -6,7 +6,7 @@ import { Shell } from "../../components/Shell";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 function cardKeyDown(fn: () => void) {
   return (e: React.KeyboardEvent) => {
@@ -36,10 +36,10 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   }, []);
 
   const steps = [
-    { icon: <BookOpen size={20} strokeWidth={1.5} className="text-accent" />, title: "Upload your first document",
+    { icon: <BookOpen size={20} strokeWidth={1.5} className="text-accent-cool" />, title: "Upload your first document",
       desc: "Add product docs, FAQs, or pricing sheets so the AI has accurate knowledge to draw from.",
       action: "Go to Knowledge Base", target: "knowledge-base" as Screen, step: "Step 1", done: status.docs },
-    { icon: <Users size={20} strokeWidth={1.5} className="text-accent" />, title: "Invite your first Sales Engineer",
+    { icon: <Users size={20} strokeWidth={1.5} className="text-accent-cool" />, title: "Invite your first Sales Engineer",
       desc: "Add team members so they can access AI suggestions inside Gmail.",
       action: "Go to Team", target: "team" as Screen, step: "Step 2", done: status.team },
   ];
@@ -60,7 +60,7 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
             </span>
           </div>
           <div className="w-full h-1.5 bg-surface-secondary rounded-full overflow-hidden">
-            <div className="h-1.5 bg-accent rounded-full transition-all duration-500" style={{ width: loading ? "0%" : `${(completed / steps.length) * 100}%` }} />
+            <div className="h-1.5 bg-accent-cool rounded-full transition-all duration-500" style={{ width: loading ? "0%" : `${(completed / steps.length) * 100}%` }} />
           </div>
         </div>
         </Reveal>
@@ -73,10 +73,10 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               tabIndex={0}
               onClick={() => onNav(card.target)}
               onKeyDown={cardKeyDown(() => onNav(card.target))}
-              className={`text-left bg-surface border rounded-lg p-6 flex flex-col gap-4 hover:border-accent/50 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
+              className={`text-left bg-surface border rounded-lg p-6 flex flex-col gap-4 hover:border-secondary/50 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
             >
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-md bg-accent-light flex items-center justify-center">{card.icon}</div>
+                <div className="w-10 h-10 rounded-md bg-accent-cool-light flex items-center justify-center">{card.icon}</div>
                 <div className="flex items-center gap-2">
                   <span className="text-eyebrow">{card.step}</span>
                   {card.done && <CheckCircle2 size={14} strokeWidth={1.5} className="text-success" />}
@@ -86,7 +86,7 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
                 <h2 className="text-subheading text-text-primary mb-1">{card.title}</h2>
                 <p className="text-body text-text-secondary">{card.desc}</p>
               </div>
-              <span className="flex items-center gap-1 text-[13px] font-medium text-accent mt-auto">
+              <span className="flex items-center gap-1 text-[13px] font-medium text-accent-cool mt-auto">
                 {card.done ? "View" : card.action} <ChevronRight size={13} strokeWidth={1.5} />
               </span>
             </div>
@@ -106,7 +106,7 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               tabIndex={0}
               onClick={() => onNav(card.target)}
               onKeyDown={cardKeyDown(() => onNav(card.target))}
-              className={`text-left bg-surface border rounded-lg p-5 flex items-start gap-3.5 hover:border-accent/40 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
+              className={`text-left bg-surface border rounded-lg p-5 flex items-start gap-3.5 hover:border-secondary/40 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
             >
               <div className="w-9 h-9 rounded-md bg-surface-secondary flex items-center justify-center shrink-0">{card.icon}</div>
               <div className="flex-1 min-w-0">

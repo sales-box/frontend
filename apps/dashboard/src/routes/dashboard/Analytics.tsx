@@ -28,7 +28,7 @@ const ROW2: Kpi[] = [
   { label: "Escalated to Human", value: "8%", sub: "24 of 298 emails", tone: "amber", icon: <AlertTriangle size={17} strokeWidth={1.5} />, size: "sm" },
 ];
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
 type EmailChartPoint = { date: string; emails: number };
 type RepChartPoint = { name: string; sent: number; edited: number };
