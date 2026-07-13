@@ -31,8 +31,17 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
         setMessage("Google account connected successfully. Redirecting…");
         setTimeout(() => onNav("overview"), 1500);
       } else {
+        const pendingEmail = sessionStorage.getItem("pendingEmail") ?? "";
+        const pendingTid = sessionStorage.getItem("pendingTenantId") ?? "";
+        sessionStorage.removeItem("pendingEmail");
+        sessionStorage.removeItem("pendingTenantId");
+        const q = new URLSearchParams();
+        if (pendingEmail) q.set("email", pendingEmail);
+        if (pendingTid) q.set("tenantId", pendingTid);
         setMessage("Google account connected! Set your password to continue.");
-        setTimeout(() => onNav("set-password"), 2000);
+        setTimeout(() => {
+          window.location.replace(`/set-password${q.toString() ? `?${q}` : ""}`);
+        }, 2000);
       }
       return;
     }
