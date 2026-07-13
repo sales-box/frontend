@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
 import type { Screen } from "../../types";
-import { allowlist } from "../../api-client";
+import { useAllowlist, useGrantAccess, useRevokeAccess } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
@@ -14,31 +14,25 @@ import { useToast } from "../../components/Toast";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
-type Member = { email: string; initials: string; role: string; status: "granted" | "verified" | "revoked"; grantedAt: string };
-
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
-  const [sending, setSending] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error] = useState<string | null>(null);
 
-  const fetchMembers = () => {
-    return allowlist.list()
-      .then(res => setMembers((res ?? []).map(m => {
-        const initials = m.email.substring(0, 2).toUpperCase();
-        return { ...m, initials, role: "Sales Engineer" };
-      })))
-      .catch(() => {});
-  };
+  const { data: rawMembers, isLoading: loading, error } = useAllowlist();
+  const grantAccess = useGrantAccess();
+  const revokeAccess = useRevokeAccess();
 
-  useEffect(() => {
-    fetchMembers().finally(() => setLoading(false));
-  }, []);
+  const members = (rawMembers ?? []).map(m => ({
+    email: m.email,
+    initials: m.email.substring(0, 2).toUpperCase(),
+    role: "Sales Engineer",
+    status: m.status,
+    grantedAt: m.createdAt,
+  }));
+  const sending = grantAccess.isPending;
 
   const total = 5;
   const used = members.filter(m => m.status !== "revoked").length;
@@ -47,25 +41,20 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
 
   const closeModal = () => { setShowModal(false); setNewEmail(""); setEmailTouched(false); };
 
-  const sendInvite = () => {
+  const sendInvite = async () => {
     setEmailTouched(true);
     if (emailError || sending) return;
-    setSending(true);
-    allowlist.grant(newEmail)
-      .then(() => {
-        toast(`Invite sent to ${newEmail}`);
-        closeModal();
-        return fetchMembers();
-      })
-      .catch(() => {
-        toast("Failed to send invite — please try again");
-      })
-      .finally(() => setSending(false));
+    try {
+      await grantAccess.mutateAsync(newEmail);
+      toast(`Invite sent to ${newEmail}`);
+      closeModal();
+    } catch {
+      toast("Failed to send invite — please try again");
+    }
   };
 
   const revoke = (email: string) => {
-    allowlist.revoke(email).catch(() => {});
-    setMembers(p => p.map(x => x.email === email ? { ...x, status: "revoked" } : x));
+    revokeAccess.mutate(email);
     setConfirmRevoke(null);
     toast(`Access revoked for ${email}`);
   };
@@ -166,7 +155,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
                 {loading ? (
                   <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
                 ) : error ? (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-danger">{error}</td></tr>
+                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
                 ) : members.length === 0 ? (
                   <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
                 ) : members.map((m, i) => (

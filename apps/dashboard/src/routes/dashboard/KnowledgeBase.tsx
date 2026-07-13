@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning } from "lucide-react";
 import type { Screen } from "../../types";
-import { knowledgeBase } from "../../api-client";
+import { useDocuments, useUploadDocument, useDeleteDocument } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -20,16 +20,12 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const [dragging, setDragging] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [docs, setDocs] = useState<Doc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    knowledgeBase.list()
-      .then(res => setDocs((res?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }))))
-      .catch(err => setError(err.message || "Failed to load documents"))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: docsRes, isLoading, error } = useDocuments();
+  const uploadDoc = useUploadDocument();
+  const deleteDoc = useDeleteDocument();
+
+  const docs: Doc[] = (docsRes?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }));
 
   const readyCount = docs.filter(d => d.status === "ready").length;
   const processingCount = docs.filter(d => d.status === "processing").length;
@@ -58,23 +54,19 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const filtered = docs.filter(d => d.filename.toLowerCase().includes(query.toLowerCase()));
 
   const removeDoc = (doc: Doc) => {
-    if (doc.id) knowledgeBase.delete(doc.id).catch(() => {});
-    setDocs(p => p.filter(d => d.filename !== doc.filename));
+    if (doc.id) deleteDoc.mutate(doc.id);
     setDeleteConfirm(null);
     toast(`Deleted "${doc.filename}"`);
   };
 
   const handleUpload = (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach(file => {
-      const tempDoc: Doc = { filename: file.name, size: `${(file.size / 1024).toFixed(0)} KB`, status: "processing", uploadDate: "Just now", chunkCount: null };
-      setDocs(p => [tempDoc, ...p]);
-      knowledgeBase.upload(file)
-        .then(res => setDocs(p => p.map(d => d.filename === file.name ? { ...d, filename: res.filename, chunkCount: res.chunksCreated, status: res.status, isLowConfidence: res.isLowConfidence, qualityReason: res.qualityReason } : d)))
-        .catch(() => {
-          setDocs(p => p.map(d => d.filename === file.name ? { ...d, status: "warning" } : d));
-          toast(`Failed to upload "${file.name}"`);
-        });
+    Array.from(files).forEach(async file => {
+      try {
+        await uploadDoc.mutateAsync(file);
+      } catch {
+        toast(`Failed to upload "${file.name}"`);
+      }
     });
   };
 
@@ -205,10 +197,10 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
             </div>
             <h2 className="text-subheading text-text-primary">Documents</h2>
           </div>
-          {loading ? (
+          {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-text-tertiary">Loading documents…</div>
           ) : error ? (
-            <div className="px-5 py-10 text-center text-sm text-danger">{error}</div>
+            <div className="px-5 py-10 text-center text-sm text-danger">{(error as Error).message}</div>
           ) : docs.length === 0 ? (
             <EmptyState
               icon={<FileText size={20} strokeWidth={1.5} />}

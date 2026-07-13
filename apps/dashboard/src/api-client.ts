@@ -21,11 +21,18 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { ...authHeaders(), ...init?.headers },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      clearSession();
+      window.location.replace("/signin");
+      throw new Error("Session expired");
+    }
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}: ${body}`);
   }
   if (res.status === 204) return undefined as T;
-  return res.json();
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 function json(data: unknown): RequestInit {
@@ -54,6 +61,9 @@ export const auth = {
       method: "POST",
       ...json({ email, password, tenantId: tid }),
     }),
+
+  me: () =>
+    request<{ tenantId: string; email: string; isAdmin: boolean }>("/auth/me"),
 };
 
 // ─── Tenants & Onboarding ────────────────────────────────────
@@ -67,7 +77,7 @@ export interface SignupPayload {
 export interface Tenant {
   id: string;
   companyName: string;
-  tier: string;
+  tier: number;
   status: string;
 }
 
@@ -98,13 +108,11 @@ export interface KBDocument {
   qualityReason: string | null;
 }
 
-interface PaginationMeta {
+export interface PaginationMeta {
   total: number;
-  lastPage: number;
-  currentPage: number;
+  page: number;
   limit: number;
-  prev: number | null;
-  next: number | null;
+  totalPages: number;
 }
 
 export const knowledgeBase = {
@@ -128,11 +136,11 @@ export const knowledgeBase = {
 // ─── Access Control (Allowlist / Team) ───────────────────────
 
 export interface SEMember {
+  id: string;
+  tenantId: string;
   email: string;
   status: "granted" | "verified" | "revoked";
-  grantedAt: string;
-  verifiedAt: string | null;
-  revokedAt: string | null;
+  createdAt: string;
 }
 
 export const allowlist = {
@@ -150,6 +158,9 @@ export const allowlist = {
       `/tenants/${id ?? tenantId()}/allowlist/${encodeURIComponent(email)}`,
       { method: "DELETE" }
     ),
+
+  offboard: (id?: string) =>
+    request<void>(`/tenants/${id ?? tenantId()}/offboard`, { method: "POST" }),
 };
 
 // ─── Clients ────────────────────────────────────────────────
@@ -274,7 +285,13 @@ export function clearSession() {
 }
 
 export function isLoggedIn(): boolean {
-  return !!_jwt;
+  if (!_jwt) return false;
+  const p = parseJwtPayload(_jwt);
+  if (p.exp && (p.exp as number) * 1000 < Date.now()) {
+    clearSession();
+    return false;
+  }
+  return true;
 }
 
 export interface UserInfo {

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, ChevronRight, Contact } from "lucide-react";
 import type { Screen } from "../../types";
-import { clients, type Client } from "../../api-client";
+import { useClients } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -22,10 +22,6 @@ const statusBadge = (s: string) => {
 
 export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const navigate = useNavigate();
-  const [data, setData] = useState<Client[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -39,18 +35,9 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
     debounceRef.current = setTimeout(() => setDebouncedQuery(value), 300);
   }
 
-  useEffect(() => {
-    setLoading(true);
-    clients.list(page, limit, debouncedQuery)
-      .then((res: any) => {
-        const items = Array.isArray(res) ? res : (res?.data ?? []);
-        const count = res.meta?.total ?? 0;
-        setData(items);
-        setTotal(count);
-      })
-      .catch(err => setError(err.message || "Failed to load clients"))
-      .finally(() => setLoading(false));
-  }, [page, debouncedQuery]);
+  const { data: res, isLoading, error } = useClients(page, limit, debouncedQuery);
+  const data = res?.data ?? [];
+  const total = res?.meta?.total ?? 0;
 
   const totalPages = Math.ceil(total / limit);
 
@@ -88,10 +75,10 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
             <h2 className="text-subheading text-text-primary">Client Pipeline</h2>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-text-tertiary">Loading clients…</div>
           ) : error ? (
-            <div className="px-5 py-10 text-center text-sm text-danger">{error}</div>
+            <div className="px-5 py-10 text-center text-sm text-danger">{error ? (error as Error).message : null}</div>
           ) : data.length === 0 ? (
             <EmptyState
               icon={<Contact size={20} strokeWidth={1.5} />}

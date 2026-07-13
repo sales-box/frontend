@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import type { ReactNode } from "react";
 import type { Screen } from "../../types";
-import { analytics as analyticsApi } from "../../api-client";
+import { useAnalyticsSummary, useKnowledgeGaps, useResolveGap } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -62,47 +62,48 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     fontSize: 12, fontFamily: "Inter, sans-serif", borderRadius: 8,
     border: `1px solid ${c.border}`, background: c.surface, color: c.text,
   };
-  const [gaps, setGaps] = useState<Gap[]>([]);
-  const [kpiRow1, setKpiRow1] = useState<Kpi[] | null>(null);
-  const [kpiRow2, setKpiRow2] = useState<Kpi[] | null>(null);
-  const [emailData] = useState<EmailChartPoint[] | null>(null);
-  const [repData] = useState<RepChartPoint[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const summary = useAnalyticsSummary();
+  const gapsQuery = useKnowledgeGaps();
+  const resolveMutation = useResolveGap();
 
-  useEffect(() => {
-    Promise.all([
-      analyticsApi.summary()
-        .then(res => {
-          if (!res) return;
-          const total = res.totalEmailsProcessed ?? 0;
-          const classEntries = Object.entries(res.byClassification ?? {} as Record<string, number>);
-          const topClass = classEntries.length > 0
-            ? classEntries.reduce((a, b) => (b[1] > a[1] ? b : a))
-            : null;
-          const topClassLabel = topClass ? topClass[0] : "—";
-          const topClassPct = topClass && total > 0
-            ? Math.round((topClass[1] / total) * 100)
-            : 0;
+  const emailData: EmailChartPoint[] | null = null;
+  const repData: RepChartPoint[] | null = null;
+  const loading = summary.isLoading || gapsQuery.isLoading;
+  const error = summary.error
+    ? (summary.error as Error).message
+    : gapsQuery.error
+      ? (gapsQuery.error as Error).message
+      : null;
 
-          setKpiRow1([
-            { ...ROW1[0], value: String(total) },
-            ROW1[1],
-            ROW1[2],
-            ROW1[3],
-          ]);
-          setKpiRow2([
-            { ...ROW2[0], value: `${res.averageConfidence ?? 0}%` },
-            { ...ROW2[1], value: topClassLabel, sub: `${topClassPct}% of all emails` },
-            { ...ROW2[2], value: `${total > 0 ? Math.round(((res.lowConfidenceCount ?? 0) / total) * 100) : 0}%`, sub: `${res.lowConfidenceCount ?? 0} of ${total} emails` },
-          ]);
-        }),
-      analyticsApi.gaps()
-        .then(res => setGaps(Array.isArray(res) ? res : [])),
-    ])
-      .catch(err => setError(err.message || "Failed to load analytics"))
-      .finally(() => setLoading(false));
-  }, []);
+  const gaps: Gap[] = Array.isArray(gapsQuery.data) ? gapsQuery.data : [];
+
+  const kpiRow1: Kpi[] | null = summary.data
+    ? [
+        { ...ROW1[0], value: String(summary.data.totalEmailsProcessed ?? 0) },
+        ROW1[1],
+        ROW1[2],
+        ROW1[3],
+      ]
+    : null;
+
+  const kpiRow2: Kpi[] | null = (() => {
+    const res = summary.data;
+    if (!res) return null;
+    const total = res.totalEmailsProcessed ?? 0;
+    const classEntries = Object.entries(res.byClassification ?? ({} as Record<string, number>));
+    const topClass = classEntries.length > 0
+      ? classEntries.reduce((a, b) => (b[1] > a[1] ? b : a))
+      : null;
+    const topClassLabel = topClass ? topClass[0] : "—";
+    const topClassPct = topClass && total > 0
+      ? Math.round((topClass[1] / total) * 100)
+      : 0;
+    return [
+      { ...ROW2[0], value: `${Math.round((res.averageConfidence ?? 0) * 100)}%` },
+      { ...ROW2[1], value: topClassLabel, sub: `${topClassPct}% of all emails` },
+      { ...ROW2[2], value: `${total > 0 ? Math.round(((res.lowConfidenceCount ?? 0) / total) * 100) : 0}%`, sub: `${res.lowConfidenceCount ?? 0} of ${total} emails` },
+    ];
+  })();
 
   const TOTAL_GAPS = Math.max(gaps.length, 6);
   const resolvedCount = gaps.filter(g => g.resolved).length;
@@ -111,8 +112,7 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
 
   const resolveGap = (gap: Gap) => {
-    if (gap.id) analyticsApi.resolveGap(gap.id).catch(() => {});
-    setGaps(p => p.map(g => g.topic === gap.topic ? { ...g, resolved: true } : g));
+    if (gap.id) resolveMutation.mutate(gap.id);
     toast(`Marked “${gap.topic}” resolved`);
   };
 

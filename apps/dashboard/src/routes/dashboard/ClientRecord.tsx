@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
 import { ArrowLeft, Mail, Building2, Clock, Gauge } from "lucide-react";
 import { useParams } from "react-router-dom";
 import type { Screen } from "../../types";
-import { clients, type Client, type Interaction } from "../../api-client";
+import { useClient } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -20,22 +19,9 @@ function confidenceColor(score: number) {
 
 export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const { id } = useParams<{ id: string }>();
-  const [client, setClient] = useState<Client | null>(null);
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) { setError("No client ID"); setLoading(false); return; }
-    clients.get(id)
-      .then(res => {
-        const { interactions: ix, ...c } = res ?? {};
-        setClient(c as Client);
-        setInteractions(ix ?? []);
-      })
-      .catch(err => setError(err.message || "Failed to load client"))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const { data, isLoading, error } = useClient(id);
+  const client = data ?? null;
+  const interactions = data?.interactions ?? [];
 
   return (
     <Shell active="clients" onNav={onNav} onLogout={onLogout}>
@@ -49,10 +35,10 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
           </button>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="py-20 text-center text-sm text-text-tertiary">Loading client…</div>
         ) : error ? (
-          <div className="py-20 text-center text-sm text-danger">{error}</div>
+          <div className="py-20 text-center text-sm text-danger">{(error as Error).message}</div>
         ) : client ? (
           <>
             <PageHeader title={client.name} subtitle={client.email} />
@@ -129,8 +115,8 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                         {ix.classification && <Badge variant="muted">{ix.classification}</Badge>}
                         {ix.productConfidence != null && (
                           <div className="flex items-center gap-1.5">
-                            <Gauge size={12} strokeWidth={1.5} className={confidenceColor(ix.productConfidence)} />
-                            <span className={`text-xs font-medium ${confidenceColor(ix.productConfidence)}`}>{ix.productConfidence}%</span>
+                            <Gauge size={12} strokeWidth={1.5} className={confidenceColor(Math.round(ix.productConfidence * 100))} />
+                            <span className={`text-xs font-medium ${confidenceColor(Math.round(ix.productConfidence * 100))}`}>{Math.round(ix.productConfidence * 100)}%</span>
                           </div>
                         )}
                         {ix.recommendation && <span className="text-xs text-text-tertiary">{ix.recommendation}</span>}

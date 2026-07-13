@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { BookOpen, Users, Link2, BarChart2, ChevronRight, CheckCircle2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { tenants, knowledgeBase, crm, setCompanyName } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
+import { useDocuments, useTenant, useCrmStatus } from "../../hooks/queries";
+import { useAuthStore } from "../../store/auth";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
@@ -14,26 +15,22 @@ function cardKeyDown(fn: () => void) {
   };
 }
 
-type StepStatus = { docs: boolean; team: boolean; crm: boolean };
-
 export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
-  const [status, setStatus] = useState<StepStatus>({ docs: false, team: false, crm: false });
-  const [loading, setLoading] = useState(true);
+  const kb = useDocuments(1, 1);
+  const tenant = useTenant();
+  const crmStatus = useCrmStatus();
 
+  const status = {
+    docs: (kb.data?.meta?.total ?? 0) > 0,
+    team: tenant.data?.status === "active",
+    crm: crmStatus.data?.connected ?? false,
+  };
+  const loading = kb.isLoading || tenant.isLoading || crmStatus.isLoading;
+
+  const setCompany = useAuthStore(s => s.setCompany);
   useEffect(() => {
-    Promise.allSettled([
-      knowledgeBase.list(1, 1).then(res => (res?.meta?.total ?? 0) > 0),
-      tenants.get().then(t => { if (t?.companyName) setCompanyName(t.companyName); return t?.status === "active"; }),
-      crm.status().then(res => res.connected),
-    ]).then(([docs, team, crmRes]) => {
-      setStatus({
-        docs: docs.status === "fulfilled" && docs.value,
-        team: team.status === "fulfilled" && team.value,
-        crm: crmRes.status === "fulfilled" && crmRes.value,
-      });
-      setLoading(false);
-    });
-  }, []);
+    if (tenant.data?.companyName) setCompany(tenant.data.companyName);
+  }, [tenant.data?.companyName, setCompany]);
 
   const steps = [
     { icon: <BookOpen size={20} strokeWidth={1.5} className="text-accent-cool" />, title: "Upload your first document",

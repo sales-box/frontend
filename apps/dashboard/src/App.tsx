@@ -2,7 +2,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
 import type { Screen } from "./types";
-import { clearSession, isLoggedIn } from "./api-client";
+import { useAuthStore } from "./store/auth";
 import { ToastProvider } from "./components/Toast";
 import { Landing } from "./routes/Landing";
 import { SignIn } from "./routes/SignIn";
@@ -18,8 +18,9 @@ import { CRMConnect } from "./routes/dashboard/CRMConnect";
 import { Analytics } from "./routes/dashboard/Analytics";
 import { Clients } from "./routes/dashboard/Clients";
 import { ClientRecord } from "./routes/dashboard/ClientRecord";
+import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
+import { Settings } from "./routes/dashboard/Settings";
 
-// Screen id -> URL path (per FE-Flow-Admin-Dashboard.md)
 const PATHS: Record<Screen, string> = {
   landing: "/",
   signin: "/signin",
@@ -34,10 +35,13 @@ const PATHS: Record<Screen, string> = {
   analytics: "/dashboard/analytics",
   clients: "/dashboard/clients",
   "client-record": "/dashboard/clients/:id",
+  "activity-feed": "/dashboard/activity",
+  settings: "/dashboard/settings",
 };
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  if (!isLoggedIn()) return <Navigate to="/signin" replace />;
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
   return <>{children}</>;
 }
 
@@ -56,8 +60,9 @@ function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void })
 
 export default function App() {
   const navigate = useNavigate();
+  const logout = useAuthStore(s => s.logout);
   const onNav = (s: Screen) => navigate(PATHS[s]);
-  const onLogout = () => { clearSession(); navigate("/signin"); };
+  const onLogout = () => { logout(); navigate("/signin"); };
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -81,6 +86,8 @@ export default function App() {
         <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/clients" element={<ProtectedRoute><Clients onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/clients/:id" element={<ProtectedRoute><ClientRecord onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityFeed onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="*" element={<NotFound onNav={onNav} />} />
       </Routes>
     </ToastProvider>
