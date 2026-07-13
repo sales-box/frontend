@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
 import type { Screen } from "../../types";
-import { useAllowlist, useGrantAccess, useRevokeAccess } from "../../hooks/queries";
+import { useAllowlist, useGrantAccess, useRevokeAccess, useTenant } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
@@ -13,6 +13,7 @@ import { useToast } from "../../components/Toast";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
+const SEAT_CAP: Record<number, number> = { 1: 3, 2: 10, 3: 50 };
 
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -21,6 +22,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const [emailTouched, setEmailTouched] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
+  const { data: tenant } = useTenant();
   const { data: rawMembers, isLoading: loading, error } = useAllowlist();
   const grantAccess = useGrantAccess();
   const revokeAccess = useRevokeAccess();
@@ -30,11 +32,11 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
     initials: m.email.substring(0, 2).toUpperCase(),
     role: "Sales Engineer",
     status: m.status,
-    grantedAt: m.createdAt,
+    grantedAt: m.grantedAt,
   }));
   const sending = grantAccess.isPending;
 
-  const total = 5;
+  const total = SEAT_CAP[tenant?.tier ?? 1] ?? 3;
   const used = members.filter(m => m.status !== "revoked").length;
   const atLimit = used >= total;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";
@@ -48,8 +50,13 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
       await grantAccess.mutateAsync(newEmail);
       toast(`Invite sent to ${newEmail}`);
       closeModal();
-    } catch {
-      toast("Failed to send invite — please try again");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.startsWith("403")) {
+        toast("Seat limit reached — upgrade your plan to add more Sales Engineers");
+      } else {
+        toast("Failed to send invite — please try again");
+      }
     }
   };
 
@@ -82,7 +89,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
         {atLimit && (
           <div className="flex items-center gap-3 bg-warning-light border border-warning/20 rounded-lg px-4 py-3 mb-5 text-[13px]" role="status">
             <AlertTriangle size={14} strokeWidth={1.5} className="text-warning shrink-0" />
-            <span className="text-warning">You've used all {total} seats on the Growth plan.</span>
+            <span className="text-warning">You've used all {total} seats on your current plan.</span>
             <button className={`text-warning underline font-medium ml-auto cursor-pointer rounded-sm ${focusRing}`}>Upgrade tier</button>
           </div>
         )}

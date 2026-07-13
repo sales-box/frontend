@@ -46,8 +46,7 @@ function json(data: unknown): RequestInit {
 
 export const auth = {
   googleStart: () => {
-    const redirect = encodeURIComponent(`${window.location.origin}/callback`);
-    window.location.href = `${BASE}/auth/google?redirect=${redirect}`;
+    window.location.href = `${BASE}/auth/google`;
   },
 
   adminLogin: (email: string, password: string) =>
@@ -115,9 +114,18 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface KBPaginationMeta {
+  total: number;
+  lastPage: number;
+  currentPage: number;
+  limit: number;
+  prev: number | null;
+  next: number | null;
+}
+
 export const knowledgeBase = {
   list: (page = 1, limit = 50) =>
-    request<{ data: KBDocument[]; meta: PaginationMeta }>(
+    request<{ data: KBDocument[]; meta: KBPaginationMeta }>(
       `/knowledge-base/documents?page=${page}&limit=${limit}`
     ),
 
@@ -140,7 +148,9 @@ export interface SEMember {
   tenantId: string;
   email: string;
   status: "granted" | "verified" | "revoked";
-  createdAt: string;
+  grantedAt: string;
+  verifiedAt: string | null;
+  revokedAt: string | null;
 }
 
 export const allowlist = {
@@ -190,7 +200,7 @@ export interface Interaction {
 
 export const clients = {
   list: (page = 1, limit = 10, search = "") =>
-    request<{ data: Client[]; meta: PaginationMeta }>(
+    request<{ data: Client[]; pagination: PaginationMeta }>(
       `/clients?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`
     ),
 
@@ -198,7 +208,7 @@ export const clients = {
     request<Client & { interactions: Interaction[] }>(`/clients/${id}`),
 
   interactions: (clientId: string, page = 1, limit = 20) =>
-    request<{ data: Interaction[]; meta: PaginationMeta }>(
+    request<{ data: Interaction[]; pagination: PaginationMeta }>(
       `/clients/${clientId}/interactions?page=${page}&limit=${limit}`
     ),
 };

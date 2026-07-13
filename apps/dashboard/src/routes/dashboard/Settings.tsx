@@ -89,7 +89,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
             <div>
               <div className="text-sm font-medium text-text-primary">Offboard team</div>
               <div className="text-xs text-text-tertiary mt-0.5">
-                Revokes Gmail extension access for every Sales Engineer at once.
+                Revokes all SE access and sets your tenant to offboarded.
               </div>
             </div>
             <Btn variant="danger" size="sm" onClick={() => setShowOffboard(true)}>
@@ -140,7 +140,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
                 {[
                   "Revoke Gmail extension access for all Sales Engineers",
                   "Remove them from your team allowlist",
-                  "Require re-inviting each SE to restore access",
+                  "Set your tenant status to offboarded",
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2 text-[13px] text-danger">
                     <X size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
@@ -150,7 +150,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               </ul>
             </div>
             <p className="text-xs text-text-tertiary mt-4">
-              Your admin account, documents, and analytics are not affected.
+              Your client data is preserved but becomes unreachable while offboarded.
             </p>
           </div>
         ) : (
