@@ -1,6 +1,6 @@
 import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star, Flag, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
-import { reportKnowledgeGap } from '@inbox-sales/shared'
+// Removed unused reportKnowledgeGap
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
@@ -60,7 +60,11 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
       // in LowConfidenceData. In a future sprint this could include the email
       // subject/classification once those fields are added to the payload.
       const topic = data.company || 'Unknown company'
-      await reportKnowledgeGap(jwt ?? '', topic)
+      await chrome.runtime.sendMessage({
+        type: 'REPORT_KNOWLEDGE_GAP',
+        jwt: jwt ?? '',
+        topic,
+      })
       setReported(true)
     } catch (err) {
       console.error('[Copilot] reportKnowledgeGap failed:', err)

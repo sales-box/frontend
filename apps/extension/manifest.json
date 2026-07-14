@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2VI+XS9lof6QxAe/St/5K6RtBRWl919L4o7p90xowV4OLKceX/57HEuecBg/mH50E5r79trp6d3wOrFAjWamlTKXuezqD4EJJEnu1IZuBM/g+brSQA7z1PVKQdTwO+96B+SHj7ffwf1QwLPAOS/tfe1kl1xDp+QRjVJaPBOU5HGT79o/wpriyMuRj/oMnxO3kuLDgaPJgd14krTbfE4lDacGeogHUCGfo1AxxrQNUyeZ5HyT1j302hqlbBDWmkvxhGjJT2NZdkjvt2F0oyRL2i+xbyBhGLV01/FwRkLPHrN4NcZeXifZIXfzEwDdQfISehhRW3pFwqv8zA+XG5ptNQIDAQAB",
   "name": "Inbox Sales Copilot",
   "version": "1.0.0",
   "description": "AI-powered sales reply assistant for Gmail",
@@ -14,7 +15,7 @@
     "type": "module"
   },
   "oauth2": {
-    "client_id": "1050030057920-obg6q5m8qiuv1v05au6dd9li845qo3gr.apps.googleusercontent.com",
+    "client_id": "676907443704-jms8lovn48lsl0tqjlhrjff12kfe1ojv.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
   },
   "content_scripts": [
@@ -28,7 +29,11 @@
       "resources": [
         "src/assets/fonts/Baloo2-latin.woff2",
         "src/assets/fonts/PlusJakartaSans-latin.woff2",
-        "src/assets/fonts/JetBrainsMono-latin.woff2"
+        "src/assets/fonts/JetBrainsMono-latin.woff2",
+        "src/assets/mascot-auth.png",
+        "src/assets/mascot-locked.png",
+        "src/assets/mascot-sleepy.png",
+        "src/assets/mascot-icon-silhouette.svg"
       ],
       "matches": ["https://mail.google.com/*"]
     }

@@ -21,7 +21,7 @@ export function AuthScreen({ onClose, onSignIn }: AuthScreenProps) {
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
         {/* Mascot */}
         <img
-          src={mascotAuth}
+          src={chrome.runtime.getURL(mascotAuth)}
           alt=""
           className="w-32 h-32 mb-6 object-contain"
           aria-hidden="true"
