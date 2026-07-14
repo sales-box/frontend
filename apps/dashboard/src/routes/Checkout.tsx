@@ -172,7 +172,7 @@ export function Checkout({ onNav }: { onNav: (s: Screen) => void }) {
           <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
         </div>
 
-        <Elements stripe={stripePromise}>
+        <Elements stripe={stripePromise} options={{ locale: "en" }}>
           <CheckoutForm plan={plan} onNav={onNav} />
         </Elements>
 
