@@ -37,7 +37,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
 
   const { data: res, isLoading, error } = useClients(page, limit, debouncedQuery);
   const data = res?.data ?? [];
-  const total = res?.pagination?.total ?? 0;
+  const total = res?.meta?.total ?? 0;
 
   const totalPages = Math.ceil(total / limit);
 

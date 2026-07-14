@@ -7,7 +7,6 @@ let _companyName: string | null = sessionStorage.getItem("companyName");
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   if (_jwt) h["Authorization"] = `Bearer ${_jwt}`;
-  if (_tid) h["x-tenant-id"] = _tid;
   return h;
 }
 
@@ -116,13 +115,6 @@ export interface KBDocument {
 
 export interface PaginationMeta {
   total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface KBPaginationMeta {
-  total: number;
   lastPage: number;
   currentPage: number;
   limit: number;
@@ -132,7 +124,7 @@ export interface KBPaginationMeta {
 
 export const knowledgeBase = {
   list: (page = 1, limit = 50) =>
-    request<{ data: KBDocument[]; meta: KBPaginationMeta }>(
+    request<{ data: KBDocument[]; meta: PaginationMeta }>(
       `/knowledge-base/documents?page=${page}&limit=${limit}`
     ),
 
@@ -207,7 +199,7 @@ export interface Interaction {
 
 export const clients = {
   list: (page = 1, limit = 10, search = "") =>
-    request<{ data: Client[]; pagination: PaginationMeta }>(
+    request<{ data: Client[]; meta: PaginationMeta }>(
       `/clients?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`
     ),
 
@@ -215,7 +207,7 @@ export const clients = {
     request<Client & { interactions: Interaction[] }>(`/clients/${id}`),
 
   interactions: (clientId: string, page = 1, limit = 20) =>
-    request<{ data: Interaction[]; pagination: PaginationMeta }>(
+    request<{ data: Interaction[]; meta: PaginationMeta }>(
       `/clients/${clientId}/interactions?page=${page}&limit=${limit}`
     ),
 };
@@ -273,19 +265,18 @@ export interface ActivityEntry {
 
 export interface ActivityPage {
   data: ActivityEntry[];
-  pagination: PaginationMeta;
+  meta: PaginationMeta;
 }
 
 export const analytics = {
   summary: (days = 30) =>
-    request<AnalyticsSummary>(
-      `/analytics/summary?days=${days}&tenantId=${tenantId()}`
-    ),
+    request<AnalyticsSummary>(`/analytics/summary?days=${days}`),
 
   gaps: (threshold = 3) =>
-    request<KnowledgeGap[]>(
-      `/analytics/gaps/alerts?threshold=${threshold}&tenantId=${tenantId()}`
-    ),
+    request<KnowledgeGap[]>(`/analytics/gaps/alerts?threshold=${threshold}`),
+
+  reportGap: (topic: string) =>
+    request<KnowledgeGap>("/analytics/gaps", { method: "POST", ...json({ topic }) }),
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),
@@ -295,6 +286,26 @@ export const analytics = {
     request<ActivityPage>(
       `/analytics/activity?page=${page}&limit=${limit}${date ? `&date=${encodeURIComponent(date)}` : ""}`
     ),
+};
+
+// ─── Payments ───────────────────────────────────────────────
+
+export interface PaymentIntent {
+  id: string;
+  client_secret: string;
+  amount: number;
+  status: string;
+}
+
+export const payments = {
+  createIntent: (amount: number) =>
+    request<PaymentIntent>("/payments/create-payment-intent", {
+      method: "POST",
+      ...json({ amount }),
+    }),
+
+  get: (id: string) =>
+    request<PaymentIntent>(`/payments/${id}`),
 };
 
 // ─── Session helpers ─────────────────────────────────────────
