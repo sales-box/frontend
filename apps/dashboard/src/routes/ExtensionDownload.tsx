@@ -1,4 +1,4 @@
-import { Inbox, Download, ExternalLink } from "lucide-react";
+import { Inbox, Download } from "lucide-react";
 import type { Screen } from "../types";
 import { Card } from "../components/Card";
 

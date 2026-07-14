@@ -36,7 +36,6 @@ const COLS = "grid grid-cols-[80px_1fr_1fr_140px_100px_100px] gap-3";
 
 export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const [rows, setRows] = useState<ActivityRow[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,9 +48,6 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
       })
       .catch((err) => {
         console.error("[ActivityFeed] Failed to load activity:", err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
