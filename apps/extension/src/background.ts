@@ -10,6 +10,52 @@
 const API_BASE = 'https://salesbox.dev' // switch to http://localhost:3000 for local dev
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  // ── GET_SE_AUTH_CODE ──────────────────────────────────────────────────────
+  // Obtains a Google OAuth *authorization code* via launchWebAuthFlow.
+  // This is distinct from getAuthToken (access token) — the backend
+  // POST /auth/se/login expects a code so it can exchange it server-side.
+  if (msg.type === 'GET_SE_AUTH_CODE') {
+    ;(async () => {
+      try {
+        const manifest = chrome.runtime.getManifest()
+        const clientId = manifest.oauth2?.client_id
+        if (!clientId) throw new Error('No oauth2.client_id in manifest.json')
+
+        const redirectUrl = chrome.identity.getRedirectURL()
+        const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+        authUrl.searchParams.set('client_id', clientId)
+        authUrl.searchParams.set('redirect_uri', redirectUrl)
+        authUrl.searchParams.set('response_type', 'code')
+        authUrl.searchParams.set('scope', 'openid email profile')
+        authUrl.searchParams.set('access_type', 'offline')
+        authUrl.searchParams.set('prompt', 'consent')
+
+        const responseUrl = await new Promise<string>((resolve, reject) => {
+          chrome.identity.launchWebAuthFlow(
+            { url: authUrl.toString(), interactive: true },
+            (callbackUrl) => {
+              if (chrome.runtime.lastError || !callbackUrl) {
+                reject(chrome.runtime.lastError?.message || 'launchWebAuthFlow failed')
+              } else {
+                resolve(callbackUrl)
+              }
+            }
+          )
+        })
+
+        const params = new URL(responseUrl).searchParams
+        const code = params.get('code')
+        if (!code) throw new Error('No code in OAuth callback URL')
+
+        sendResponse({ code })
+      } catch (err) {
+        console.error('[Background] GET_SE_AUTH_CODE Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      }
+    })()
+    return true // keep message channel open
+  }
+
   if (msg.type !== 'GET_INBOX_STATS') return
 
   ;(async () => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import type { Screen } from "../../types";
 import { useTenant, useOffboard } from "../../hooks/queries";
+import { tenants, setCompanyName } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -10,6 +11,7 @@ import { Modal } from "../../components/Modal";
 import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
 import { useToast } from "../../components/Toast";
+
 
 const TIERS: Record<number, { name: string; blurb: string }> = {
   1: { name: "Starter", blurb: "$49/mo · Up to 3 seats · 25 documents" },
@@ -23,6 +25,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const offboard = useOffboard();
 
   const [company, setCompany] = useState("");
+  const [savingCompany, setSavingCompany] = useState(false);
   const [showOffboard, setShowOffboard] = useState(false);
   const [step, setStep] = useState(1);
   const [typed, setTyped] = useState("");
@@ -35,6 +38,20 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const companyName = tenant?.companyName ?? "";
 
   const closeOffboard = () => { setShowOffboard(false); setStep(1); setTyped(""); };
+
+  const handleSaveCompany = async () => {
+    if (!company.trim()) return;
+    setSavingCompany(true);
+    try {
+      await tenants.updateTenant(company.trim());
+      setCompanyName(company.trim()); // keep session cache in sync
+      toast("Company name updated successfully.");
+    } catch {
+      toast("Failed to update company name — please try again.");
+    } finally {
+      setSavingCompany(false);
+    }
+  };
 
   const confirmOffboard = async () => {
     try {
@@ -59,7 +76,8 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
             <Btn
               variant="secondary"
               size="sm"
-              onClick={() => toast("Company profile updates aren't available yet.")}
+              loading={savingCompany}
+              onClick={handleSaveCompany}
             >
               Save changes
             </Btn>

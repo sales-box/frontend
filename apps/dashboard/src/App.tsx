@@ -20,6 +20,7 @@ import { Clients } from "./routes/dashboard/Clients";
 import { ClientRecord } from "./routes/dashboard/ClientRecord";
 import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
 import { Settings } from "./routes/dashboard/Settings";
+import { ExtensionDownload } from "./routes/ExtensionDownload";
 
 const PATHS: Record<Screen, string> = {
   landing: "/",
@@ -37,6 +38,8 @@ const PATHS: Record<Screen, string> = {
   "client-record": "/dashboard/clients/:id",
   "activity-feed": "/dashboard/activity",
   settings: "/dashboard/settings",
+  // Public route — no auth required. Must stay top-level (not /dashboard/*).
+  "extension-download": "/extension-download",
 };
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -79,6 +82,10 @@ export default function App() {
         <Route path="/verify" element={<VerifyEmail onNav={onNav} />} />
         <Route path="/callback" element={<AuthCallback onNav={onNav} />} />
         <Route path="/set-password" element={<SetPassword onNav={onNav} />} />
+        {/* Public extension download page — NO ProtectedRoute, intentionally.
+            SEs reach this from their invite email. They have no dashboard login.
+            DO NOT nest inside /dashboard or wrap in <ProtectedRoute>. */}
+        <Route path="/extension-download" element={<ExtensionDownload onNav={onNav} />} />
         <Route path="/dashboard" element={<ProtectedRoute><Overview onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/knowledge" element={<ProtectedRoute><KnowledgeBase onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/team" element={<ProtectedRoute><Team onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />

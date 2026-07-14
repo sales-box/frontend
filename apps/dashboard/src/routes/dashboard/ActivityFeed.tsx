@@ -1,5 +1,7 @@
 import { Activity } from "lucide-react";
+import { useState, useEffect } from "react";
 import type { Screen } from "../../types";
+import { analytics } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -33,8 +35,24 @@ function actionColor(action: string | null) {
 const COLS = "grid grid-cols-[80px_1fr_1fr_140px_100px_100px] gap-3";
 
 export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
- 
-  const rows: ActivityRow[] = [];
+  const [rows, setRows] = useState<ActivityRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    analytics.getActivity(1, 50)
+      .then((result) => {
+        if (cancelled) return;
+        // Map ActivityEntry → ActivityRow (shapes are compatible; confidence
+        // is passed as-is — see TODO in api-client.ts re: 0-100 vs 0-1 scale)
+        setRows(result.data as ActivityRow[]);
+      })
+      .catch((err) => {
+        console.error("[ActivityFeed] Failed to load activity:", err);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+
 
   return (
     <Shell active="activity-feed" onNav={onNav} onLogout={onLogout}>

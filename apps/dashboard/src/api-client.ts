@@ -91,6 +91,13 @@ export const tenants = {
 
   get: (id?: string) =>
     request<Tenant>(`/tenants/${id ?? tenantId()}`),
+
+  /** Update company name. Calls PATCH /tenants/:id with { companyName }. */
+  updateTenant: (companyName: string, id?: string) =>
+    request<Tenant>(`/tenants/${id ?? tenantId()}`, {
+      method: "PATCH",
+      ...json({ companyName }),
+    }),
 };
 
 // ─── Knowledge Base ──────────────────────────────────────────
@@ -252,6 +259,23 @@ export interface KnowledgeGap {
   updatedAt: string;
 }
 
+export interface ActivityEntry {
+  id: string;
+  /** HH:MM formatted local time */
+  time: string;
+  client: string;
+  company: string;
+  classification: string | null;
+  /** Raw confidence value — confirm 0-100 vs 0-1 scale with backend before using directly */
+  confidence: number | null; // TODO: confirm 0-100 vs 0-1 scale with backend
+  action: string | null;
+}
+
+export interface ActivityPage {
+  data: ActivityEntry[];
+  pagination: PaginationMeta;
+}
+
 export const analytics = {
   summary: (days = 30) =>
     request<AnalyticsSummary>(
@@ -265,6 +289,12 @@ export const analytics = {
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),
+
+  /** Fetch cross-SE activity feed. GET /analytics/activity */
+  getActivity: (page = 1, limit = 50, date?: string) =>
+    request<ActivityPage>(
+      `/analytics/activity?page=${page}&limit=${limit}${date ? `&date=${encodeURIComponent(date)}` : ""}`
+    ),
 };
 
 // ─── Session helpers ─────────────────────────────────────────
