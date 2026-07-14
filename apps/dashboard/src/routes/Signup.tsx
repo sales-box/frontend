@@ -32,7 +32,7 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
     setSubmitting(true);
     tenants.signup({ companyName: company, adminEmail: email, adminName: email.split("@")[0] })
       .then(() => {
-        sessionStorage.setItem("pendingPlan", plan);
+        localStorage.setItem("pendingPlan", plan);
         onNav("verify");
       })
       .catch(err => {
