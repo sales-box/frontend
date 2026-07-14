@@ -45,8 +45,8 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
       const { token } = await auth.adminLogin(email, password);
       login(token, tenantId);
       setDone(true);
-      const plan = sessionStorage.getItem("pendingPlan");
-      sessionStorage.removeItem("pendingPlan");
+      const plan = localStorage.getItem("pendingPlan");
+      localStorage.removeItem("pendingPlan");
       if (plan && plan !== "Enterprise") {
         setTimeout(() => window.location.replace(`/checkout?plan=${encodeURIComponent(plan)}`), 1500);
       } else {
