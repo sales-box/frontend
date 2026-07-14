@@ -9,11 +9,11 @@ const API_BASE = 'https://salesbox.dev'
  * Real endpoint: POST /auth/se/login
  * Returns { token } on 200, or { error: "invalid_allowlist" } on 403.
  */
-export async function seLoginWithCode(code: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
+export async function seLoginWithCode(code: string, redirectUri: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
   const res = await fetch(`${API_BASE}/auth/se/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, redirectUri }),
   })
   if (res.status === 403) {
     return { error: 'invalid_allowlist' }
@@ -22,6 +22,20 @@ export async function seLoginWithCode(code: string): Promise<{ token: string } |
     throw new Error(`seLoginWithCode failed: ${res.status} ${res.statusText}`)
   }
   return res.json() as Promise<{ token: string }>
+}
+
+/**
+ * Get current authenticated user details (tenantId, email, etc.)
+ * Real endpoint: GET /auth/me
+ */
+export async function getAuthMe(jwt: string): Promise<{ tenantId: string; email: string; isAdmin: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { 'Authorization': `Bearer ${jwt}` },
+  })
+  if (!res.ok) {
+    throw new Error(`getAuthMe failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ tenantId: string; email: string; isAdmin: boolean }>
 }
 
 /**

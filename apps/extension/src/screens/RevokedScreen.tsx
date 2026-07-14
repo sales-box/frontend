@@ -23,7 +23,7 @@ export function RevokedScreen({ onClose }: RevokedScreenProps) {
 
       {/* Body */}
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
-        <img src={mascotSleepy} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
+        <img src={chrome.runtime.getURL(mascotSleepy)} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
 
         {/* Eyebrow + heading */}
         <p className="text-eyebrow mb-2">ACCESS STATUS</p>

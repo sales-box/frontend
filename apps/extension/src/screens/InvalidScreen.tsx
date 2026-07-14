@@ -5,6 +5,7 @@ import mascotLocked from '../assets/mascot-locked.png'
 interface InvalidScreenProps {
   /** The unauthorized email address — shown in mono (scan element) */
   email?: string
+  errorMsg?: string
   onClose: () => void
   onSwitchAccount: () => void
 }
@@ -14,14 +15,14 @@ interface InvalidScreenProps {
  * Serif moment: heading "Not <em>authorized</em>."
  * The email address stays in mono — it's data to scan, not a headline.
  */
-export function InvalidScreen({ email, onClose, onSwitchAccount }: InvalidScreenProps) {
+export function InvalidScreen({ email, errorMsg, onClose, onSwitchAccount }: InvalidScreenProps) {
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface)]">
       <PanelHeader onClose={onClose} />
 
       {/* Body */}
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 text-center">
-        <img src={mascotLocked} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
+        <img src={chrome.runtime.getURL(mascotLocked)} alt="" className="w-32 h-32 mb-6" aria-hidden="true" />
 
         {/* Eyebrow + heading */}
         <p className="text-eyebrow mb-2">ACCESS DENIED</p>
@@ -45,6 +46,17 @@ export function InvalidScreen({ email, onClose, onSwitchAccount }: InvalidScreen
               style={{ fontFamily: 'var(--font-mono)' }}
             >
               {email}
+            </span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="mb-6 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-tertiary)] border border-red-500 max-w-[240px] text-left">
+            <span
+              className="text-mono text-red-500 text-xs break-words"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {errorMsg}
             </span>
           </div>
         )}

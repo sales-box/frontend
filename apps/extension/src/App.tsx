@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useCallback } from 'react'
-import { seLoginWithCode, getSuggestion } from '@inbox-sales/shared'
+import { getSuggestion } from '@inbox-sales/shared'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 import { InboxStatsScreen, type InboxStatsData } from './screens/InboxStatsScreen'
@@ -16,7 +16,7 @@ import { RevokedScreen }      from './screens/RevokedScreen'
 type PanelState =
   | { type: 'collapsed' }
   | { type: 'auth' }
-  | { type: 'invalid'; email?: string }
+  | { type: 'invalid'; email?: string; errorMsg?: string }
   | { type: 'loading' }
   | { type: 'stats'; data: InboxStatsData }
   | { type: 'briefing'; data: BriefingData }
@@ -26,7 +26,7 @@ type PanelState =
 type PanelAction =
   | { type: 'EXPAND' }
   | { type: 'COLLAPSE' }
-  | { type: 'AUTH_FAILED'; email?: string }
+  | { type: 'AUTH_FAILED'; email?: string; errorMsg?: string }
   | { type: 'AUTH_SUCCESS' }
   | { type: 'REVOKED' }
   | { type: 'LOAD_BRIEFING' }
@@ -39,7 +39,7 @@ function panelReducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
     case 'EXPAND':        return { type: 'auth' }
     case 'COLLAPSE':      return { type: 'collapsed' }
-    case 'AUTH_FAILED':   return { type: 'invalid', email: action.email }
+    case 'AUTH_FAILED':   return { type: 'invalid', email: action.email, errorMsg: action.errorMsg }
     case 'AUTH_SUCCESS':  return { type: 'loading' }
     case 'REVOKED':       return { type: 'revoked' }
     case 'LOAD_BRIEFING': return { type: 'loading' }
@@ -118,36 +118,53 @@ export default function App({ panelHost }: AppProps = {}) {
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
-    dispatch({ type: 'AUTH_SUCCESS' })
     try {
       // Step 1: Get a Google OAuth *authorization code* from the background worker.
       // chrome.identity is only available in background/service-worker contexts —
       // that's why this message exists. We need a code (not just an access token)
       // because the backend POST /auth/se/login exchanges it server-side.
       const codeResult = await chrome.runtime.sendMessage({ type: 'GET_SE_AUTH_CODE' }) as
-        | { code: string }
+        | { code: string; redirectUri: string }
         | { error: string }
 
       if ('error' in codeResult) {
         console.error('[Copilot] Failed to get auth code:', codeResult.error)
-        dispatch({ type: 'AUTH_FAILED' })
+        dispatch({ type: 'AUTH_FAILED', errorMsg: `OAuth Error: ${codeResult.error}` })
         return
       }
 
       // Step 2: Exchange the code for an SE JWT via the real backend endpoint.
-      const result = await seLoginWithCode(codeResult.code)
+      // We route this through the background worker to bypass CORS on the backend.
+      const result = await chrome.runtime.sendMessage({
+        type: 'SE_LOGIN',
+        code: codeResult.code,
+        redirectUri: codeResult.redirectUri,
+      })
 
-      if ('error' in result) {
+      if (result?.error) {
         // invalid_allowlist — not on the approved SE list
-        dispatch({ type: 'AUTH_FAILED' })
+        console.error('[Copilot] Backend login failed:', result.error)
+        dispatch({ type: 'AUTH_FAILED', errorMsg: `Backend Login: ${result.error}` })
         return
       }
 
-      // Store JWT for persistence. The tenantId lives in the JWT payload;
-      // the background worker will extract it on the next load.
-      // For now we store a placeholder — the real tenantId comes from GET /auth/me
-      // which the backend team will wire next sprint.
-      const tenantId = 'mock-tenant-001'
+      dispatch({ type: 'AUTH_SUCCESS' })
+
+      // Store JWT for persistence. The tenantId lives in the JWT payload.
+      // Fetch the real tenantId from /auth/me.
+      const authMe = await chrome.runtime.sendMessage({
+        type: 'GET_AUTH_ME',
+        jwt: result.token,
+      })
+
+      if (authMe?.error) {
+        console.error('[Copilot] getAuthMe failed:', authMe.error)
+        dispatch({ type: 'AUTH_FAILED', errorMsg: `Auth Me: ${authMe.error}` })
+        return
+      }
+
+      const tenantId = authMe.tenantId
+      
       await chrome.storage.local.set({ jwt: result.token, tenantId })
 
       // Real inbox stats — independent of the auth above.
@@ -156,7 +173,7 @@ export default function App({ panelHost }: AppProps = {}) {
       if (statsResult?.error) {
         // Real failure — surface it, do NOT silently fall back to mock briefing.
         console.error('[Copilot] Inbox stats failed:', statsResult.error)
-        dispatch({ type: 'AUTH_FAILED' })
+        dispatch({ type: 'AUTH_FAILED', errorMsg: `Inbox Stats: ${statsResult.error}` })
         return
       }
 
@@ -168,8 +185,9 @@ export default function App({ panelHost }: AppProps = {}) {
           syncedAt: statsResult.syncedAt,
         },
       })
-    } catch {
-      dispatch({ type: 'AUTH_FAILED' })
+    } catch (err) {
+      console.error('[Copilot] Login flow failed:', err)
+      dispatch({ type: 'AUTH_FAILED', errorMsg: err instanceof Error ? err.message : String(err) })
     }
   }, [loadSuggestion])
 
@@ -240,6 +258,7 @@ export default function App({ panelHost }: AppProps = {}) {
               return (
                 <InvalidScreen
                   email={panel.email}
+                  errorMsg={panel.errorMsg}
                   onClose={handleClose}
                   onSwitchAccount={handleSwitchAccount}
                 />
