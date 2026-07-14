@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Inbox, Zap, Eye, EyeOff } from "lucide-react";
+import { Inbox, Zap } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants } from "../api-client";
@@ -15,21 +15,18 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   const plan = params.get("plan") ?? "Growth";
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [touched, setTouched] = useState({ company: false, email: false, password: false });
+  const [touched, setTouched] = useState({ company: false, email: false });
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
 
   const errs = {
     company: !company.trim() ? "Company name is required" : "",
     email: !email.trim() ? "Work email is required" : !EMAIL_RE.test(email) ? "Enter a valid email address" : "",
-    password: password.length < 8 ? "Password must be at least 8 characters" : "",
   };
-  const valid = !errs.company && !errs.email && !errs.password;
+  const valid = !errs.company && !errs.email;
 
   const submit = () => {
-    setTouched({ company: true, email: true, password: true });
+    setTouched({ company: true, email: true });
     setServerError("");
     if (!valid || submitting) return;
     setSubmitting(true);
@@ -83,24 +80,6 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
               onBlur={() => setTouched(t => ({ ...t, email: true }))}
               error={touched.email ? errs.email : undefined}
               autoComplete="email"
-            />
-            <FormInput
-              label="Password" type={showPass ? "text" : "password"} placeholder="8+ characters" required
-              value={password} onChange={setPassword}
-              onBlur={() => setTouched(t => ({ ...t, password: true }))}
-              error={touched.password ? errs.password : undefined}
-              autoComplete="new-password"
-              hint="Use at least 8 characters."
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowPass(s => !s)}
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                  className={`text-text-tertiary hover:text-text-primary cursor-pointer ${focusRing}`}
-                >
-                  {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-                </button>
-              }
             />
             {serverError && (
               <p className="text-xs text-danger text-center">{serverError}</p>
