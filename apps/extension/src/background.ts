@@ -7,8 +7,7 @@
 //
 // OAuth client_id (Chrome Extension type) is set in manifest.json → oauth2.client_id.
 
-const API_BASE = 'https://salesbox.dev' // switch to http://localhost:3000 for local dev
-
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://salesbox.dev'
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── GET_SE_AUTH_CODE ──────────────────────────────────────────────────────
   // Obtains a Google OAuth *authorization code* via launchWebAuthFlow.
@@ -26,9 +25,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         authUrl.searchParams.set('client_id', clientId)
         authUrl.searchParams.set('redirect_uri', redirectUrl)
         authUrl.searchParams.set('response_type', 'code')
-        authUrl.searchParams.set('scope', 'openid email profile')
+        // The backend's shared exchangeCodeForEmail() calls Gmail's users.getProfile to resolve the SE's email, and that call 403s without this scope
+        authUrl.searchParams.set('scope', 'openid email profile https://www.googleapis.com/auth/gmail.readonly')
         authUrl.searchParams.set('access_type', 'offline')
-        authUrl.searchParams.set('prompt', 'consent')
+        authUrl.searchParams.set('prompt', 'consent select_account')
 
         const responseUrl = await new Promise<string>((resolve, reject) => {
           chrome.identity.launchWebAuthFlow(
@@ -47,13 +47,78 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const code = params.get('code')
         if (!code) throw new Error('No code in OAuth callback URL')
 
-        sendResponse({ code })
+        sendResponse({ code, redirectUri: redirectUrl })
       } catch (err) {
         console.error('[Background] GET_SE_AUTH_CODE Error:', err)
         sendResponse({ error: err instanceof Error ? err.message : String(err) })
       }
     })()
     return true // keep message channel open
+  }
+
+  // ── SE_LOGIN ──────────────────────────────────────────────────────────────
+  // Route backend login through background worker to bypass CORS on the backend.
+  if (msg.type === 'SE_LOGIN') {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/se/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: msg.code, redirectUri: msg.redirectUri }),
+        })
+        if (res.status === 403) {
+          sendResponse({ error: 'invalid_allowlist' })
+          return
+        }
+        if (!res.ok) throw new Error(`SE_LOGIN failed: ${res.status} ${res.statusText}`)
+        const data = await res.json()
+        sendResponse(data)
+      } catch (err) {
+        console.error('[Background] SE_LOGIN Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      }
+    })()
+    return true
+  }
+
+  // ── GET_AUTH_ME ───────────────────────────────────────────────────────────
+  if (msg.type === 'GET_AUTH_ME') {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${msg.jwt}` },
+        })
+        if (!res.ok) throw new Error(`GET_AUTH_ME failed: ${res.status} ${res.statusText}`)
+        const data = await res.json()
+        sendResponse(data)
+      } catch (err) {
+        console.error('[Background] GET_AUTH_ME Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      }
+    })()
+    return true
+  }
+
+  // ── REPORT_KNOWLEDGE_GAP ──────────────────────────────────────────────────
+  if (msg.type === 'REPORT_KNOWLEDGE_GAP') {
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/analytics/gaps`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${msg.jwt}`,
+          },
+          body: JSON.stringify({ topic: msg.topic }),
+        })
+        if (!res.ok) throw new Error(`REPORT_KNOWLEDGE_GAP failed: ${res.status} ${res.statusText}`)
+        sendResponse({ success: true })
+      } catch (err) {
+        console.error('[Background] REPORT_KNOWLEDGE_GAP Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      }
+    })()
+    return true
   }
 
   if (msg.type !== 'GET_INBOX_STATS') return
