@@ -31,7 +31,10 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
     if (!valid || submitting) return;
     setSubmitting(true);
     tenants.signup({ companyName: company, adminEmail: email, adminName: email.split("@")[0] })
-      .then(() => onNav("verify"))
+      .then(() => {
+        sessionStorage.setItem("pendingPlan", plan);
+        onNav("verify");
+      })
       .catch(err => {
         setServerError(err.message || "Something went wrong");
         setSubmitting(false);

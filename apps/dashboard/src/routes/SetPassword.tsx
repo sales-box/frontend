@@ -3,6 +3,7 @@ import { Inbox, Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { auth } from "../api-client";
+import { useAuthStore } from "../store/auth";
 import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
@@ -12,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
 
 export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
+  const login = useAuthStore(s => s.login);
   const [params] = useSearchParams();
   const [email, setEmail] = useState(params.get("email") ?? "");
   const [tenantId, setTenantId] = useState(params.get("tenantId") ?? "");
@@ -40,8 +42,16 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
     setServerError("");
     try {
       await auth.setPassword(email, password, tenantId);
+      const { token } = await auth.adminLogin(email, password);
+      login(token, tenantId);
       setDone(true);
-      setTimeout(() => onNav("signin"), 2000);
+      const plan = sessionStorage.getItem("pendingPlan");
+      sessionStorage.removeItem("pendingPlan");
+      if (plan && plan !== "Enterprise") {
+        setTimeout(() => window.location.replace(`/checkout?plan=${encodeURIComponent(plan)}`), 1500);
+      } else {
+        setTimeout(() => onNav("overview"), 1500);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("400")) {
@@ -61,7 +71,7 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
       <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
         <Card className="w-full max-w-[28rem] p-6 sm:p-8 text-center">
           <h1 className="text-heading text-text-primary mb-2">Password set!</h1>
-          <p className="text-body text-text-secondary">Redirecting to sign in…</p>
+          <p className="text-body text-text-secondary">Signing you in…</p>
         </Card>
       </div>
     );

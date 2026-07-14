@@ -21,6 +21,7 @@ import { ClientRecord } from "./routes/dashboard/ClientRecord";
 import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
 import { Settings } from "./routes/dashboard/Settings";
 import { ExtensionDownload } from "./routes/ExtensionDownload";
+import { Checkout } from "./routes/Checkout";
 
 const PATHS: Record<Screen, string> = {
   landing: "/",
@@ -29,6 +30,7 @@ const PATHS: Record<Screen, string> = {
   verify: "/verify",
   "auth-callback": "/callback",
   "set-password": "/set-password",
+  checkout: "/checkout",
   overview: "/dashboard",
   "knowledge-base": "/dashboard/knowledge",
   team: "/dashboard/team",
@@ -82,6 +84,7 @@ export default function App() {
         <Route path="/verify" element={<VerifyEmail onNav={onNav} />} />
         <Route path="/callback" element={<AuthCallback onNav={onNav} />} />
         <Route path="/set-password" element={<SetPassword onNav={onNav} />} />
+        <Route path="/checkout" element={<Checkout onNav={onNav} />} />
         {/* Public extension download page — NO ProtectedRoute, intentionally.
             SEs reach this from their invite email. They have no dashboard login.
             DO NOT nest inside /dashboard or wrap in <ProtectedRoute>. */}

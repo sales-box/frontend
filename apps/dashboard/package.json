@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@inbox-sales/shared": "workspace:*",
+    "@stripe/react-stripe-js": "^6.7.0",
+    "@stripe/stripe-js": "^9.10.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",
     "lucide-react": "^1.24.0",
