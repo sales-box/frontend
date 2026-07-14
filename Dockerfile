@@ -19,6 +19,14 @@ RUN pnpm install --frozen-lockfile
 # Copy the rest of the workspace files
 COPY . .
 
+
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=https://salesbox.dev
+
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TOe07AXEKm3a0uyViZfkbmoa1FqE7bQkMvaAGPcB5RkCyedFWtVVF97IuHFiH6tuBwmxrOp1RytLfnvCpYLvM5c0022tcD4xt
+
+
 # Build the dashboard app
 RUN pnpm --filter dashboard build
 
