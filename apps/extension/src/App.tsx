@@ -120,9 +120,22 @@ export default function App({ panelHost }: AppProps = {}) {
   const handleSignIn = useCallback(async () => {
     dispatch({ type: 'AUTH_SUCCESS' })
     try {
-      // In the real extension, we'll receive a Google auth code from the OAuth popup.
-      // For now, mock it. DO NOT CHANGE — Karim owns the real auth flow.
-      const result = await seLoginWithCode('mock-google-auth-code')
+      // Step 1: Get a Google OAuth *authorization code* from the background worker.
+      // chrome.identity is only available in background/service-worker contexts —
+      // that's why this message exists. We need a code (not just an access token)
+      // because the backend POST /auth/se/login exchanges it server-side.
+      const codeResult = await chrome.runtime.sendMessage({ type: 'GET_SE_AUTH_CODE' }) as
+        | { code: string }
+        | { error: string }
+
+      if ('error' in codeResult) {
+        console.error('[Copilot] Failed to get auth code:', codeResult.error)
+        dispatch({ type: 'AUTH_FAILED' })
+        return
+      }
+
+      // Step 2: Exchange the code for an SE JWT via the real backend endpoint.
+      const result = await seLoginWithCode(codeResult.code)
 
       if ('error' in result) {
         // invalid_allowlist — not on the approved SE list
@@ -130,11 +143,14 @@ export default function App({ panelHost }: AppProps = {}) {
         return
       }
 
-      // Store JWT for persistence
+      // Store JWT for persistence. The tenantId lives in the JWT payload;
+      // the background worker will extract it on the next load.
+      // For now we store a placeholder — the real tenantId comes from GET /auth/me
+      // which the backend team will wire next sprint.
       const tenantId = 'mock-tenant-001'
       await chrome.storage.local.set({ jwt: result.token, tenantId })
 
-      // Real inbox stats — independent of the mocked auth above.
+      // Real inbox stats — independent of the auth above.
       // Background worker owns chrome.identity + the real backend fetch (CORS-exempt).
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
       if (statsResult?.error) {

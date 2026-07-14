@@ -1,4 +1,6 @@
-import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star } from 'lucide-react'
+import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star, Flag, CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { reportKnowledgeGap } from '@inbox-sales/shared'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
@@ -46,9 +48,32 @@ function formatTimestamp(iso: string): string {
  * No ink-filled "Send" button — nothing to send. Only a ghost "Compose manually".
  */
 export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onUploadDoc }: LowConfidenceScreenProps) {
+  const [reported, setReported] = useState(false)
+  const [reporting, setReporting] = useState(false)
+
+  const handleReportGap = async () => {
+    if (reported || reporting) return
+    setReporting(true)
+    try {
+      const { jwt } = await chrome.storage.local.get('jwt')
+      // Derive topic from company name — the most meaningful context available
+      // in LowConfidenceData. In a future sprint this could include the email
+      // subject/classification once those fields are added to the payload.
+      const topic = data.company || 'Unknown company'
+      await reportKnowledgeGap(jwt ?? '', topic)
+      setReported(true)
+    } catch (err) {
+      console.error('[Copilot] reportKnowledgeGap failed:', err)
+      // Fail silently — this is a nice-to-have action, never allowed to break the panel
+    } finally {
+      setReporting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface)]">
       <PanelHeader showRefresh onRefresh={onRefresh} onClose={onClose} />
+
 
       {/* ── Client card ── */}
       <div className="px-4 pt-4 pb-4 border-b border-[var(--color-border)] bg-[var(--color-surface-tertiary)]">
@@ -169,6 +194,32 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
           <ExternalLink size={11} strokeWidth={1.5} aria-hidden="true" />
           Upload missing doc to Knowledge Base
         </button>
+
+        {/* Report Knowledge Gap — always visible on this screen */}
+        {reported ? (
+          <p className="flex items-center justify-center gap-1.5 text-small text-[var(--color-success)]">
+            <CheckCircle2 size={12} strokeWidth={1.5} aria-hidden="true" />
+            Reported to your admin ✅
+          </p>
+        ) : (
+          <button
+            id="ext-report-gap-btn"
+            onClick={handleReportGap}
+            disabled={reporting}
+            className="
+              flex items-center justify-center gap-1.5
+              text-small text-[var(--color-warning)]
+              hover:text-[var(--color-warning)]/80
+              transition-colors cursor-pointer
+              bg-transparent border-none p-0
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            <Flag size={11} strokeWidth={1.5} aria-hidden="true" />
+            {reporting ? 'Reporting…' : 'Report knowledge gap'}
+          </button>
+        )}
       </div>
     </div>
   )

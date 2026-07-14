@@ -1,11 +1,46 @@
 // src/api-client.ts
-// Params prefixed with _ are intentionally unused — mock stubs for Sprint 3.
-// They will be replaced with real fetch() calls when the backend is ready.
+
+const API_BASE = 'https://salesbox.dev'
 
 // ── SE / Extension (matches CONTRACTS.md Role 2) ─────────────────
-// ⚠️ MOCK — POST /auth/se/login does not exist on the backend yet
-export async function seLoginWithCode(_code: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
-  return { token: "mock-se-jwt-token" };
+
+/**
+ * Exchange a Google OAuth authorization code for an SE JWT.
+ * Real endpoint: POST /auth/se/login
+ * Returns { token } on 200, or { error: "invalid_allowlist" } on 403.
+ */
+export async function seLoginWithCode(code: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
+  const res = await fetch(`${API_BASE}/auth/se/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  if (res.status === 403) {
+    return { error: 'invalid_allowlist' }
+  }
+  if (!res.ok) {
+    throw new Error(`seLoginWithCode failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ token: string }>
+}
+
+/**
+ * Report a knowledge gap to the admin.
+ * Real endpoint: POST /analytics/gaps, body { topic: string }, Bearer JWT auth.
+ * Fails silently on error — this is a nice-to-have action.
+ */
+export async function reportKnowledgeGap(jwt: string, topic: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/analytics/gaps`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({ topic }),
+  })
+  if (!res.ok) {
+    throw new Error(`reportKnowledgeGap failed: ${res.status} ${res.statusText}`)
+  }
 }
 
 /**
