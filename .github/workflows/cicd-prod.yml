@@ -74,7 +74,7 @@ jobs:
           tags: |
             mnagy156/salesbox-frontend-prod:latest
             mnagy156/salesbox-frontend-prod:${{ github.sha }}
-          build-args:
+          build-args: |
             - VITE_API_BASE_URL=https://salesbox.dev
             - VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TOe07AXEKm3a0uyViZfkbmoa1FqE7bQkMvaAGPcB5RkCyedFWtVVF97IuHFiH6tuBwmxrOp1RytLfnvCpYLvM5c0022tcD4xt
 
