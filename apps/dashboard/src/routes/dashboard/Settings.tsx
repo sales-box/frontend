@@ -104,7 +104,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               </div>
               <div className="text-sm text-text-secondary">{tier?.blurb ?? "Loading plan…"}</div>
             </div>
-            <Btn variant="secondary" size="sm" onClick={() => onNav("landing")}>Change plan</Btn>
+            <Btn variant="secondary" size="sm" onClick={() => onNav("plans")}>Change plan</Btn>
           </div>
         </Card>
 

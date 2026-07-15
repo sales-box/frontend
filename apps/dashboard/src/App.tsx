@@ -20,6 +20,7 @@ import { Clients } from "./routes/dashboard/Clients";
 import { ClientRecord } from "./routes/dashboard/ClientRecord";
 import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
 import { Settings } from "./routes/dashboard/Settings";
+import { Plans } from "./routes/dashboard/Plans";
 import { ExtensionDownload } from "./routes/ExtensionDownload";
 import { Checkout } from "./routes/Checkout";
 
@@ -31,6 +32,7 @@ const PATHS: Record<Screen, string> = {
   "auth-callback": "/callback",
   "set-password": "/set-password",
   checkout: "/checkout",
+  plans: "/dashboard/plans",
   overview: "/dashboard",
   "knowledge-base": "/dashboard/knowledge",
   team: "/dashboard/team",
@@ -98,6 +100,7 @@ export default function App() {
         <Route path="/dashboard/clients/:id" element={<ProtectedRoute><ClientRecord onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityFeed onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/plans" element={<ProtectedRoute><Plans onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="*" element={<NotFound onNav={onNav} />} />
       </Routes>
     </ToastProvider>

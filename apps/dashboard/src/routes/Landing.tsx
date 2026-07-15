@@ -1,7 +1,6 @@
 import { ArrowRight, Check, BookOpen, TrendingUp, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Screen } from "../types";
-import { isLoggedIn } from "../api-client";
 import { Btn } from "../components/Btn";
 import { Reveal } from "../components/Reveal";
 import heroMascot from "../assets/hero-mascot-composition.png";
@@ -311,7 +310,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
       </section>
 
       {/* PRICING — each tier reveals on its own */}
-      <section className="relative w-full overflow-hidden border-t border-border">
+      <section id="pricing" className="relative w-full overflow-hidden border-t border-border">
         {/* Ambient background glows matching mascot logo color palette */}
         <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-accent-warm/10 via-primary/5 to-transparent blur-[100px] pointer-events-none" />
         <div aria-hidden className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-secondary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
@@ -400,11 +399,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           variant={isFeatured ? "gradient" : "secondary"}
                           size="lg"
                           className="w-full justify-center focus-visible:ring-2"
-                          onClick={() => navigate(
-                            isLoggedIn()
-                              ? `/checkout?plan=${encodeURIComponent(tier.name)}`
-                              : `/signup?plan=${encodeURIComponent(tier.name)}`
-                          )}
+                          onClick={() => navigate(`/signup?plan=${encodeURIComponent(tier.name)}`)}
                         >
                           {tier.name === "Enterprise" ? "Contact sales" : "Get started"}
                         </Btn>

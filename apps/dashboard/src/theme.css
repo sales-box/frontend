@@ -47,14 +47,6 @@
   --gradient-brand-warm: linear-gradient(135deg, #DF2A57 0%, #FB7229 55%, #FDC033 100%);
   --gradient-brand-cool: linear-gradient(135deg, #6C4FE8 0%, #0670F0 100%);
 
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-2xl: 48px;
-  --spacing-3xl: 64px;
-
   --font-display: 'Baloo 2', 'Poppins', system-ui, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -205,7 +197,7 @@
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
+    padding: 24px;
     box-shadow: none;
   }
 
