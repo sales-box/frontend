@@ -1,6 +1,7 @@
 import { ArrowRight, Check, BookOpen, TrendingUp, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Screen } from "../types";
+import { isLoggedIn } from "../api-client";
 import { Btn } from "../components/Btn";
 import { Reveal } from "../components/Reveal";
 import heroMascot from "../assets/hero-mascot-composition.png";
@@ -399,7 +400,11 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           variant={isFeatured ? "gradient" : "secondary"}
                           size="lg"
                           className="w-full justify-center focus-visible:ring-2"
-                          onClick={() => navigate(`/signup?plan=${encodeURIComponent(tier.name)}`)}
+                          onClick={() => navigate(
+                            isLoggedIn()
+                              ? `/checkout?plan=${encodeURIComponent(tier.name)}`
+                              : `/signup?plan=${encodeURIComponent(tier.name)}`
+                          )}
                         >
                           {tier.name === "Enterprise" ? "Contact sales" : "Get started"}
                         </Btn>

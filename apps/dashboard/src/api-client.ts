@@ -298,10 +298,10 @@ export interface PaymentIntent {
 }
 
 export const payments = {
-  createIntent: (amount: number) =>
+  createIntent: (amount: number, tier?: number) =>
     request<PaymentIntent>("/payments/create-payment-intent", {
       method: "POST",
-      ...json({ amount }),
+      ...json({ amount, ...(tier != null && { tier }) }),
     }),
 
   get: (id: string) =>
