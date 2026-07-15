@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Inbox, Check, Shield, CreditCard } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Screen } from "../types";
 import { payments } from "../api-client";
 import { isLoggedIn } from "../api-client";
@@ -35,6 +36,7 @@ const CARD_STYLE = {
 function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s: Screen) => void }) {
   const stripe = useStripe();
   const elements = useElements();
+  const qc = useQueryClient();
   const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -69,7 +71,10 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
 
     if (paymentIntent?.status === "succeeded") {
       setDone(true);
-      setTimeout(() => onNav("overview"), 2000);
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["tenant"] });
+        onNav("overview");
+      }, 2500);
     } else {
       setError("Payment was not completed. Please try again.");
       setPaying(false);

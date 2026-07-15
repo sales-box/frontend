@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import type { Screen } from "../../types";
 import { useTenant, useOffboard } from "../../hooks/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { tenants, setCompanyName } from "../../api-client";
+import { useAuthStore } from "../../store/auth";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -21,8 +23,10 @@ const TIERS: Record<number, { name: string; blurb: string }> = {
 
 export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
+  const qc = useQueryClient();
   const { data: tenant } = useTenant();
   const offboard = useOffboard();
+  const setAuthCompany = useAuthStore(s => s.setCompany);
 
   const [company, setCompany] = useState("");
   const [savingCompany, setSavingCompany] = useState(false);
@@ -31,8 +35,11 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const [typed, setTyped] = useState("");
 
   useEffect(() => {
-    if (tenant) setCompany(tenant.companyName ?? "");
-  }, [tenant?.companyName]);
+    if (tenant) {
+      setCompany(tenant.companyName ?? "");
+      if (tenant.companyName) setAuthCompany(tenant.companyName);
+    }
+  }, [tenant?.companyName, setAuthCompany]);
 
   const tier = tenant?.tier ? TIERS[tenant.tier] : undefined;
   const companyName = tenant?.companyName ?? "";
@@ -44,7 +51,9 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
     setSavingCompany(true);
     try {
       await tenants.updateTenant(company.trim());
-      setCompanyName(company.trim()); // keep session cache in sync
+      setCompanyName(company.trim());
+      setAuthCompany(company.trim());
+      qc.invalidateQueries({ queryKey: ["tenant"] });
       toast("Company name updated successfully.");
     } catch {
       toast("Failed to update company name — please try again.");
