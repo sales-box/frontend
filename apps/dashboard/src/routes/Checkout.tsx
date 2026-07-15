@@ -9,13 +9,13 @@ import { isLoggedIn } from "../api-client";
 import { Card } from "../components/Card";
 import { Btn } from "../components/Btn";
 
-const PLANS: Record<string, { name: string; price: number; priceLabel: string; period: string; seats: string; docs: string; features: string[] }> = {
+const PLANS: Record<string, { name: string; tier: number; price: number; priceLabel: string; period: string; seats: string; docs: string; features: string[] }> = {
   Starter: {
-    name: "Starter", price: 4900, priceLabel: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
+    name: "Starter", tier: 1, price: 4900, priceLabel: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
     features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"],
   },
   Growth: {
-    name: "Growth", price: 14900, priceLabel: "$149", period: "/mo", seats: "Up to 10 Sales Engineers", docs: "200 documents",
+    name: "Growth", tier: 2, price: 14900, priceLabel: "$149", period: "/mo", seats: "Up to 10 Sales Engineers", docs: "200 documents",
     features: ["Everything in Starter", "CRM integration", "Advanced analytics", "Priority support"],
   },
 };
@@ -42,10 +42,10 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    payments.createIntent(plan.price)
+    payments.createIntent(plan.price, plan.tier)
       .then(pi => { setClientSecret(pi.client_secret); setLoading(false); })
       .catch(() => { setError("Could not initialize payment. Please try again."); setLoading(false); });
-  }, [plan.price]);
+  }, [plan.price, plan.tier]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

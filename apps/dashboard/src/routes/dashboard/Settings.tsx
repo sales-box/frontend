@@ -31,7 +31,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const [typed, setTyped] = useState("");
 
   useEffect(() => {
-    if (tenant?.companyName) setCompany(tenant.companyName);
+    if (tenant) setCompany(tenant.companyName ?? "");
   }, [tenant?.companyName]);
 
   const tier = tenant?.tier ? TIERS[tenant.tier] : undefined;
