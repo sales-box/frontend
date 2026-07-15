@@ -186,6 +186,11 @@ function mount() {
   host.addEventListener('copilot:panel-open',  () => syncGmailLayout(true))
   host.addEventListener('copilot:panel-close', () => syncGmailLayout(false))
 
+  host.addEventListener('copilot:navigate-thread', (e: Event) => {
+    const { threadId } = (e as CustomEvent).detail
+    window.location.hash = `#inbox/${threadId}`
+  })
+
   // React root inside shadow DOM
   createRoot(wrapper).render(
     <React.StrictMode>

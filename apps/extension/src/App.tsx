@@ -2,7 +2,8 @@ import { useEffect, useReducer, useCallback } from 'react'
 import { getSuggestion } from '@inbox-sales/shared'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
-import { InboxStatsScreen, type InboxStatsData } from './screens/InboxStatsScreen'
+import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
+import { EmailCategoryList } from './screens/EmailCategoryList'
 
 import { CollapsedTab }       from './screens/CollapsedTab'
 import { AuthScreen }         from './screens/AuthScreen'
@@ -18,7 +19,8 @@ type PanelState =
   | { type: 'auth' }
   | { type: 'invalid'; email?: string; errorMsg?: string }
   | { type: 'loading' }
-  | { type: 'stats'; data: InboxStatsData }
+  | { type: 'overview'; data: InboxOverviewData }
+  | { type: 'category-list'; category: string; data: InboxOverviewData }
   | { type: 'briefing'; data: BriefingData }
   | { type: 'low-confidence'; data: LowConfidenceData }
   | { type: 'revoked' }
@@ -30,7 +32,8 @@ type PanelAction =
   | { type: 'AUTH_SUCCESS' }
   | { type: 'REVOKED' }
   | { type: 'LOAD_BRIEFING' }
-  | { type: 'SHOW_STATS'; data: InboxStatsData }
+  | { type: 'SHOW_OVERVIEW'; data: InboxOverviewData }
+  | { type: 'SHOW_CATEGORY_LIST'; category: string; data: InboxOverviewData }
   | { type: 'SHOW_BRIEFING'; data: BriefingData }
   | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
   | { type: 'RESET' }
@@ -43,7 +46,8 @@ function panelReducer(state: PanelState, action: PanelAction): PanelState {
     case 'AUTH_SUCCESS':  return { type: 'loading' }
     case 'REVOKED':       return { type: 'revoked' }
     case 'LOAD_BRIEFING': return { type: 'loading' }
-    case 'SHOW_STATS':    return { type: 'stats', data: action.data }
+    case 'SHOW_OVERVIEW': return { type: 'overview', data: action.data }
+    case 'SHOW_CATEGORY_LIST': return { type: 'category-list', category: action.category, data: action.data }
     case 'SHOW_BRIEFING': return { type: 'briefing', data: action.data }
     case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
     case 'RESET':         return { type: 'auth' }
@@ -120,9 +124,6 @@ export default function App({ panelHost }: AppProps = {}) {
   const handleSignIn = useCallback(async () => {
     try {
       // Step 1: Get a Google OAuth *authorization code* from the background worker.
-      // chrome.identity is only available in background/service-worker contexts —
-      // that's why this message exists. We need a code (not just an access token)
-      // because the backend POST /auth/se/login exchanges it server-side.
       const codeResult = await chrome.runtime.sendMessage({ type: 'GET_SE_AUTH_CODE' }) as
         | { code: string; redirectUri: string }
         | { error: string }
@@ -134,7 +135,6 @@ export default function App({ panelHost }: AppProps = {}) {
       }
 
       // Step 2: Exchange the code for an SE JWT via the real backend endpoint.
-      // We route this through the background worker to bypass CORS on the backend.
       const result = await chrome.runtime.sendMessage({
         type: 'SE_LOGIN',
         code: codeResult.code,
@@ -142,7 +142,6 @@ export default function App({ panelHost }: AppProps = {}) {
       })
 
       if (result?.error) {
-        // invalid_allowlist — not on the approved SE list
         console.error('[Copilot] Backend login failed:', result.error)
         dispatch({ type: 'AUTH_FAILED', errorMsg: `Backend Login: ${result.error}` })
         return
@@ -151,7 +150,6 @@ export default function App({ panelHost }: AppProps = {}) {
       dispatch({ type: 'AUTH_SUCCESS' })
 
       // Store JWT for persistence. The tenantId lives in the JWT payload.
-      // Fetch the real tenantId from /auth/me.
       const authMe = await chrome.runtime.sendMessage({
         type: 'GET_AUTH_ME',
         jwt: result.token,
@@ -168,21 +166,19 @@ export default function App({ panelHost }: AppProps = {}) {
       await chrome.storage.local.set({ jwt: result.token, tenantId })
 
       // Real inbox stats — independent of the auth above.
-      // Background worker owns chrome.identity + the real backend fetch (CORS-exempt).
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
       if (statsResult?.error) {
-        // Real failure — surface it, do NOT silently fall back to mock briefing.
         console.error('[Copilot] Inbox stats failed:', statsResult.error)
         dispatch({ type: 'AUTH_FAILED', errorMsg: `Inbox Stats: ${statsResult.error}` })
         return
       }
 
       dispatch({
-        type: 'SHOW_STATS',
+        type: 'SHOW_OVERVIEW',
         data: {
           totalEmails: statsResult.totalEmails,
-          processedByAI: 0, // ⚠️ MOCK — /ai/process is still a 501 stub on the backend
           syncedAt: statsResult.syncedAt,
+          // TODO(AI-pipeline): replace N/A once GET /emails/categorized exists
         },
       })
     } catch (err) {
@@ -201,6 +197,7 @@ export default function App({ panelHost }: AppProps = {}) {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
     dispatch({ type: 'COLLAPSE' })
   }, [panelHost])
+  
   const handleSwitchAccount = useCallback(async () => {
     await chrome.storage.local.remove(['jwt', 'tenantId'])
     dispatch({ type: 'RESET' })
@@ -212,8 +209,32 @@ export default function App({ panelHost }: AppProps = {}) {
     dispatch({ type: 'EXPAND' })
     const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
     if (jwt && tenantId) {
-      dispatch({ type: 'LOAD_BRIEFING' })
-      await loadSuggestion(tenantId, 'current-email')
+      const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
+      if (!statsResult?.error) {
+        dispatch({
+          type: 'SHOW_OVERVIEW',
+          data: {
+            totalEmails: statsResult.totalEmails,
+            syncedAt: statsResult.syncedAt,
+          },
+        })
+      } else {
+        dispatch({ type: 'LOAD_BRIEFING' })
+        await loadSuggestion(tenantId, 'current-email')
+      }
+    }
+  }, [loadSuggestion, panelHost])
+
+  const handleSelectCategory = useCallback((category: string, data: InboxOverviewData) => {
+    dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
+  }, [])
+
+  const handleSelectEmail = useCallback(async (threadId: string) => {
+    panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))
+    dispatch({ type: 'LOAD_BRIEFING' })
+    const { tenantId } = await chrome.storage.local.get('tenantId')
+    if (tenantId) {
+      await loadSuggestion(tenantId, threadId)
     }
   }, [loadSuggestion, panelHost])
 
@@ -230,6 +251,7 @@ export default function App({ panelHost }: AppProps = {}) {
     border-l-2 border-[var(--color-border-focus)]
     text-[var(--color-text-primary)]
     overflow-hidden
+    animate-panel-in
   `
 
   // Render the collapsed tab strip + the open panel side-by-side.
@@ -267,16 +289,29 @@ export default function App({ panelHost }: AppProps = {}) {
             case 'loading':
               return <LoadingScreen />
 
-            case 'stats':
+            case 'overview':
               return (
-                <InboxStatsScreen
+                <InboxOverviewScreen
                   data={panel.data}
                   onClose={handleClose}
-                  onContinue={async () => {
-                    dispatch({ type: 'LOAD_BRIEFING' })
-                    const { tenantId } = await chrome.storage.local.get('tenantId')
-                    if (tenantId) await loadSuggestion(tenantId, 'current-email')
-                  }}
+                  onSelectCategory={(category) => handleSelectCategory(category, panel.data)}
+                />
+              )
+
+            case 'category-list':
+              // TODO(AI-pipeline): replace N/A once GET /emails/categorized exists
+              const mockEmails = [
+                { threadId: 'mock-1', clientName: 'Jane Doe', company: 'Acme Corp', subjectSnippet: 'Question about enterprise features', timestamp: '10:30 AM', status: 'ready' as const },
+                { threadId: 'mock-2', clientName: 'John Smith', company: 'Globex', subjectSnippet: 'Can we schedule a demo?', timestamp: 'Yesterday', status: 'needs-review' as const },
+                { threadId: 'mock-3', clientName: 'Sarah Connor', company: 'Cyberdyne', subjectSnippet: 'Pricing details required', timestamp: 'Oct 12' }
+              ]
+              return (
+                <EmailCategoryList
+                  category={panel.category}
+                  emails={mockEmails}
+                  onClose={handleClose}
+                  onBack={() => dispatch({ type: 'SHOW_OVERVIEW', data: panel.data })}
+                  onSelectEmail={handleSelectEmail}
                 />
               )
 

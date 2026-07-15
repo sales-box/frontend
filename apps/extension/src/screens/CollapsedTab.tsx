@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { LogoMark } from '../components/LogoMark'
 
 interface CollapsedTabProps {
   /** Called on click — App wires expand OR collapse depending on context */
@@ -15,7 +16,7 @@ interface CollapsedTabProps {
  * Also re-used as a collapse toggle when `collapseMode` is true, so the
  * user always has a consistent affordance to open/close the panel.
  *
- * No serif — pure utility chrome per DESIGN.md §4.
+ * Uses the actual Inbox Copilot brand lightning bolt logo.
  */
 export function CollapsedTab({ onExpand, collapseMode = false }: CollapsedTabProps) {
   const Chevron = collapseMode ? ChevronRight : ChevronLeft
@@ -32,27 +33,40 @@ export function CollapsedTab({ onExpand, collapseMode = false }: CollapsedTabPro
         flex flex-col items-center justify-center gap-3
         bg-[var(--color-surface)] border-l border-[var(--color-border)]
         cursor-pointer select-none
-        hover:bg-[var(--color-surface-tertiary)]
-        transition-colors duration-150
+        hover:bg-[var(--color-surface-secondary)]
+        transition-all duration-200
         rounded-l-[var(--radius-lg)]
+        group
+        relative
       "
       style={{ boxShadow: '-8px 0 24px rgba(0, 0, 0, 0.1)' }}
     >
-      {/* Logo mark */}
-      <div className="w-6 h-6 rounded-[var(--radius-md)] bg-[var(--color-primary)] flex items-center justify-center flex-shrink-0">
-        <Inbox size={12} strokeWidth={1.5} className="text-[var(--color-text-on-primary)]" />
+      {/* Brand logo mark */}
+      <div
+        className="
+          w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
+          bg-[var(--color-primary)] text-white
+          transition-all duration-200
+          group-hover:scale-105 group-hover:shadow-sm
+        "
+      >
+        <LogoMark size={16} color="currentColor" />
       </div>
 
       {/* Rotated label */}
       <span
-        className="text-[10px] font-semibold tracking-widest uppercase text-[var(--color-text-tertiary)] whitespace-nowrap"
+        className="text-[9px] font-bold tracking-widest uppercase text-[var(--color-text-tertiary)] whitespace-nowrap group-hover:text-[var(--color-primary)] transition-colors duration-200"
         style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontFamily: 'var(--font-body)' }}
       >
         {collapseMode ? 'Close' : 'Copilot'}
       </span>
 
       {/* Direction chevron */}
-      <Chevron size={13} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" />
+      <Chevron
+        size={12}
+        strokeWidth={2}
+        className="text-[var(--color-text-tertiary)] group-hover:text-[var(--color-primary)] transition-colors duration-200"
+      />
     </div>
   )
 }

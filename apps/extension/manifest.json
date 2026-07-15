@@ -14,6 +14,18 @@
     "service_worker": "src/background.ts",
     "type": "module"
   },
+  "icons": {
+    "16": "favicon-96x96.png",
+    "48": "favicon-96x96.png",
+    "128": "web-app-manifest-192x192.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "favicon-96x96.png",
+      "48": "favicon-96x96.png",
+      "128": "web-app-manifest-192x192.png"
+    }
+  },
   "oauth2": {
     "client_id": "676907443704-jms8lovn48lsl0tqjlhrjff12kfe1ojv.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]

@@ -6,7 +6,6 @@ import {
 import type { Screen } from "../types";
 import { useAuthStore } from "../store/auth";
 import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
-
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "overview", icon: <LayoutDashboard size={18} strokeWidth={1.5} />, label: "Overview" },
   { id: "activity-feed", icon: <Activity size={18} strokeWidth={1.5} />, label: "Activity Feed" },
@@ -73,7 +72,7 @@ export function Shell({ active, onNav, onLogout, children }: {
         </button>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:rotate-6">
-            <img src={mascotIconSilhouette} alt="" className="w-4.5 h-4.5 brightness-0 invert" aria-hidden="true" />
+            <img src={mascotIconSilhouette} alt="" className="w-[18px] h-[18px] brightness-0 invert" aria-hidden="true" />
           </div>
           <span className="font-display font-semibold text-sm text-text-primary">Inbox Copilot</span>
         </div>
