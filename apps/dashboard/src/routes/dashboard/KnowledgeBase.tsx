@@ -160,13 +160,13 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
             dragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-border bg-surface hover:border-primary/50 hover:bg-primary/[0.02]"
           }`}
         >
-          <input type="file" multiple className="sr-only" aria-label="Upload documents" onChange={e => handleUpload(e.target.files)} />
+          <input type="file" multiple className="sr-only" aria-label="Upload documents" accept=".pdf,.docx,.xlsx,.pptx,.ppt,.txt,.md" onChange={e => handleUpload(e.target.files)} />
           <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 12%, transparent)" }}>
             <Upload size={24} strokeWidth={1.5} className="text-primary" />
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold text-text-primary">Drop files here or click to upload</p>
-            <p className="text-xs text-text-tertiary mt-1">PDF, DOCX, TXT — max 25 MB per file</p>
+            <p className="text-xs text-text-tertiary mt-1">PDF, DOCX, XLSX, PPTX, TXT, MD — max 25 MB per file</p>
           </div>
           <span className="inline-flex items-center justify-center gap-2 font-body font-semibold rounded-lg px-4 py-2 text-[13px] bg-primary text-text-on-primary">
             Browse files
