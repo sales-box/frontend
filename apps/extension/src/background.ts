@@ -60,22 +60,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // Route backend login through background worker to bypass CORS on the backend.
   if (msg.type === 'SE_LOGIN') {
     ;(async () => {
+      let status: number | undefined
       try {
         const res = await fetch(`${API_BASE}/auth/se/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: msg.code, redirectUri: msg.redirectUri }),
         })
+        status = res.status
         if (res.status === 403) {
-          sendResponse({ error: 'invalid_allowlist' })
+          sendResponse({ error: 'invalid_allowlist', status: 403 })
           return
         }
-        if (!res.ok) throw new Error(`SE_LOGIN failed: ${res.status} ${res.statusText}`)
+        if (!res.ok) {
+          sendResponse({ error: `SE_LOGIN failed: ${res.status} ${res.statusText}`, status: res.status })
+          return
+        }
         const data = await res.json()
-        sendResponse(data)
+        sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] SE_LOGIN Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
       }
     })()
     return true
@@ -84,16 +89,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── GET_AUTH_ME ───────────────────────────────────────────────────────────
   if (msg.type === 'GET_AUTH_ME') {
     ;(async () => {
+      let status: number | undefined
       try {
         const res = await fetch(`${API_BASE}/auth/me`, {
           headers: { 'Authorization': `Bearer ${msg.jwt}` },
         })
-        if (!res.ok) throw new Error(`GET_AUTH_ME failed: ${res.status} ${res.statusText}`)
+        status = res.status
+        if (!res.ok) {
+          sendResponse({ error: `GET_AUTH_ME failed: ${res.status} ${res.statusText}`, status: res.status })
+          return
+        }
         const data = await res.json()
-        sendResponse(data)
+        sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] GET_AUTH_ME Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
       }
     })()
     return true
@@ -102,6 +112,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── REPORT_KNOWLEDGE_GAP ──────────────────────────────────────────────────
   if (msg.type === 'REPORT_KNOWLEDGE_GAP') {
     ;(async () => {
+      let status: number | undefined
       try {
         const res = await fetch(`${API_BASE}/analytics/gaps`, {
           method: 'POST',
@@ -111,11 +122,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           },
           body: JSON.stringify({ topic: msg.topic }),
         })
-        if (!res.ok) throw new Error(`REPORT_KNOWLEDGE_GAP failed: ${res.status} ${res.statusText}`)
-        sendResponse({ success: true })
+        status = res.status
+        if (!res.ok) {
+          sendResponse({ error: `REPORT_KNOWLEDGE_GAP failed: ${res.status} ${res.statusText}`, status: res.status })
+          return
+        }
+        sendResponse({ success: true, status: res.status })
       } catch (err) {
         console.error('[Background] REPORT_KNOWLEDGE_GAP Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
       }
     })()
     return true
@@ -124,9 +139,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── PROCESS_EMAIL ──────────────────────────────────────────────────────────
   if (msg.type === 'PROCESS_EMAIL') {
     ;(async () => {
+      let status: number | undefined
       try {
         const { jwt, accountEmail } = await chrome.storage.local.get(['jwt', 'accountEmail'])
-        if (!jwt) throw new Error('No JWT found — user must sign in again')
+        if (!jwt) {
+          sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+          return
+        }
 
         const res = await fetch(`${API_BASE}/ai/process`, {
           method: 'POST',
@@ -136,15 +155,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           },
           body: JSON.stringify({ messageId: msg.messageId, accountEmail }),
         })
+        status = res.status
         if (!res.ok) {
-          sendResponse({ error: `PROCESS_EMAIL failed: ${res.status}` })
+          sendResponse({ error: `PROCESS_EMAIL failed: ${res.status}`, status: res.status })
           return
         }
         const data = await res.json()
-        sendResponse(data)
+        sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] PROCESS_EMAIL Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
       }
     })()
     return true
@@ -156,19 +176,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // from the initial sign-in code-exchange.
   if (msg.type !== 'GET_INBOX_STATS') return
   ;(async () => {
+    let status: number | undefined
     try {
       const { jwt } = await chrome.storage.local.get('jwt')
-      if (!jwt) throw new Error('No JWT found — user must sign in again')
+      if (!jwt) {
+        sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+        return
+      }
 
       const res = await fetch(`${API_BASE}/emails/inbox-stats`, {
         headers: { Authorization: `Bearer ${jwt}` },
       })
-      if (!res.ok) throw new Error(`inbox-stats failed: ${res.status}`)
+      status = res.status
+      if (!res.ok) {
+        sendResponse({ error: `inbox-stats failed: ${res.status}`, status: res.status })
+        return
+      }
       const data = await res.json()
-      sendResponse({ totalEmails: data.totalEmails, syncedAt: data.syncedAt })
+      sendResponse({ ...data, status: res.status })
     } catch (err) {
       console.error('[Background] GET_INBOX_STATS Error:', err)
-      sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      sendResponse({ error: err instanceof Error ? err.message : String(err), status })
     }
   })()
   return true

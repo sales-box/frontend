@@ -22,7 +22,7 @@ interface BriefingSheetProps {
   onClose: () => void
   onRefresh: () => void
   onSend: (reply: string) => void
-  onEditInGmail: () => void
+  onEditInGmail: (reply: string) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -44,6 +44,7 @@ function formatTimestamp(iso: string): string {
  *   • Eyebrow labels above each serif element
  *
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
+ *
  */
 export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
@@ -149,7 +150,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail 
         {/* SECONDARY — ghost */}
         <button
           id="ext-edit-gmail-btn"
-          onClick={onEditInGmail}
+          onClick={() => onEditInGmail(reply)}
           className="
             flex items-center gap-1.5
             px-3 py-2.5 rounded-[var(--radius-sm)]

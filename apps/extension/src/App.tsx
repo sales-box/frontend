@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useCallback } from 'react'
+import { useEffect, useReducer, useCallback, useState } from 'react'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
@@ -68,11 +68,49 @@ interface AppProps {
 
 export default function App({ panelHost, getCurrentThreadId = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
+  const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
 
-  const loadSuggestion = useCallback(async (_tenantId: string, emailId: string) => {
+  const fetchInboxStats = useCallback(async () => {
+    setToastError(null)
+    try {
+      const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
+      if (statsResult?.error) {
+        if (statsResult.status === 401 || statsResult.status === 403) {
+          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+          dispatch({ type: statsResult.status === 403 ? 'REVOKED' : 'RESET' })
+          return
+        }
+        throw new Error(statsResult.error)
+      }
+
+      await chrome.storage.local.set({ cachedInboxStats: statsResult })
+      dispatch({
+        type: 'SHOW_OVERVIEW',
+        data: statsResult,
+      })
+    } catch (err) {
+      console.error('[Copilot] Fetch stats failed:', err)
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      setToastError({
+        message: `Failed to load inbox stats: ${errorMsg}`,
+        retry: () => fetchInboxStats(),
+      })
+    }
+  }, [])
+
+  const loadSuggestion = useCallback(async (tenantId: string, emailId: string) => {
+    setToastError(null)
+    dispatch({ type: 'LOAD_BRIEFING' })
     try {
       const raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
-      if (raw?.error) throw new Error(raw.error)
+      if (raw?.error) {
+        if (raw.status === 401 || raw.status === 403) {
+          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+          dispatch({ type: raw.status === 403 ? 'REVOKED' : 'RESET' })
+          return
+        }
+        throw new Error(raw.error)
+      }
 
       const suggestion = {
         reply: raw.draft?.draftText ?? '',
@@ -81,8 +119,6 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
         hasHallucination: raw.confidence.hallucinationDetected ?? false,
         clientName: raw.client?.name ?? 'Unknown',
         company: raw.client?.company ?? 'Unknown company',
-        // Backend has no dedicated "role" field yet — using status as a stand-in.
-        // Flag this to the team, don't invent a fake role string.
         role: raw.client?.status ?? '',
         dealStatus: (raw.client?.status === 'active' ? 'active' : 'prospect') as 'active' | 'prospect',
         emailTimestamp: raw.emailTimestamp ?? new Date().toISOString(),
@@ -127,9 +163,49 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
       }
     } catch (err) {
       console.error('[Copilot] Failed to load suggestion:', err)
-      dispatch({ type: 'RESET' })
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      setToastError({
+        message: `Failed to load suggestion: ${errorMsg}`,
+        retry: () => loadSuggestion(tenantId, emailId),
+      })
     }
   }, [])
+
+  // Task 2: Session Rehydration on Mount
+  useEffect(() => {
+    const rehydrateSession = async () => {
+      const { jwt, tenantId, cachedInboxStats } = await chrome.storage.local.get(['jwt', 'tenantId', 'cachedInboxStats'])
+      if (jwt && tenantId) {
+        panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
+        
+        const threadId = getCurrentThreadId()
+        if (threadId) {
+          await loadSuggestion(tenantId, threadId)
+        } else {
+          const placeholderStats: InboxOverviewData = cachedInboxStats || {
+            totalEmails: 0,
+            syncedAt: new Date().toISOString(),
+            urgentCount: 0,
+            intentBreakdown: [
+              { label: 'Product inquiry', count: 0, key: 'product-inquiry' },
+              { label: 'Demo request', count: 0, key: 'demo-request' },
+              { label: 'Support', count: 0, key: 'support' },
+              { label: 'Follow-up', count: 0, key: 'follow-up' },
+              { label: 'Sensitive', count: 0, key: 'sensitive' }
+            ],
+            reviewedBreakdown: { ready: 0, needsReview: 0, manual: 0 },
+            notYetReviewedCount: 0
+          }
+          
+          dispatch({ type: 'SHOW_OVERVIEW', data: placeholderStats })
+          fetchInboxStats()
+        }
+      } else {
+        dispatch({ type: 'COLLAPSE' })
+      }
+    }
+    rehydrateSession()
+  }, [panelHost, fetchInboxStats, getCurrentThreadId, loadSuggestion])
 
   // Listen for hashchange events in Gmail to automatically reload suggestion or return to overview
   useEffect(() => {
@@ -143,31 +219,19 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
 
       const threadId = getCurrentThreadId()
       if (threadId) {
-        dispatch({ type: 'LOAD_BRIEFING' })
         await loadSuggestion(tenantId, threadId)
       } else {
-        // If user navigates back to inbox (no open thread), show overview
-        const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
-        if (!statsResult?.error) {
-          dispatch({
-            type: 'SHOW_OVERVIEW',
-            data: {
-              totalEmails: statsResult.totalEmails,
-              syncedAt: statsResult.syncedAt,
-            },
-          })
-        }
+        await fetchInboxStats()
       }
     }
 
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [panel.type, getCurrentThreadId, loadSuggestion])
+  }, [panel.type, getCurrentThreadId, loadSuggestion, fetchInboxStats])
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
     try {
-      // Step 1: Get a Google OAuth *authorization code* from the background worker.
       const codeResult = await chrome.runtime.sendMessage({ type: 'GET_SE_AUTH_CODE' }) as
         | { code: string; redirectUri: string }
         | { error: string }
@@ -178,7 +242,6 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
         return
       }
 
-      // Step 2: Exchange the code for an SE JWT via the real backend endpoint.
       const result = await chrome.runtime.sendMessage({
         type: 'SE_LOGIN',
         code: codeResult.code,
@@ -193,7 +256,6 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
 
       dispatch({ type: 'AUTH_SUCCESS' })
 
-      // Store JWT for persistence. The tenantId lives in the JWT payload.
       const authMe = await chrome.runtime.sendMessage({
         type: 'GET_AUTH_ME',
         jwt: result.token,
@@ -209,7 +271,6 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
       const accountEmail = authMe.email
       await chrome.storage.local.set({ jwt: result.token, tenantId, accountEmail })
 
-      // Real inbox stats — independent of the auth above.
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
       if (statsResult?.error) {
         console.error('[Copilot] Inbox stats failed:', statsResult.error)
@@ -217,30 +278,29 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
         return
       }
 
+      await chrome.storage.local.set({ cachedInboxStats: statsResult })
+
       dispatch({
         type: 'SHOW_OVERVIEW',
-        data: {
-          totalEmails: statsResult.totalEmails,
-          syncedAt: statsResult.syncedAt,
-          // TODO(AI-pipeline): replace N/A once GET /emails/categorized exists
-        },
+        data: statsResult,
       })
     } catch (err) {
       console.error('[Copilot] Login flow failed:', err)
       dispatch({ type: 'AUTH_FAILED', errorMsg: err instanceof Error ? err.message : String(err) })
     }
-  }, [loadSuggestion])
+  }, [])
 
   const handleRefresh = useCallback(async () => {
     const { tenantId } = await chrome.storage.local.get('tenantId')
     if (tenantId) {
       const threadId = getCurrentThreadId()
       if (!threadId) {
-        console.warn('[Copilot] No open Gmail thread detected')
-        dispatch({ type: 'RESET' })
+        setToastError({
+          message: 'No open Gmail thread detected',
+          retry: () => handleRefresh(),
+        })
         return
       }
-      dispatch({ type: 'LOAD_BRIEFING' })
       await loadSuggestion(tenantId, threadId)
     }
   }, [loadSuggestion, getCurrentThreadId])
@@ -251,37 +311,24 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
   }, [panelHost])
   
   const handleSwitchAccount = useCallback(async () => {
-    await chrome.storage.local.remove(['jwt', 'tenantId'])
+    await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
     dispatch({ type: 'RESET' })
   }, [])
 
   const handleExpand = useCallback(async () => {
-    // Notify content.tsx to push Gmail layout before the panel renders
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
-    dispatch({ type: 'EXPAND' })
     const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
     if (jwt && tenantId) {
-      const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
-      if (!statsResult?.error) {
-        dispatch({
-          type: 'SHOW_OVERVIEW',
-          data: {
-            totalEmails: statsResult.totalEmails,
-            syncedAt: statsResult.syncedAt,
-          },
-        })
-      } else {
-        const threadId = getCurrentThreadId()
-        if (!threadId) {
-          console.warn('[Copilot] No open Gmail thread detected')
-          dispatch({ type: 'RESET' })
-          return
-        }
-        dispatch({ type: 'LOAD_BRIEFING' })
+      const threadId = getCurrentThreadId()
+      if (threadId) {
         await loadSuggestion(tenantId, threadId)
+      } else {
+        await fetchInboxStats()
       }
+    } else {
+      dispatch({ type: 'EXPAND' })
     }
-  }, [loadSuggestion, panelHost, getCurrentThreadId])
+  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentThreadId])
 
   const handleSelectCategory = useCallback((category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
@@ -289,6 +336,10 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
 
   const handleSelectEmail = useCallback((threadId: string) => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))
+  }, [panelHost])
+
+  const handleEditInGmail = useCallback((reply: string) => {
+    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply } }))
   }, [panelHost])
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -324,6 +375,17 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
 
       {/* Panel body */}
       <div id="inbox-copilot-panel" className={panelClasses} style={{ fontFamily: 'var(--font-body)' }}>
+        {toastError && (
+          <div className="bg-[var(--color-danger-light)] text-[var(--color-danger)] p-3 border-b border-[var(--color-danger)] flex justify-between items-center text-sm flex-shrink-0">
+            <span className="font-semibold">{toastError.message}</span>
+            <button 
+              onClick={toastError.retry}
+              className="ml-2 px-3 py-1 bg-[var(--color-danger)] text-white rounded hover:opacity-90 transition-opacity text-xs font-semibold cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {(() => {
           switch (panel.type) {
             case 'auth':
@@ -374,14 +436,8 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
                   data={panel.data}
                   onClose={handleClose}
                   onRefresh={handleRefresh}
-                  onSend={(reply) => {
-                    // TODO: inject reply into Gmail compose
-                    console.log('[Copilot] Send reply:', reply)
-                  }}
-                  onEditInGmail={() => {
-                    // TODO: focus Gmail compose window
-                    console.log('[Copilot] Open in Gmail compose')
-                  }}
+                  onSend={handleEditInGmail}
+                  onEditInGmail={handleEditInGmail}
                 />
               )
 
@@ -391,10 +447,7 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
                   data={panel.data}
                   onClose={handleClose}
                   onRefresh={handleRefresh}
-                  onComposeManually={() => {
-                    // TODO: focus Gmail compose
-                    console.log('[Copilot] Compose manually')
-                  }}
+                  onComposeManually={() => handleEditInGmail('')}
                   onUploadDoc={() => {
                     chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
                   }}

@@ -199,6 +199,62 @@ function mount() {
     window.location.hash = `#inbox/${threadId}`
   })
 
+  host.addEventListener('copilot:edit-in-gmail', (e: Event) => {
+    const { reply } = (e as CustomEvent).detail
+    
+    const insertReply = (el: HTMLDivElement) => {
+      el.focus()
+      if (reply) {
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        const selection = window.getSelection()
+        if (selection) {
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+        
+        const success = document.execCommand('insertText', false, reply)
+        if (!success) {
+          el.innerText = reply
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+      }
+    }
+
+    let composeEl = document.querySelector('div[contenteditable="true"]') as HTMLDivElement | null
+
+    if (composeEl) {
+      insertReply(composeEl)
+    } else {
+      let replyBtn = document.querySelector('span.ams, div[role="button"][aria-label^="Reply"], div[role="button"][aria-label="Reply"]') as HTMLElement | null
+      
+      if (!replyBtn) {
+        const buttons = document.querySelectorAll('div[role="button"]')
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i] as HTMLElement
+          if (btn.innerText && btn.innerText.trim().toLowerCase() === 'reply') {
+            replyBtn = btn
+            break
+          }
+        }
+      }
+
+      if (replyBtn) {
+        replyBtn.click()
+        setTimeout(() => {
+          composeEl = document.querySelector('div[contenteditable="true"]') as HTMLDivElement | null
+          if (composeEl) {
+            insertReply(composeEl)
+          } else {
+            console.warn('[Copilot] Compose box not found after clicking Reply')
+          }
+        }, 300)
+      } else {
+        console.warn('[Copilot] Could not find Reply button or compose box')
+      }
+    }
+  })
+
   // Watch for Gmail conversation transitions
   window.addEventListener('hashchange', () => {
     // No-op (handled in App.tsx)
