@@ -13,19 +13,19 @@ export function Btn({ children, variant = "primary", size = "md", disabled, load
   "aria-label"?: string;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 font-body font-semibold rounded-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 focus-visible:ring-offset-surface active:translate-y-px tracking-[0.01em]";
+    "inline-flex items-center justify-center gap-2 font-body font-semibold rounded-sm transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-1 focus-visible:ring-offset-surface active:translate-y-px tracking-[0.01em]";
   const sizes: Record<string, string> = {
     sm: "px-3 py-1.5 text-[13px]",
     md: "px-5 py-2.5 text-[13px]",
     lg: "px-6 py-3 text-[15px]",
   };
   const variants: Record<string, string> = {
-    primary: "bg-primary text-text-on-primary hover:bg-primary-hover",
-    secondary: "bg-transparent text-text-primary border border-border hover:bg-surface-secondary",
-    ghost: "text-text-secondary hover:bg-surface-secondary hover:text-text-primary",
-    danger: "bg-danger text-white hover:opacity-90",
-    inverse: "bg-surface text-primary hover:bg-surface-secondary",
-    gradient: "bg-[image:var(--gradient-brand-cool)] text-white hover:shadow-[var(--shadow-glow-primary)]",
+    primary: "bg-primary text-text-on-primary hover:bg-primary-hover shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
+    secondary: "bg-transparent text-text-primary border border-border hover:bg-surface-secondary shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
+    ghost: "text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors",
+    danger: "bg-danger text-white hover:opacity-90 shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
+    inverse: "bg-surface text-primary hover:bg-surface-secondary shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
+    gradient: "bg-[image:var(--gradient-brand-cool)] text-white hover:shadow-[var(--shadow-glow-primary)] shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
   };
   const isDisabled = disabled || loading;
   return (

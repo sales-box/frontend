@@ -108,6 +108,8 @@ docker-compose.override.yml
 repomix-output.xml
 repomix-output.txt
 repomix-output.md
+repomix-frontend-output.xml
+repomix.config.json
 *.xml
 .cursor/
 .claude/

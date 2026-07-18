@@ -13,14 +13,14 @@
   --color-accent-cool-light: #E3F7FA;
 
   --color-surface: #FFFFFF;
-  --color-surface-secondary: #F6F5FC;
-  --color-surface-tertiary: #EFEDF9;
-  --color-border: #E3E1F1;
+  --color-surface-secondary: #F0EDFD;
+  --color-surface-tertiary: #E2DCFA;
+  --color-border: #DAD3F9;
   --color-border-focus: #0670F0;
 
   --color-text-primary: #0B1B3E;
-  --color-text-secondary: #4B5468;
-  --color-text-tertiary: #7A8194;
+  --color-text-secondary: #374360;
+  --color-text-tertiary: #5F6B8A;
   --color-text-on-primary: #FFFFFF;
   --color-text-on-brand-warm: #0B1B3E;
 
@@ -39,10 +39,12 @@
   --radius-xl: 24px;
   --radius-full: 9999px;
 
-  --shadow-1: 0 1px 2px rgba(11, 27, 62, 0.06);
-  --shadow-2: 0 4px 16px rgba(11, 27, 62, 0.10);
-  --shadow-3: 0 12px 40px rgba(11, 27, 62, 0.18);
+  --shadow-1: 0 2px 8px rgba(11, 27, 62, 0.05);
+  --shadow-2: 0 10px 30px -10px rgba(108, 79, 232, 0.16), 0 1px 3px rgba(11, 27, 62, 0.05);
+  --shadow-3: 0 20px 40px -15px rgba(108, 79, 232, 0.24), 0 1px 3px rgba(11, 27, 62, 0.05);
   --shadow-glow-primary: 0 0 24px rgba(108, 79, 232, 0.25);
+  --shadow-card: 0 10px 30px -10px rgba(108, 79, 232, 0.16), 0 2px 8px -2px rgba(11, 27, 62, 0.06);
+  --shadow-card-hover: 0 22px 40px -12px rgba(108, 79, 232, 0.32), 0 4px 16px -4px rgba(11, 27, 62, 0.08);
 
   --gradient-brand-warm: linear-gradient(135deg, #DF2A57 0%, #FB7229 55%, #FDC033 100%);
   --gradient-brand-cool: linear-gradient(135deg, #6C4FE8 0%, #0670F0 100%);
@@ -62,15 +64,15 @@
   --color-accent-cool: #29C6DF;
   --color-accent-cool-light: rgba(41, 198, 223, 0.14);
 
-  --color-surface: #0B0D16;
-  --color-surface-secondary: #06070B;
-  --color-surface-tertiary: #111420;
-  --color-border: #1F2338;
+  --color-surface: #101114;
+  --color-surface-secondary: #08090B;
+  --color-surface-tertiary: #17191D;
+  --color-border: #232529;
   --color-border-focus: #4C93FF;
 
   --color-text-primary: #F5F5F7;
-  --color-text-secondary: #8E94B0;
-  --color-text-tertiary: #676D8F;
+  --color-text-secondary: #8B8D96;
+  --color-text-tertiary: #6B6D76;
   --color-text-on-primary: #F5F5F7;
   --color-text-on-brand-warm: #0B1330;
 
@@ -173,9 +175,16 @@
     font-weight: 600;
     font-size: 0.8125rem;
     letter-spacing: 0.01em;
+    box-shadow: var(--shadow-1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-primary:hover {
     background-color: var(--color-primary-hover);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: translateY(1px);
   }
 
   .btn-secondary {
@@ -184,6 +193,16 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     padding: 12px 24px;
+    box-shadow: var(--shadow-1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-surface-secondary);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+  }
+  .btn-secondary:active {
+    transform: translateY(1px);
   }
 
   .btn-danger {
@@ -198,7 +217,12 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: 24px;
-    box-shadow: none;
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
   }
 
   .input {
@@ -206,10 +230,13 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 10px 14px;
+    box-shadow: var(--shadow-1);
+    transition: all 0.2s ease-in-out;
   }
   .input:focus {
     outline: none;
     border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 4px rgba(108, 79, 232, 0.15), var(--shadow-1);
   }
 
   .badge-success {
@@ -229,5 +256,11 @@
     color: var(--color-danger);
     border-radius: var(--radius-full);
     padding: 2px 10px;
+  }
+
+  .transition-theme {
+    transition-property: background-color, border-color, text-color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
   }
 }

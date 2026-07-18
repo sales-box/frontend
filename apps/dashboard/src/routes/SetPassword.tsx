@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Inbox, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { auth } from "../api-client";
@@ -7,6 +7,7 @@ import { useAuthStore } from "../store/auth";
 import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
+import { MinimalHeader } from "../components/MinimalHeader";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -78,16 +79,14 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-      <div className="w-full max-w-[28rem]">
-        <div className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <Inbox size={15} strokeWidth={1.5} className="text-text-on-primary" />
-          </div>
-          <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
-        </div>
-
-        <Card className="p-6 sm:p-8">
+    <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
+      {/* FLAG FOR PRODUCT: this lets someone abandon signup mid-flow with no
+          confirmation. Decide if that's fine (they can just sign up again) or
+          if this needs a "are you sure?" step before leaving. */}
+      <MinimalHeader onBack={() => onNav("landing")} />
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[28rem]">
+          <Card className="p-6 sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-heading text-text-primary mb-1">Set your password</h1>
             <p className="text-body text-text-secondary">Create a password for your admin account.</p>
@@ -167,5 +166,6 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
         </p>
       </div>
     </div>
+  </div>
   );
 }

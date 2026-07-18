@@ -7,27 +7,7 @@ import { Btn } from "../../components/Btn";
 import { Badge } from "../../components/Badge";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
-
-const TIERS = [
-  {
-    name: "Starter", tier: 1, price: "$49", period: "/mo",
-    seats: "Up to 3 Sales Engineers", docs: "25 documents",
-    features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"],
-    highlight: false,
-  },
-  {
-    name: "Growth", tier: 2, price: "$149", period: "/mo",
-    seats: "Up to 10 Sales Engineers", docs: "200 documents",
-    features: ["Everything in Starter", "CRM integration", "Advanced analytics", "Priority support"],
-    highlight: true,
-  },
-  {
-    name: "Enterprise", tier: 3, price: "Custom", period: "",
-    seats: "Unlimited seats", docs: "Unlimited documents",
-    features: ["Everything in Growth", "SSO / SAML", "Dedicated CSM", "SLA guarantee"],
-    highlight: false,
-  },
-];
+import { PRICING_TIERS } from "../../data/pricingTiers";
 
 export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const navigate = useNavigate();
@@ -43,7 +23,7 @@ export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogou
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-2">
-          {TIERS.map((tier, i) => {
+          {PRICING_TIERS.map((tier, i) => {
             const isFeatured = tier.highlight;
             const isCurrent = currentTier === tier.tier;
 
@@ -82,7 +62,7 @@ export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogou
                         </div>
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-display text-[3.25rem] font-bold leading-none text-text-primary tracking-tight">
-                            {tier.price}
+                            {tier.priceLabel}
                           </span>
                           {tier.period && (
                             <span className="text-sm font-medium text-text-tertiary">
@@ -125,11 +105,15 @@ export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogou
                           variant={isFeatured ? "gradient" : "secondary"}
                           size="lg"
                           className="w-full justify-center"
-                          onClick={() =>
-                            tier.name === "Enterprise"
-                              ? undefined
-                              : navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`)
-                          }
+                          onClick={() => {
+                            if (tier.name === "Enterprise") {
+                              /* FLAG FOR PRODUCT: check if sales@inboxsalescopilot.com is the correct email
+                                 for contacting sales for the Enterprise tier. */
+                              window.location.href = "mailto:sales@inboxsalescopilot.com";
+                            } else {
+                              navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`);
+                            }
+                          }}
                         >
                           {tier.name === "Enterprise" ? "Contact sales" : "Upgrade"}
                         </Btn>

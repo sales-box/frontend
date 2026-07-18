@@ -142,6 +142,14 @@ function stopGmailSpaGuard() {
   _gmailLayoutObserver = null
 }
 
+function getCurrentGmailThreadId(): string | null {
+  // Gmail conversation URLs look like #inbox/<threadId>, #all/<threadId>,
+  // #sent/<threadId>, etc. — same format this file already WRITES in the
+  // 'copilot:navigate-thread' listener.
+  const match = window.location.hash.match(/^#[a-z]+\/([a-zA-Z0-9_-]+)$/)
+  return match ? match[1] : null
+}
+
 // ── Detect + inject ─────────────────────────────────────────────────────────
 function mount() {
   // Avoid double injection
@@ -191,10 +199,15 @@ function mount() {
     window.location.hash = `#inbox/${threadId}`
   })
 
+  // Watch for Gmail conversation transitions
+  window.addEventListener('hashchange', () => {
+    // No-op (handled in App.tsx)
+  })
+
   // React root inside shadow DOM
   createRoot(wrapper).render(
     <React.StrictMode>
-      <App panelHost={host} />
+      <App panelHost={host} getCurrentThreadId={getCurrentGmailThreadId} />
     </React.StrictMode>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Inbox, Zap } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Zap } from "lucide-react";
+import { MinimalHeader } from "../components/MinimalHeader";
+import { useSearchParams, Link } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants } from "../api-client";
 import { Btn } from "../components/Btn";
@@ -42,16 +43,12 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-      <div className="w-full max-w-[28rem]">
-        <div className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <Inbox size={15} strokeWidth={1.5} className="text-text-on-primary" />
-          </div>
-          <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
-        </div>
+    <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
+      <MinimalHeader onBack={() => onNav("landing")} />
 
-        <Card className="p-6 sm:p-8">
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[28rem]">
+          <Card className="p-6 sm:p-8">
           <div className="mb-6">
             <h1 className="text-heading text-text-primary mb-1">Register your company</h1>
             <p className="text-body text-text-secondary">Set up your admin account and start your 14-day trial.</p>
@@ -95,13 +92,14 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
           </form>
 
           <p className="text-xs text-text-tertiary text-center mt-4">
-            By registering you agree to our <a href="#" className={`text-secondary underline ${focusRing}`}>Terms</a> and <a href="#" className={`text-secondary underline ${focusRing}`}>Privacy Policy</a>.
+            By registering you agree to our <Link to="/terms" target="_blank" rel="noopener noreferrer" className={`text-secondary underline ${focusRing}`}>Terms</Link> and <Link to="/privacy" target="_blank" rel="noopener noreferrer" className={`text-secondary underline ${focusRing}`}>Privacy Policy</Link>.
           </p>
         </Card>
 
         <p className="text-center text-sm text-text-secondary mt-5">
           Already have an account? <button onClick={() => onNav("signin")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
         </p>
+        </div>
       </div>
     </div>
   );
