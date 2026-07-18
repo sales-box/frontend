@@ -1,7 +1,13 @@
-import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from "react";
 import { CheckCircle2, X } from "lucide-react";
 
 type ToastItem = { id: number; message: string };
+
+let _globalPush: ((msg: string) => void) | null = null;
+
+export function globalToast(message: string) {
+  if (_globalPush) _globalPush(message);
+}
 
 const ToastContext = createContext<(message: string) => void>(() => {});
 
@@ -18,6 +24,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts(t => [...t, { id, message }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   }, []);
+
+  useEffect(() => {
+    _globalPush = push;
+    return () => { _globalPush = null; };
+  }, [push]);
 
   const dismiss = (id: number) => setToasts(t => t.filter(x => x.id !== id));
 

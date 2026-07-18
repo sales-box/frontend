@@ -27,17 +27,19 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const grantAccess = useGrantAccess();
   const revokeAccess = useRevokeAccess();
 
-  const members = (rawMembers ?? []).map(m => ({
-    email: m.email,
-    initials: m.email.substring(0, 2).toUpperCase(),
-    role: "Sales Engineer",
-    status: m.status,
-    grantedAt: m.grantedAt,
-  }));
+  const members = (rawMembers ?? [])
+    .filter(m => m.status !== "revoked")
+    .map(m => ({
+      email: m.email,
+      initials: m.email.substring(0, 2).toUpperCase(),
+      role: "Sales Engineer",
+      status: m.status,
+      grantedAt: m.grantedAt,
+    }));
   const sending = grantAccess.isPending;
 
   const total = SEAT_CAP[tenant?.tier ?? 1] ?? 3;
-  const used = members.filter(m => m.status !== "revoked").length;
+  const used = members.length;
   const atLimit = used >= total;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";
 
@@ -60,10 +62,14 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
     }
   };
 
-  const revoke = (email: string) => {
-    revokeAccess.mutate(email);
+  const revoke = async (email: string) => {
     setConfirmRevoke(null);
-    toast(`Access revoked for ${email}`);
+    try {
+      await revokeAccess.mutateAsync(email);
+      toast(`Access revoked for ${email}`);
+    } catch {
+      toast("Failed to revoke access — please try again");
+    }
   };
 
   return (
@@ -184,9 +190,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
                     </td>
                     <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt}</td>
                     <td className="px-5 py-3.5 text-right">
-                      {m.status === "revoked" ? (
-                        <span className="text-xs text-text-tertiary">—</span>
-                      ) : confirmRevoke === m.email ? (
+                      {confirmRevoke === m.email ? (
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => setConfirmRevoke(null)} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>Cancel</button>
                           <button onClick={() => revoke(m.email)} className={`text-xs text-danger font-medium cursor-pointer rounded-sm ${focusRing}`}>Confirm</button>

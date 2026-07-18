@@ -105,6 +105,17 @@ export function useConnectCrm() {
   });
 }
 
+export function useDisconnectCrm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.disconnect(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
 // ─── Analytics ───────────────────────────────────────────────
 
 export function useAnalyticsSummary(days = 30) {

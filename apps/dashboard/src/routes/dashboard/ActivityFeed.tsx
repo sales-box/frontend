@@ -8,6 +8,7 @@ import { Badge } from "../../components/Badge";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
+import { useToast } from "../../components/Toast";
 
 
 export interface ActivityRow {
@@ -35,6 +36,7 @@ function actionColor(action: string | null) {
 const COLS = "grid grid-cols-[80px_1fr_1fr_140px_100px_100px] gap-3";
 
 export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
+  const toast = useToast();
   const [rows, setRows] = useState<ActivityRow[]>([]);
 
   useEffect(() => {
@@ -42,12 +44,10 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
     analytics.getActivity(1, 50)
       .then((result) => {
         if (cancelled) return;
-        // Map ActivityEntry → ActivityRow (shapes are compatible; confidence
-        // is passed as-is — see TODO in api-client.ts re: 0-100 vs 0-1 scale)
         setRows(result.data as ActivityRow[]);
       })
-      .catch((err) => {
-        console.error("[ActivityFeed] Failed to load activity:", err);
+      .catch(() => {
+        if (!cancelled) toast("Failed to load activity feed");
       });
     return () => { cancelled = true; };
   }, []);
