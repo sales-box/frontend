@@ -230,6 +230,12 @@ export const crm = {
       `/tenants/${id ?? tenantId()}/crm/connect`,
       { method: "POST", ...json({ provider, apiKey }) }
     ),
+
+  disconnect: (id?: string) =>
+    request<{ message: string; removedClients: number; status: string }>(
+      `/tenants/${id ?? tenantId()}/crm/disconnect`,
+      { method: "DELETE" }
+    ),
 };
 
 // ─── Analytics ───────────────────────────────────────────────
