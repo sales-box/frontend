@@ -121,6 +121,35 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true
   }
 
+  // ── PROCESS_EMAIL ──────────────────────────────────────────────────────────
+  if (msg.type === 'PROCESS_EMAIL') {
+    ;(async () => {
+      try {
+        const { jwt, accountEmail } = await chrome.storage.local.get(['jwt', 'accountEmail'])
+        if (!jwt) throw new Error('No JWT found — user must sign in again')
+
+        const res = await fetch(`${API_BASE}/ai/process`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ messageId: msg.messageId, accountEmail }),
+        })
+        if (!res.ok) {
+          sendResponse({ error: `PROCESS_EMAIL failed: ${res.status}` })
+          return
+        }
+        const data = await res.json()
+        sendResponse(data)
+      } catch (err) {
+        console.error('[Background] PROCESS_EMAIL Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err) })
+      }
+    })()
+    return true
+  }
+
   // ── GET_INBOX_STATS ───────────────────────────────────────────────────────
   // Reads the JWT stored after login and calls the backend directly.
   // No second OAuth flow needed — the backend already holds the user's token

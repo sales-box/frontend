@@ -92,19 +92,19 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             )}
           </Card>
 
-          {/* Salesforce — legible even though disabled: muted CTA, not a dimmed card */}
+          {/* Zoho — legible even though disabled: muted CTA, not a dimmed card */}
           <Card className="p-6">
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-surface-secondary border border-border flex items-center justify-center">
-                  <span className="text-accent-cool font-bold text-[13px] font-mono">SF</span>
+                  <span className="text-accent-cool font-bold text-[13px] font-mono">Zo</span>
                 </div>
-                <div><div className="text-sm font-semibold text-text-primary">Salesforce</div><div className="text-xs text-text-tertiary">CRM</div></div>
+                <div><div className="text-sm font-semibold text-text-primary">Zoho</div><div className="text-xs text-text-tertiary">CRM</div></div>
               </div>
               <Badge variant="muted">Coming soon</Badge>
             </div>
-            <p className="text-xs text-text-tertiary leading-relaxed mb-4">Salesforce integration available Q4 2026.</p>
-            <Btn variant="secondary" size="sm" disabled aria-label="Connect Salesforce — coming soon">Connect Salesforce</Btn>
+            <p className="text-xs text-text-tertiary leading-relaxed mb-4">Zoho integration available Q4 2026.</p>
+            <Btn variant="secondary" size="sm" disabled aria-label="Connect Zoho — coming soon">Connect Zoho</Btn>
           </Card>
         </div>
       </div>

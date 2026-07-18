@@ -2,24 +2,15 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { Inbox, Check, Shield, CreditCard } from "lucide-react";
+import { Check, Shield, CreditCard, Lock } from "lucide-react";
+import { MinimalHeader } from "../components/MinimalHeader";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Screen } from "../types";
 import { payments } from "../api-client";
 import { isLoggedIn } from "../api-client";
 import { Card } from "../components/Card";
 import { Btn } from "../components/Btn";
-
-const PLANS: Record<string, { name: string; tier: number; price: number; priceLabel: string; period: string; seats: string; docs: string; features: string[] }> = {
-  Starter: {
-    name: "Starter", tier: 1, price: 4900, priceLabel: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
-    features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"],
-  },
-  Growth: {
-    name: "Growth", tier: 2, price: 14900, priceLabel: "$149", period: "/mo", seats: "Up to 10 Sales Engineers", docs: "200 documents",
-    features: ["Everything in Starter", "CRM integration", "Advanced analytics", "Priority support"],
-  },
-};
+import { PRICING_TIERS, type PricingTier } from "../data/pricingTiers";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
@@ -33,7 +24,7 @@ const CARD_STYLE = {
   invalid: { color: "var(--color-danger, #ef4444)" },
 };
 
-function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s: Screen) => void }) {
+function CheckoutForm({ plan, onNav }: { plan: PricingTier; onNav: (s: Screen) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const qc = useQueryClient();
@@ -44,10 +35,10 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    payments.createIntent(plan.price, plan.tier)
+    payments.createIntent(plan.priceCents ?? 0, plan.tier)
       .then(pi => { setClientSecret(pi.client_secret); setLoading(false); })
       .catch(() => { setError("Could not initialize payment. Please try again."); setLoading(false); });
-  }, [plan.price, plan.tier]);
+  }, [plan.priceCents, plan.tier]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,8 +105,12 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
           </div>
         </div>
         <div className="flex flex-col gap-1 text-xs text-text-secondary">
-          <span className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-primary" /> {plan.seats}</span>
-          <span className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-secondary" /> {plan.docs}</span>
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary" /> {plan.seats}</span>
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-secondary" /> {plan.docs}</span>
+        </div>
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-border text-sm">
+          <span className="font-semibold text-text-primary">Total due today</span>
+          <span className="font-bold text-text-primary">{plan.priceLabel}{plan.period}</span>
         </div>
       </div>
 
@@ -129,12 +124,21 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
               <CardElement options={{ style: CARD_STYLE, hidePostalCode: true }} />
             )}
           </div>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-1.5 text-text-tertiary">
+              <span className="text-[10px] font-semibold tracking-wide">We accept</span>
+              <CreditCard size={16} strokeWidth={1.5} />
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
+              <Lock size={11} strokeWidth={1.5} /> 256-bit encrypted
+            </div>
+          </div>
         </div>
 
         {error && <p className="text-xs text-danger text-center">{error}</p>}
 
         <Btn type="submit" variant="gradient" size="lg" className="w-full" loading={paying} disabled={paying || loading || !stripe}>
-          {paying ? "Processing…" : `Pay ${plan.priceLabel}${plan.period}`}
+          {paying ? "Processing…" : `Subscribe — ${plan.priceLabel}${plan.period}`}
         </Btn>
 
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-text-tertiary">
@@ -149,7 +153,7 @@ function CheckoutForm({ plan, onNav }: { plan: (typeof PLANS)[string]; onNav: (s
 export function Checkout({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
   const planKey = params.get("plan") ?? "Growth";
-  const plan = PLANS[planKey];
+  const plan = PRICING_TIERS.find(t => t.name === planKey);
 
   useEffect(() => {
     if (!isLoggedIn()) window.location.replace("/signin");
@@ -157,33 +161,33 @@ export function Checkout({ onNav }: { onNav: (s: Screen) => void }) {
 
   if (!plan) {
     return (
-      <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-        <Card className="w-full max-w-[28rem] p-6 sm:p-8 text-center">
-          <h1 className="text-heading text-text-primary mb-2">Invalid plan</h1>
-          <p className="text-body text-text-secondary mb-4">The selected plan is not available.</p>
-          <Btn variant="primary" onClick={() => onNav("landing")}>Back to plans</Btn>
-        </Card>
+      <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
+        <MinimalHeader onBack={() => onNav("landing")} />
+        <div className="flex-1 flex items-center justify-center px-4 py-10">
+          <Card className="w-full max-w-[28rem] p-6 sm:p-8 text-center">
+            <h1 className="text-heading text-text-primary mb-2">Invalid plan</h1>
+            <p className="text-body text-text-secondary mb-4">The selected plan is not available.</p>
+            <Btn variant="primary" onClick={() => onNav("landing")}>Back to plans</Btn>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-      <div className="w-full max-w-[28rem]">
-        <div className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <Inbox size={15} strokeWidth={1.5} className="text-text-on-primary" />
-          </div>
-          <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
-        </div>
+    <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
+      <MinimalHeader onBack={() => onNav("landing")} />
 
-        <Elements stripe={stripePromise} options={{ locale: "en" }}>
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[28rem]">
+          <Elements stripe={stripePromise} options={{ locale: "en" }}>
           <CheckoutForm plan={plan} onNav={onNav} />
         </Elements>
 
         <p className="text-center text-xs text-text-tertiary mt-5">
-          14-day free trial · Cancel anytime
+          Billed monthly · Cancel anytime
         </p>
+        </div>
       </div>
     </div>
   );

@@ -6,6 +6,8 @@ import {
 import type { Screen } from "../types";
 import { useAuthStore } from "../store/auth";
 import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
+import { ThemeToggle } from "./ThemeToggle";
+
 const NAV_ITEMS: { id: Screen; icon: ReactNode; label: string }[] = [
   { id: "overview", icon: <LayoutDashboard size={18} strokeWidth={1.5} />, label: "Overview" },
   { id: "activity-feed", icon: <Activity size={18} strokeWidth={1.5} />, label: "Activity Feed" },
@@ -59,9 +61,9 @@ export function Shell({ active, onNav, onLogout, children }: {
   const hideLabel = collapsed ? "md:hidden" : "";
 
   return (
-    <div className="md:flex h-screen bg-surface-tertiary font-body">
+    <div className="md:flex h-screen bg-surface-tertiary font-body transition-colors duration-200">
       {/* Mobile top bar */}
-      <header inert={bgInert || undefined} style={TINT} className="md:hidden fixed top-0 inset-x-0 h-14 border-b border-border/60 flex items-center gap-3 px-4 z-30">
+      <header inert={bgInert || undefined} style={TINT} className="md:hidden fixed top-0 inset-x-0 h-14 border-b border-border/60 flex items-center gap-3 px-4 z-30 transition-colors duration-200">
         <button
           ref={menuBtnRef}
           onClick={() => setMobileOpen(true)}
@@ -76,6 +78,7 @@ export function Shell({ active, onNav, onLogout, children }: {
           </div>
           <span className="font-display font-semibold text-sm text-text-primary">Inbox Copilot</span>
         </div>
+        <ThemeToggle variant="compact" className="ml-auto" />
       </header>
 
       {/* Mobile overlay */}
@@ -87,13 +90,13 @@ export function Shell({ active, onNav, onLogout, children }: {
       <aside
         inert={drawerHidden || undefined}
         style={TINT}
-        className={`fixed md:relative inset-y-0 left-0 z-50 flex-shrink-0 flex flex-col rounded-r-[28px] w-64 ${collapsed ? "md:w-[76px]" : "md:w-64"} transform transition-[width,transform] duration-200 ease-out md:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed md:relative inset-y-0 left-0 z-50 flex-shrink-0 flex flex-col rounded-r-[28px] w-64 ${collapsed ? "md:w-[76px]" : "md:w-64"} transform transition-[width,transform,background-color] duration-200 ease-out md:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Edge toggle — always visible on desktop, opens AND closes */}
         <button
           onClick={() => setCollapsed(c => !c)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className={`hidden md:flex absolute top-5 -right-3 w-6 h-6 items-center justify-center rounded-full bg-surface border border-border text-text-secondary hover:text-primary hover:border-primary transition-colors cursor-pointer z-20 shadow-sm ${focusRing}`}
+          className={`hidden md:flex absolute top-5 -right-3 w-6 h-6 items-center justify-center rounded-full bg-surface border border-border text-text-secondary hover:text-primary hover:border-primary transition-all duration-200 cursor-pointer z-20 shadow-sm ${focusRing}`}
         >
           {collapsed ? <ChevronRight size={14} strokeWidth={2} /> : <ChevronLeft size={14} strokeWidth={2} />}
         </button>
@@ -121,20 +124,44 @@ export function Shell({ active, onNav, onLogout, children }: {
               onClick={() => go(item.id)}
               aria-current={active === item.id ? "page" : undefined}
               title={collapsed ? item.label : undefined}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${focusRing} ${collapsed ? "md:justify-center md:px-0" : ""} ${
-                active === item.id ? "bg-primary text-text-on-primary" : "text-text-secondary hover:bg-primary/10 hover:text-text-primary"
+              className={`group relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ease-out cursor-pointer ${focusRing} ${collapsed ? "md:justify-center md:px-0" : ""} ${
+                active === item.id
+                  ? "bg-primary/10 text-primary font-semibold shadow-xs"
+                  : "text-text-secondary hover:bg-primary/5 hover:text-text-primary"
               }`}
             >
-              <span className="flex-shrink-0">{item.icon}</span>
+              {/* Left Accent indicator bar */}
+              <span
+                className={`absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-primary transition-all duration-200 ease-out origin-left ${
+                  active === item.id ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0 group-hover:scale-y-50 group-hover:opacity-40"
+                }`}
+              />
+              <span className={`flex-shrink-0 transition-transform duration-200 ${active === item.id ? "scale-110 text-primary" : "group-hover:scale-105 text-text-secondary group-hover:text-text-primary"}`}>
+                {item.icon}
+              </span>
               <span className={hideLabel}>{item.label}</span>
             </button>
           ))}
         </nav>
 
-        {/* Profile */}
-        <div className="px-3 py-3">
+        {/* Footer Area with Theme Toggle and Profile */}
+        <div className="px-3 py-3 border-t border-border/40 mt-auto flex flex-col gap-2 transition-colors duration-200">
+          {/* Theme Toggle row */}
+          <div className={`flex items-center justify-between px-2 ${collapsed ? "md:justify-center md:px-0" : ""}`}>
+            <span className={`text-[10px] font-semibold text-text-tertiary tracking-wider uppercase ${hideLabel}`}>
+              Appearance
+            </span>
+            <ThemeToggle variant={collapsed ? "compact" : "standard"} />
+          </div>
+          
+          {/* Divider line, only visible when not collapsed */}
+          {!collapsed && <div className="border-t border-border/40 my-1 mx-2" />}
+
+          {/* Profile Details */}
           <div className={`flex items-center gap-2.5 px-2 py-1.5 ${collapsed ? "md:justify-center md:px-0" : ""}`}>
-            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">{user.initials}</div>
+            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold flex-shrink-0">
+              {user.initials}
+            </div>
             <div className={`flex-1 min-w-0 ${hideLabel}`}>
               <div className="text-xs font-medium text-text-primary truncate">{user.name}</div>
               <div className="text-xs text-text-tertiary">{user.isAdmin ? "Admin" : "User"}</div>
@@ -143,7 +170,7 @@ export function Shell({ active, onNav, onLogout, children }: {
               onClick={onLogout}
               title="Log out"
               aria-label="Log out"
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-text-tertiary hover:text-danger hover:bg-danger-light transition-colors cursor-pointer ${collapsed ? "" : hideLabel ? "" : ""} ${focusRing}`}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-text-tertiary hover:text-danger hover:bg-danger-light transition-all duration-200 cursor-pointer ${collapsed ? "md:hidden" : ""} ${focusRing}`}
             >
               <LogOut size={15} strokeWidth={1.5} />
             </button>

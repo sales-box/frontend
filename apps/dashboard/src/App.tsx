@@ -1,8 +1,8 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { Sun, Moon } from "lucide-react";
 import type { Screen } from "./types";
 import { useAuthStore } from "./store/auth";
+import { useThemeStore } from "./store/theme";
 import { ToastProvider } from "./components/Toast";
 import { Landing } from "./routes/Landing";
 import { SignIn } from "./routes/SignIn";
@@ -23,6 +23,9 @@ import { Settings } from "./routes/dashboard/Settings";
 import { Plans } from "./routes/dashboard/Plans";
 import { ExtensionDownload } from "./routes/ExtensionDownload";
 import { Checkout } from "./routes/Checkout";
+import { Privacy } from "./routes/Privacy";
+import { Terms } from "./routes/Terms";
+import { Security } from "./routes/Security";
 
 const PATHS: Record<Screen, string> = {
   landing: "/",
@@ -52,33 +55,17 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function DarkToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      aria-pressed={dark}
-      className="fixed top-3 right-3 z-[550] w-9 h-9 flex items-center justify-center bg-surface border border-border text-text-secondary rounded-sm cursor-pointer hover:bg-surface-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-    >
-      {dark ? <Sun size={15} strokeWidth={1.5} /> : <Moon size={15} strokeWidth={1.5} />}
-    </button>
-  );
-}
+
 
 export default function App() {
   const navigate = useNavigate();
   const logout = useAuthStore(s => s.logout);
   const onNav = (s: Screen) => navigate(PATHS[s]);
   const onLogout = () => { logout(); navigate("/signin"); };
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
+  useThemeStore();
 
   return (
     <ToastProvider>
-      <DarkToggle dark={dark} onToggle={() => setDark(d => !d)} />
       <Routes>
         <Route path="/" element={<Landing onNav={onNav} />} />
         <Route path="/signin" element={<SignIn onNav={onNav} />} />
@@ -91,6 +78,10 @@ export default function App() {
             SEs reach this from their invite email. They have no dashboard login.
             DO NOT nest inside /dashboard or wrap in <ProtectedRoute>. */}
         <Route path="/extension-download" element={<ExtensionDownload onNav={onNav} />} />
+        {/* Public legal pages — no auth required, linked from the homepage footer. */}
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/security" element={<Security />} />
         <Route path="/dashboard" element={<ProtectedRoute><Overview onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/knowledge" element={<ProtectedRoute><KnowledgeBase onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/team" element={<ProtectedRoute><Team onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />

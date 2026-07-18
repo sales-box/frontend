@@ -1,8 +1,13 @@
-import { ArrowRight, Check, BookOpen, TrendingUp, Activity } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { ArrowRight, Check, BookOpen, TrendingUp, Activity, Menu, X, Mail, Link2 } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import type { Screen } from "../types";
 import { Btn } from "../components/Btn";
 import { Reveal } from "../components/Reveal";
+import { CountUp } from "../components/CountUp";
+import { Marquee } from "../components/Marquee";
+import { AccordionItem } from "../components/Accordion";
+import { ThemeToggle } from "../components/ThemeToggle";
 import heroMascot from "../assets/hero-mascot-composition.png";
 import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
 
@@ -20,6 +25,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 
 export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const tiers = [
     { name: "Starter", price: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
       features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"], highlight: false },
@@ -33,13 +48,14 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
     { v: "200+", l: "B2B companies onboard" },
     { v: "67%", l: "replies sent as-is" },
     { v: "4.8", l: "average G2 rating" },
-    { v: "SOC 2", l: "Type II certified" },
   ];
 
   return (
     <div className="min-h-[100dvh] bg-surface font-body text-text-primary">
       <header className="fixed top-4 left-4 right-4 z-50 max-w-6xl mx-auto">
-        <div className="w-full bg-surface/75 dark:bg-surface-secondary/70 backdrop-blur-md border border-border shadow-md rounded-full h-14 px-4 sm:px-6 flex items-center justify-between gap-3 transition-colors duration-300 hover:border-primary/20">
+        <div className={`w-full bg-surface/75 dark:bg-surface-secondary/70 backdrop-blur-md border border-border shadow-md rounded-full h-14 px-4 sm:px-6 flex items-center justify-between gap-3 transition-all duration-300 hover:border-primary/20 ${
+          scrolled ? "bg-surface/90 dark:bg-surface-secondary/85 shadow-lg border-primary/10" : ""
+        }`}>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:rotate-12 hover:scale-105 active:scale-95 shadow-sm">
               <img src={mascotIconSilhouette} alt="" className="w-4.5 h-4.5 brightness-0 invert" aria-hidden="true" />
@@ -47,19 +63,92 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
             <span className="font-display text-[14px] font-semibold text-text-primary tracking-tight truncate">Inbox Sales Copilot</span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-text-secondary">
-            <a href="#features" className="hover:text-text-primary transition-colors cursor-pointer" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }}>Features</a>
-            <a href="#pricing" className="hover:text-text-primary transition-colors cursor-pointer" onClick={(e) => { e.preventDefault(); document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }); }}>Pricing</a>
+            {[
+              { id: "features", label: "Features" },
+              { id: "how-it-works", label: "How it works" },
+              { id: "integrations", label: "Integrations" },
+              { id: "testimonials", label: "Testimonials" },
+              { id: "pricing", label: "Pricing" },
+              { id: "faq", label: "FAQ" }
+            ].map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className="relative py-1.5 group/nav hover:text-text-primary transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                {item.label}
+                <span className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-primary to-secondary rounded-full scale-x-0 group-hover/nav:scale-x-100 transition-transform duration-300 origin-center" />
+              </a>
+            ))}
           </nav>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-4 flex-shrink-0">
+            <ThemeToggle variant="standard" className="hidden md:flex" />
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:text-text-primary hover:bg-border/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <X size={20} strokeWidth={1.5} />
+              ) : (
+                <Menu size={20} strokeWidth={1.5} />
+              )}
+            </button>
             <Btn variant="ghost" size="sm" className="hidden sm:inline-flex rounded-full text-xs font-semibold px-4 h-9" onClick={() => onNav("signin")}>Sign in</Btn>
             <Btn variant="gradient" size="sm" className="rounded-full text-xs font-semibold px-5 h-9" onClick={() => onNav("signup")}>Register</Btn>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-surface/95 dark:bg-surface-secondary/95 backdrop-blur-md border border-border rounded-2xl shadow-md p-4 flex flex-col gap-1.5 z-50 md:hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            {[
+              { id: "features", label: "Features" },
+              { id: "how-it-works", label: "How it works" },
+              { id: "integrations", label: "Integrations" },
+              { id: "testimonials", label: "Testimonials" },
+              { id: "pricing", label: "Pricing" },
+              { id: "faq", label: "FAQ" }
+            ].map((item) => (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className="px-4 py-2 hover:bg-border/30 rounded-lg text-[13px] font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth" });
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {item.label}
+              </a>
+            ))}
+            <hr className="border-border my-1" />
+            <div className="flex items-center justify-between px-4 py-2.5 text-[13px] font-medium text-text-secondary">
+              <span>Theme Preference</span>
+              <ThemeToggle variant="standard" />
+            </div>
+            <hr className="border-border my-1" />
+            <a
+              href="#signin"
+              className="px-4 py-2 hover:bg-border/30 rounded-lg text-[13px] font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                setMobileMenuOpen(false);
+                onNav("signin");
+              }}
+            >
+              Sign in
+            </a>
+          </div>
+        )}
       </header>
 
-      {/* HERO — each element reveals on its own, staggered */}
+      {/* HERO */}
       <section className="relative w-full overflow-hidden">
-        {/* Ambient background glows matching mascot logo color palette */}
         <div aria-hidden className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-accent-warm/15 via-primary/10 to-transparent blur-[120px] pointer-events-none" />
         <div aria-hidden className="absolute -bottom-40 -left-40 w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-secondary/15 via-accent-cool/10 to-transparent blur-[120px] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-24 md:pt-36 pb-16 md:pb-24">
@@ -83,12 +172,11 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                     Register your company
                     <ArrowRight size={15} strokeWidth={1.5} className="transition-transform group-hover:translate-x-1" />
                   </Btn>
-                  <Btn variant="secondary" size="lg" className="w-full sm:w-auto">See a demo</Btn>
                 </div>
               </Reveal>
               <Reveal delay={360}>
                 <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-text-tertiary">
-                  {["Trusted by 200+ B2B companies", "4.8 / 5 on G2", "SOC 2 Type II"].map((t, i) => (
+                  {["Trusted by 200+ B2B companies", "4.8 / 5 on G2"].map((t, i) => (
                     <div key={t} className="flex items-center gap-6">
                       {i > 0 && <span className="h-3 w-px bg-border hidden sm:block" />}
                       <span className="flex items-center gap-1.5"><Check size={13} strokeWidth={2} className="text-accent-cool" /> {t}</span>
@@ -110,11 +198,23 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         </div>
       </section>
 
-      {/* INK BAND — manifesto + stats, staggered */}
-      <section className="relative bg-surface dark:bg-surface-secondary text-text-primary overflow-hidden">
-        {/* violet glow anchor, not full fill — DESIGN.md §6 already recommends
-            "solid brand color + soft glow" over flat fill for dark-mode hero
-            moments */}
+      {/* LOGO CLOUD (Marquee) */}
+      <section id="proof" className="w-full py-10 border-t border-border bg-surface-secondary/30 dark:bg-surface-secondary/10">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 text-center">
+          <p className="text-eyebrow text-text-tertiary mb-6 text-center">Trusted by 200+ B2B sales teams</p>
+          <Marquee>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Northwind Robotics</span>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Brightwave Technologies</span>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Cyberdyne Systems</span>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Globex Industrial</span>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Initech Cloud</span>
+            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Acme Manufacturing</span>
+          </Marquee>
+        </div>
+      </section>
+
+      {/* INK BAND */}
+      <section className="relative bg-surface dark:bg-surface-secondary text-text-primary overflow-hidden border-t border-border">
         <div aria-hidden className="absolute -top-1/2 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/25 dark:bg-primary/35 blur-[120px] pointer-events-none" />
         <div aria-hidden className="absolute inset-0 opacity-[0.06] pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url("${GRAIN}")` }} />
         <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
@@ -124,12 +224,14 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
               Every reply, grounded in your <em className="not-italic underline decoration-2 underline-offset-4 decoration-[color:var(--color-secondary)]">own product truth</em> — no hallucinations, no guesswork, no cold-start.
             </p>
           </Reveal>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-6 mt-14 pt-10 border-t border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-6 mt-14 pt-10 border-t border-border">
             {stats.map((s, i) => {
               const colors = ["text-primary", "text-accent-cool", "text-accent-warm", "text-secondary"];
               return (
                 <Reveal key={s.l} delay={i * 110}>
-                  <div className={`font-display text-[2.25rem] sm:text-[2.75rem] leading-none ${colors[i]}`}>{s.v}</div>
+                  <div className={`font-display text-[2.25rem] sm:text-[2.75rem] leading-none ${colors[i]}`}>
+                    <CountUp value={s.v} />
+                  </div>
                   <div className="text-[13px] text-text-secondary mt-2 leading-snug">{s.l}</div>
                 </Reveal>
               );
@@ -138,9 +240,57 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         </div>
       </section>
 
-      {/* FEATURES — Bento Grid layout with interactive mockups */}
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="relative w-full overflow-hidden border-t border-border">
+        <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-primary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
+          <Reveal><Eyebrow>How it works</Eyebrow></Reveal>
+          
+          <div className="grid md:grid-cols-4 gap-8 relative">
+            {[
+              {
+                num: "01",
+                title: "Connect Gmail",
+                desc: "Sign in with Google. The extension installs directly into your inbox, no separate app to check."
+              },
+              {
+                num: "02",
+                title: "Upload your knowledge",
+                desc: "Product docs, pricing sheets, past proposals — the AI grounds every reply in what you upload, nothing invented."
+              },
+              {
+                num: "03",
+                title: "AI drafts the reply",
+                desc: "Open a client email in Gmail and a context-aware draft appears in the sidebar, with a confidence score."
+              },
+              {
+                num: "04",
+                title: "You review and send",
+                desc: "Every reply is reviewed by a Sales Engineer before it goes out. Nothing sends automatically — ever."
+              }
+            ].map((step, i) => (
+              <Reveal
+                key={step.num}
+                delay={i * 120}
+                variant={i % 2 === 0 ? "left" : "right"}
+                className="relative flex flex-col items-start"
+              >
+                {i < 3 && (
+                  <div className="hidden md:block absolute top-5 left-[calc(100%-1rem)] w-[calc(100%-2rem)] h-px bg-border z-0" />
+                )}
+                <div className="font-display text-[2.5rem] font-bold text-primary/30 dark:text-primary/40 leading-none mb-3 z-10">
+                  {step.num}
+                </div>
+                <h3 className="text-base font-bold text-text-primary mb-2 z-10">{step.title}</h3>
+                <p className="text-[13px] text-text-secondary leading-relaxed z-10">{step.desc}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
       <section id="features" className="relative w-full overflow-hidden border-t border-border">
-        {/* Ambient background glows matching mascot logo color palette */}
         <div aria-hidden className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-primary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
         <div aria-hidden className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-secondary/10 via-accent-warm/5 to-transparent blur-[100px] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
@@ -181,7 +331,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                       <div className="font-semibold text-primary mb-1">Copilot Suggestion:</div>
                       "Yes, we support SAML SSO through Okta and Microsoft Entra ID."
                       <div className="mt-2 pt-1.5 border-t border-primary/10 flex items-center gap-1 text-[9px] text-accent-cool font-semibold">
-                        <Check size={9} strokeWidth={3} /> Citations: security_policy.pdf
+                        <Check size={9} strokeWidth={3} /> Citations: <Link to="/security" className="hover:underline">Security Policy</Link>
                       </div>
                     </div>
                   </div>
@@ -294,7 +444,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                         <span className="text-accent-cool">94% score</span>
                       </div>
                       <p className="text-[9px] text-text-secondary leading-snug">
-                        "Sure! I've attached our SOC 2 Type II report for your team..."
+                        "Sure! I've attached our security overview document for your team..."
                       </p>
                     </div>
                     <div className="flex gap-1.5 mt-1">
@@ -309,9 +459,117 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         </div>
       </section>
 
-      {/* PRICING — each tier reveals on its own */}
+      {/* INTEGRATIONS */}
+      <section id="integrations" className="relative w-full overflow-hidden border-t border-border">
+        <div aria-hidden className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-secondary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
+          <Reveal><Eyebrow>Integrations</Eyebrow></Reveal>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Gmail",
+                desc: "Native inbox sidebar",
+                status: "Connected",
+                icon: Mail,
+                color: "bg-primary/10 text-primary dark:bg-primary/20"
+              },
+              {
+                name: "HubSpot",
+                desc: "Two-way CRM sync",
+                status: "Available",
+                icon: Link2,
+                color: "bg-secondary/10 text-secondary dark:bg-secondary/20"
+              },
+              {
+                name: "Zoho",
+                desc: "Two-way CRM sync",
+                status: "Planned",
+                icon: Link2,
+                color: "bg-accent-warm/10 text-accent-warm dark:bg-accent-warm/20"
+              }
+            ].map((int, i) => (
+              <Reveal
+                key={int.name}
+                delay={i * 120}
+                variant="scale"
+                className="h-full"
+              >
+                <div className="group relative h-full bg-surface-secondary/40 dark:bg-surface-secondary/20 border border-border hover:border-primary/40 rounded-2xl p-7 flex flex-col justify-between gap-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-primary/5">
+                  <div className="flex items-start justify-between">
+                    <div className={`w-10 h-10 rounded-lg ${int.color} flex items-center justify-center`}>
+                      <int.icon size={20} strokeWidth={1.5} />
+                    </div>
+                    <span className={`text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full ${
+                      int.status === "Connected" 
+                        ? "bg-success-light text-success dark:bg-success/15" 
+                        : "bg-surface-tertiary text-text-tertiary dark:bg-surface-secondary"
+                    }`}>
+                      {int.status}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-text-primary mb-1">{int.name}</h3>
+                    <p className="text-[13px] text-text-secondary">{int.desc}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PLACEHOLDER TESTIMONIALS — replace with real customer quotes before this section ships to production. Content/marketing owns this copy. */}
+      {/* TESTIMONIALS */}
+      <section id="testimonials" className="relative w-full overflow-hidden border-t border-border">
+        <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-accent-warm/10 via-primary/5 to-transparent blur-[100px] pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
+          <Reveal><Eyebrow>Testimonials</Eyebrow></Reveal>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                quote: "Before Inbox Sales Copilot, our sales engineering team spent hours drafting security and technical replies. Now, they're drafted instantly with accurate citations.",
+                author: "S. Chen",
+                role: "Sales Engineering Lead",
+                company: "Tech Corp (Placeholder)"
+              },
+              {
+                quote: "The dual confidence scores are a game changer. We can instantly tell if a reply is grounded in our latest docs or needs manual eyes. Highly recommend it.",
+                author: "M. Patel",
+                role: "Director of Technical Sales",
+                company: "Software Systems (Placeholder)"
+              },
+              {
+                quote: "Onboarding was incredibly simple. We connected Gmail, uploaded our product manuals, and our team was drafting responses in under an hour. Best tool we've added this year.",
+                author: "A. Reyes",
+                role: "Lead Sales Engineer",
+                company: "Global Logistics (Placeholder)"
+              }
+            ].map((test, i) => (
+              <Reveal
+                key={test.author}
+                delay={i * 120}
+                variant="scale"
+                className="h-full"
+              >
+                <div className="group relative h-full bg-surface-secondary/40 dark:bg-surface-secondary/20 border border-border hover:border-secondary/40 rounded-2xl p-7 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-secondary/5">
+                  <p className="text-[14px] italic text-text-secondary leading-relaxed mb-6">
+                    "{test.quote}"
+                  </p>
+                  <div>
+                    <div className="font-semibold text-text-primary text-[14px]">{test.author}</div>
+                    <div className="text-[12px] text-text-tertiary">{test.role}, {test.company}</div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
       <section id="pricing" className="relative w-full overflow-hidden border-t border-border">
-        {/* Ambient background glows matching mascot logo color palette */}
         <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-accent-warm/10 via-primary/5 to-transparent blur-[100px] pointer-events-none" />
         <div aria-hidden className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-secondary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
@@ -369,7 +627,6 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           </div>
                         </div>
 
-                        {/* Tier Specs */}
                         <div className="text-xs font-semibold leading-relaxed text-text-secondary border-y border-border py-4 flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -381,7 +638,6 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           </div>
                         </div>
 
-                        {/* Features Checklist */}
                         <ul className="space-y-3 pt-1 flex-1">
                           {tier.features.map(f => (
                             <li key={f} className="flex items-start gap-2.5 text-[13px] leading-snug text-text-secondary">
@@ -413,6 +669,56 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="relative w-full overflow-hidden border-t border-border">
+        <div aria-hidden className="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-secondary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
+          <Reveal><Eyebrow>FAQ</Eyebrow></Reveal>
+          
+          <div className="max-w-3xl mx-auto flex flex-col">
+            <AccordionItem question="Does Copilot send emails automatically?">
+              No. Every AI-drafted reply is reviewed by a Sales Engineer before it goes out — there is no auto-send mode, at any confidence level.
+            </AccordionItem>
+            <AccordionItem question="Will the AI make things up about our product?">
+              Every claim in a draft is checked against your uploaded knowledge base. Anything that isn't backed by a real source is automatically removed before the SE ever sees the draft.
+            </AccordionItem>
+            <AccordionItem question="Which CRMs do you support?">
+              HubSpot is supported today, with Zoho integration planned next.
+            </AccordionItem>
+            <AccordionItem question="How long does onboarding take?">
+              Most teams are drafting their first AI-assisted reply within a day — connect Gmail, upload a handful of product documents, and the extension is live.
+            </AccordionItem>
+            <AccordionItem question="Is our data isolated from other companies using Copilot?">
+              Yes. Every account is fully tenant-isolated at the database level — your knowledge base and client data are never visible to other companies.
+            </AccordionItem>
+          </div>
+        </div>
+      </section>
+
+      {/* CLOSING CTA */}
+      <section className="relative w-full bg-surface-secondary dark:bg-surface-tertiary border-t border-border overflow-hidden">
+        <div aria-hidden className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/10 dark:bg-primary/20 blur-[120px] pointer-events-none" />
+        <div className="relative max-w-4xl mx-auto px-5 sm:px-8 py-20 md:py-28 text-center flex flex-col items-center">
+          <Reveal>
+            <h2 className="font-display text-[2.5rem] sm:text-[3.5rem] leading-none tracking-tight text-text-primary mb-6">
+              Ready to close faster?
+            </h2>
+          </Reveal>
+          <Reveal delay={100}>
+            <p className="text-base text-text-secondary max-w-xl mb-8">
+              Start drafting grounded responses inside Gmail in less than an hour. Set up your team today.
+            </p>
+          </Reveal>
+          <Reveal delay={200}>
+            <Btn variant="gradient" size="lg" className="group" onClick={() => onNav("signup")}>
+              Register your company
+              <ArrowRight size={15} strokeWidth={1.5} className="transition-transform group-hover:translate-x-1" />
+            </Btn>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* FOOTER */}
       <footer className="border-t border-border bg-surface">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 py-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
@@ -421,10 +727,11 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
             </div>
             <span className="font-display text-[15px] text-text-primary">Inbox Sales Copilot</span>
           </div>
-          <div className="flex flex-wrap gap-5 text-xs text-text-tertiary">
-            {["Privacy", "Terms", "Security", "© 2026 Inbox Sales Copilot, Inc."].map(l => (
-              <a key={l} href="#" className={`hover:text-text-primary transition-colors ${focusRing}`}>{l}</a>
-            ))}
+          <div className="flex flex-wrap items-center gap-5 text-xs text-text-tertiary">
+            <Link to="/privacy" className={`hover:text-text-primary transition-colors ${focusRing}`}>Privacy</Link>
+            <Link to="/terms" className={`hover:text-text-primary transition-colors ${focusRing}`}>Terms</Link>
+            <Link to="/security" className={`hover:text-text-primary transition-colors ${focusRing}`}>Security</Link>
+            <span>© 2026 Inbox Sales Copilot, Inc.</span>
           </div>
         </div>
       </footer>

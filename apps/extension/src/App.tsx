@@ -1,5 +1,4 @@
 import { useEffect, useReducer, useCallback } from 'react'
-import { getSuggestion } from '@inbox-sales/shared'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
@@ -64,19 +63,31 @@ interface AppProps {
    *  App.tsx dispatches custom events on it to trigger syncGmailLayout
    *  without reaching outside the shadow root itself. */
   panelHost?: HTMLElement
+  getCurrentThreadId?: () => string | null
 }
 
-export default function App({ panelHost }: AppProps = {}) {
+export default function App({ panelHost, getCurrentThreadId = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
 
-  // On mount: we no longer auto-expand. We just wait for user action.
-  useEffect(() => {
-    // Intentionally empty. Decoupled auth state from panel expansion.
-  }, [])
-
-  const loadSuggestion = useCallback(async (tenantId: string, emailId: string) => {
+  const loadSuggestion = useCallback(async (_tenantId: string, emailId: string) => {
     try {
-      const suggestion = await getSuggestion(tenantId, emailId)
+      const raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
+      if (raw?.error) throw new Error(raw.error)
+
+      const suggestion = {
+        reply: raw.draft?.draftText ?? '',
+        productConfidence: Math.round((raw.confidence.productConfidence ?? 0) * 100),
+        clientHistoryConfidence: Math.round((raw.confidence.clientHistoryConfidence ?? 0) * 100),
+        hasHallucination: raw.confidence.hallucinationDetected ?? false,
+        clientName: raw.client?.name ?? 'Unknown',
+        company: raw.client?.company ?? 'Unknown company',
+        // Backend has no dedicated "role" field yet — using status as a stand-in.
+        // Flag this to the team, don't invent a fake role string.
+        role: raw.client?.status ?? '',
+        dealStatus: (raw.client?.status === 'active' ? 'active' : 'prospect') as 'active' | 'prospect',
+        emailTimestamp: raw.emailTimestamp ?? new Date().toISOString(),
+      }
+
       const isLowConfidence =
         suggestion.productConfidence < CONFIDENCE_THRESHOLD ||
         suggestion.clientHistoryConfidence < CONFIDENCE_THRESHOLD ||
@@ -120,6 +131,39 @@ export default function App({ panelHost }: AppProps = {}) {
     }
   }, [])
 
+  // Listen for hashchange events in Gmail to automatically reload suggestion or return to overview
+  useEffect(() => {
+    const handleHashChange = async () => {
+      if (panel.type === 'collapsed' || panel.type === 'auth' || panel.type === 'invalid' || panel.type === 'revoked') {
+        return
+      }
+
+      const { tenantId } = await chrome.storage.local.get('tenantId')
+      if (!tenantId) return
+
+      const threadId = getCurrentThreadId()
+      if (threadId) {
+        dispatch({ type: 'LOAD_BRIEFING' })
+        await loadSuggestion(tenantId, threadId)
+      } else {
+        // If user navigates back to inbox (no open thread), show overview
+        const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
+        if (!statsResult?.error) {
+          dispatch({
+            type: 'SHOW_OVERVIEW',
+            data: {
+              totalEmails: statsResult.totalEmails,
+              syncedAt: statsResult.syncedAt,
+            },
+          })
+        }
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [panel.type, getCurrentThreadId, loadSuggestion])
+
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
     try {
@@ -162,8 +206,8 @@ export default function App({ panelHost }: AppProps = {}) {
       }
 
       const tenantId = authMe.tenantId
-      
-      await chrome.storage.local.set({ jwt: result.token, tenantId })
+      const accountEmail = authMe.email
+      await chrome.storage.local.set({ jwt: result.token, tenantId, accountEmail })
 
       // Real inbox stats — independent of the auth above.
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
@@ -188,10 +232,18 @@ export default function App({ panelHost }: AppProps = {}) {
   }, [loadSuggestion])
 
   const handleRefresh = useCallback(async () => {
-    dispatch({ type: 'LOAD_BRIEFING' })
     const { tenantId } = await chrome.storage.local.get('tenantId')
-    if (tenantId) await loadSuggestion(tenantId, 'current-email')
-  }, [loadSuggestion])
+    if (tenantId) {
+      const threadId = getCurrentThreadId()
+      if (!threadId) {
+        console.warn('[Copilot] No open Gmail thread detected')
+        dispatch({ type: 'RESET' })
+        return
+      }
+      dispatch({ type: 'LOAD_BRIEFING' })
+      await loadSuggestion(tenantId, threadId)
+    }
+  }, [loadSuggestion, getCurrentThreadId])
 
   const handleClose = useCallback(() => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
@@ -219,24 +271,25 @@ export default function App({ panelHost }: AppProps = {}) {
           },
         })
       } else {
+        const threadId = getCurrentThreadId()
+        if (!threadId) {
+          console.warn('[Copilot] No open Gmail thread detected')
+          dispatch({ type: 'RESET' })
+          return
+        }
         dispatch({ type: 'LOAD_BRIEFING' })
-        await loadSuggestion(tenantId, 'current-email')
+        await loadSuggestion(tenantId, threadId)
       }
     }
-  }, [loadSuggestion, panelHost])
+  }, [loadSuggestion, panelHost, getCurrentThreadId])
 
   const handleSelectCategory = useCallback((category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
   }, [])
 
-  const handleSelectEmail = useCallback(async (threadId: string) => {
+  const handleSelectEmail = useCallback((threadId: string) => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))
-    dispatch({ type: 'LOAD_BRIEFING' })
-    const { tenantId } = await chrome.storage.local.get('tenantId')
-    if (tenantId) {
-      await loadSuggestion(tenantId, threadId)
-    }
-  }, [loadSuggestion, panelHost])
+  }, [panelHost])
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (panel.type === 'collapsed') {

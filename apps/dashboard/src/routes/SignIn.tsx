@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Inbox, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { MinimalHeader } from "../components/MinimalHeader";
 import type { Screen } from "../types";
 import { auth } from "../api-client";
 import { useAuthStore } from "../store/auth";
@@ -49,16 +50,12 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-      <div className="w-full max-w-[28rem]">
-        <div className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <Inbox size={15} strokeWidth={1.5} className="text-text-on-primary" />
-          </div>
-          <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
-        </div>
+    <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
+      <MinimalHeader onBack={() => onNav("landing")} />
 
-        <Card className="p-6 sm:p-8">
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[28rem]">
+          <Card className="p-6 sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-heading text-text-primary mb-1">Sign in</h1>
             <p className="text-body text-text-secondary">Access your admin account.</p>
@@ -133,6 +130,7 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
           Don't have an account?{" "}
           <button onClick={() => onNav("signup")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Register your company</button>
         </p>
+        </div>
       </div>
     </div>
   );
