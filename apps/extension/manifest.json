@@ -8,7 +8,9 @@
   "host_permissions": [
     "https://mail.google.com/*",
     "https://salesbox.dev/*",
-    "http://localhost:3000/*"
+    "https://*.salesbox.dev/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
   "background": {
     "service_worker": "src/background.ts",
