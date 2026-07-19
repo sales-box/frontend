@@ -170,6 +170,34 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true
   }
 
+  // ── GET_CATEGORIZED_EMAILS ────────────────────────────────────────────────
+  if (msg.type === 'GET_CATEGORIZED_EMAILS') {
+    ;(async () => {
+      let status: number | undefined
+      try {
+        const { jwt } = await chrome.storage.local.get('jwt')
+        if (!jwt) {
+          sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+          return
+        }
+        const res = await fetch(`${API_BASE}/emails/categorized?category=${encodeURIComponent(msg.category)}`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+        status = res.status
+        if (!res.ok) {
+          sendResponse({ error: `categorized failed: ${res.status}`, status: res.status })
+          return
+        }
+        const data = await res.json()
+        sendResponse({ emails: data, status: res.status })
+      } catch (err) {
+        console.error('[Background] GET_CATEGORIZED_EMAILS Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+      }
+    })()
+    return true
+  }
+
   // ── GET_INBOX_STATS ───────────────────────────────────────────────────────
   // Reads the JWT stored after login and calls the backend directly.
   // No second OAuth flow needed — the backend already holds the user's token

@@ -79,7 +79,7 @@ export function InboxOverviewScreen({ data, onClose, onSelectCategory }: InboxOv
         <div className="flex flex-col gap-2">
           <h3 className="text-eyebrow text-[var(--color-text-secondary)]">BY INTENT</h3>
           <div className="border border-[var(--color-border)] rounded-[var(--radius-md)] overflow-hidden divide-y divide-[var(--color-border)]">
-            {(data.intentBreakdown || [
+            {(data.intentBreakdown && data.intentBreakdown.length > 0 ? data.intentBreakdown : [
               { label: 'Product inquiry', count: -1, key: 'product-inquiry' },
               { label: 'Demo request', count: -1, key: 'demo-request' },
               { label: 'Support', count: -1, key: 'support' },
