@@ -177,6 +177,17 @@ export const tenants = {
 
 // ─── Knowledge Base ──────────────────────────────────────────
 
+export interface QualityReport {
+  score: number;
+  passed: string[];
+  failed: { category: string; asks: string }[];
+  ruleKeys: string[];
+  redundancyRatio: number;
+  concisenessScore: number;
+  duplicateChunkPairs: number;
+  evaluatedAt: string;
+}
+
 export interface KBDocument {
   id: string;
   filename: string;
@@ -187,6 +198,8 @@ export interface KBDocument {
   processingError: string | null;
   isLowConfidence: boolean;
   qualityReason: string | null;
+  qualityScore: number | null;
+  qualityReport: QualityReport | null;
 }
 
 export interface PaginationMeta {
