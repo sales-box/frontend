@@ -2,7 +2,7 @@ import { useEffect, useReducer, useCallback, useState } from 'react'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
-import { EmailCategoryList } from './screens/EmailCategoryList'
+import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 
 import { CollapsedTab }       from './screens/CollapsedTab'
 import { AuthScreen }         from './screens/AuthScreen'
@@ -63,12 +63,14 @@ interface AppProps {
    *  App.tsx dispatches custom events on it to trigger syncGmailLayout
    *  without reaching outside the shadow root itself. */
   panelHost?: HTMLElement
-  getCurrentThreadId?: () => string | null
+  getCurrentMessageId?: () => string | null
 }
 
-export default function App({ panelHost, getCurrentThreadId = () => null }: AppProps = {}) {
+export default function App({ panelHost, getCurrentMessageId = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
   const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
+  const [categoryEmails, setCategoryEmails] = useState<EmailRowData[]>([])
+  const [categoryLoading, setCategoryLoading] = useState(false)
 
   const fetchInboxStats = useCallback(async () => {
     setToastError(null)
@@ -144,6 +146,7 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
               hasPreviousEmails:  suggestion.clientHistoryConfidence >= CONFIDENCE_THRESHOLD,
               hasAccountHistory:  suggestion.clientHistoryConfidence >= 50,
             },
+            suggestedReply:          suggestion.reply,
           },
         })
       } else {
@@ -178,9 +181,9 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
       if (jwt && tenantId) {
         panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
         
-        const threadId = getCurrentThreadId()
-        if (threadId) {
-          await loadSuggestion(tenantId, threadId)
+        const messageId = getCurrentMessageId()
+        if (messageId) {
+          await loadSuggestion(tenantId, messageId)
         } else {
           const placeholderStats: InboxOverviewData = cachedInboxStats || {
             totalEmails: 0,
@@ -205,7 +208,7 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
       }
     }
     rehydrateSession()
-  }, [panelHost, fetchInboxStats, getCurrentThreadId, loadSuggestion])
+  }, [panelHost, fetchInboxStats, getCurrentMessageId, loadSuggestion])
 
   // Listen for hashchange events in Gmail to automatically reload suggestion or return to overview
   useEffect(() => {
@@ -217,9 +220,9 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
       const { tenantId } = await chrome.storage.local.get('tenantId')
       if (!tenantId) return
 
-      const threadId = getCurrentThreadId()
-      if (threadId) {
-        await loadSuggestion(tenantId, threadId)
+      const messageId = getCurrentMessageId()
+      if (messageId) {
+        await loadSuggestion(tenantId, messageId)
       } else {
         await fetchInboxStats()
       }
@@ -227,7 +230,7 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
 
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [panel.type, getCurrentThreadId, loadSuggestion, fetchInboxStats])
+  }, [panel.type, getCurrentMessageId, loadSuggestion, fetchInboxStats])
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
@@ -293,17 +296,17 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
   const handleRefresh = useCallback(async () => {
     const { tenantId } = await chrome.storage.local.get('tenantId')
     if (tenantId) {
-      const threadId = getCurrentThreadId()
-      if (!threadId) {
+      const messageId = getCurrentMessageId()
+      if (!messageId) {
         setToastError({
           message: 'No open Gmail thread detected',
           retry: () => handleRefresh(),
         })
         return
       }
-      await loadSuggestion(tenantId, threadId)
+      await loadSuggestion(tenantId, messageId)
     }
-  }, [loadSuggestion, getCurrentThreadId])
+  }, [loadSuggestion, getCurrentMessageId])
 
   const handleClose = useCallback(() => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
@@ -319,19 +322,35 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
     const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
     if (jwt && tenantId) {
-      const threadId = getCurrentThreadId()
-      if (threadId) {
-        await loadSuggestion(tenantId, threadId)
+      const messageId = getCurrentMessageId()
+      if (messageId) {
+        await loadSuggestion(tenantId, messageId)
       } else {
         await fetchInboxStats()
       }
     } else {
       dispatch({ type: 'EXPAND' })
     }
-  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentThreadId])
+  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId])
 
-  const handleSelectCategory = useCallback((category: string, data: InboxOverviewData) => {
+  const handleSelectCategory = useCallback(async (category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
+    setCategoryLoading(true)
+    setCategoryEmails([])
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'GET_CATEGORIZED_EMAILS', category })
+      if (result?.error) {
+        console.error('[Copilot] GET_CATEGORIZED_EMAILS failed:', result.error)
+        setCategoryEmails([])
+      } else {
+        setCategoryEmails(result.emails || [])
+      }
+    } catch (err) {
+      console.error('[Copilot] GET_CATEGORIZED_EMAILS threw:', err)
+      setCategoryEmails([])
+    } finally {
+      setCategoryLoading(false)
+    }
   }, [])
 
   const handleSelectEmail = useCallback((threadId: string) => {
@@ -414,16 +433,10 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
               )
 
             case 'category-list':
-              // TODO(AI-pipeline): replace N/A once GET /emails/categorized exists
-              const mockEmails = [
-                { threadId: 'mock-1', clientName: 'Jane Doe', company: 'Acme Corp', subjectSnippet: 'Question about enterprise features', timestamp: '10:30 AM', status: 'ready' as const },
-                { threadId: 'mock-2', clientName: 'John Smith', company: 'Globex', subjectSnippet: 'Can we schedule a demo?', timestamp: 'Yesterday', status: 'needs-review' as const },
-                { threadId: 'mock-3', clientName: 'Sarah Connor', company: 'Cyberdyne', subjectSnippet: 'Pricing details required', timestamp: 'Oct 12' }
-              ]
               return (
                 <EmailCategoryList
                   category={panel.category}
-                  emails={mockEmails}
+                  emails={categoryLoading ? [] : categoryEmails}
                   onClose={handleClose}
                   onBack={() => dispatch({ type: 'SHOW_OVERVIEW', data: panel.data })}
                   onSelectEmail={handleSelectEmail}
@@ -448,6 +461,7 @@ export default function App({ panelHost, getCurrentThreadId = () => null }: AppP
                   onClose={handleClose}
                   onRefresh={handleRefresh}
                   onComposeManually={() => handleEditInGmail('')}
+                  onInsertDraft={(reply) => handleEditInGmail(reply)}
                   onUploadDoc={() => {
                     chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
                   }}

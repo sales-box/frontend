@@ -142,12 +142,11 @@ function stopGmailSpaGuard() {
   _gmailLayoutObserver = null
 }
 
-function getCurrentGmailThreadId(): string | null {
-  // Gmail conversation URLs look like #inbox/<threadId>, #all/<threadId>,
-  // #sent/<threadId>, etc. — same format this file already WRITES in the
-  // 'copilot:navigate-thread' listener.
-  const match = window.location.hash.match(/^#[a-z]+\/([a-zA-Z0-9_-]+)$/)
-  return match ? match[1] : null
+function getCurrentGmailMessageId(): string | null {
+  const messages = document.querySelectorAll<HTMLElement>('.adn.ads[data-legacy-message-id]')
+  if (messages.length === 0) return null
+  const last = messages[messages.length - 1]
+  return last.getAttribute('data-legacy-message-id')
 }
 
 // ── Detect + inject ─────────────────────────────────────────────────────────
@@ -263,7 +262,7 @@ function mount() {
   // React root inside shadow DOM
   createRoot(wrapper).render(
     <React.StrictMode>
-      <App panelHost={host} getCurrentThreadId={getCurrentGmailThreadId} />
+      <App panelHost={host} getCurrentMessageId={getCurrentGmailMessageId} />
     </React.StrictMode>
   )
 }
