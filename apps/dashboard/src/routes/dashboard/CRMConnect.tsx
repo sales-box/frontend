@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Database, Link2, RefreshCw, CheckCircle2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { useCrmStatus, useConnectCrm } from "../../hooks/queries";
+import { useCrmStatus, useConnectCrm, useDisconnectCrm } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -17,13 +17,14 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const [apiKey, setApiKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
   const [importedCount, setImportedCount] = useState<number | null>(null);
-  const [locallyDisconnected, setLocallyDisconnected] = useState(false);
 
   const { data: status } = useCrmStatus();
   const connectCrm = useConnectCrm();
+  const disconnectCrm = useDisconnectCrm();
 
-  const connected = (status?.connected ?? false) && !locallyDisconnected;
+  const connected = status?.connected ?? false;
   const connecting = connectCrm.isPending;
+  const disconnecting = disconnectCrm.isPending;
   const syncInfo = connected
     ? { lastSync: status?.lastSync ?? "just now", importedCount: importedCount ?? 0 }
     : null;
@@ -36,7 +37,6 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     try {
       const res = await connectCrm.mutateAsync({ provider: "hubspot", apiKey });
       setImportedCount(res.importedCount);
-      setLocallyDisconnected(false);
       toast("HubSpot connected");
       setShowKeyModal(false);
       setApiKey("");
@@ -45,7 +45,15 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       toast("Failed to connect to HubSpot");
     }
   };
-  const disconnect = () => { setLocallyDisconnected(true); setImportedCount(null); toast("HubSpot disconnected"); };
+  const disconnect = async () => {
+    try {
+      await disconnectCrm.mutateAsync();
+      setImportedCount(null);
+      toast("HubSpot disconnected");
+    } catch {
+      toast("Failed to disconnect HubSpot");
+    }
+  };
 
   return (
     <Shell active="crm" onNav={onNav} onLogout={onLogout}>
@@ -80,7 +88,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
                 ) : (
                   <div className="text-xs text-text-tertiary">Not yet synced</div>
                 )}
-                <Btn variant="secondary" size="sm" onClick={disconnect}>Disconnect</Btn>
+                <Btn variant="secondary" size="sm" loading={disconnecting} onClick={disconnect}>Disconnect</Btn>
               </div>
             ) : (
               <div>

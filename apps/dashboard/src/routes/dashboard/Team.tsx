@@ -76,10 +76,14 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
     }
   };
 
-  const revoke = (email: string) => {
-    revokeAccess.mutate(email);
+  const revoke = async (email: string) => {
     setConfirmRevoke(null);
-    toast(`Access revoked for ${email}`);
+    try {
+      await revokeAccess.mutateAsync(email);
+      toast(`Access revoked for ${email}`);
+    } catch {
+      toast("Failed to revoke access — please try again");
+    }
   };
 
   return (

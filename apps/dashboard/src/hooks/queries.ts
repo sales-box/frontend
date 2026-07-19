@@ -35,6 +35,15 @@ export function useDocuments(page = 1, limit = 50) {
   return useQuery({
     queryKey: ["kb", page, limit],
     queryFn: () => knowledgeBase.list(page, limit),
+    // Quality is scored by a background job after upload. Poll every 3s while
+    // any completed document is still awaiting its score, then stop — so the
+    // badge appears on its own without a manual refresh.
+    refetchInterval: (query) => {
+      const pending = query.state.data?.data?.some(
+        (d) => d.status === "completed" && d.qualityScore == null,
+      );
+      return pending ? 3000 : false;
+    },
   });
 }
 
@@ -108,6 +117,17 @@ export function useConnectCrm() {
     mutationFn: ({ provider, apiKey }: { provider: string; apiKey: string }) =>
       crm.connect(provider, apiKey),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crm-status"] }),
+  });
+}
+
+export function useDisconnectCrm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.disconnect(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
 }
 

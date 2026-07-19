@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning } from "lucide-react";
 import type { Screen } from "../../types";
 import { useDocuments, useUploadDocument, useDeleteDocument } from "../../hooks/queries";
+import type { QualityReport } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -13,7 +14,37 @@ import { useToast } from "../../components/Toast";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
-type Doc = { id?: string; filename: string; size: string; status: string; uploadDate: string; chunkCount: number | null; fileType?: string; isLowConfidence?: boolean; qualityReason?: string | null; processingError?: string | null };
+type Doc = { id?: string; filename: string; size: string; status: string; uploadDate: string; chunkCount: number | null; fileType?: string; isLowConfidence?: boolean; qualityReason?: string | null; processingError?: string | null; qualityScore?: number | null; qualityReport?: QualityReport | null };
+
+// Human-readable rubric category, e.g. "lead_time" → "lead time".
+const prettyCategory = (c: string) => c.replace(/_/g, " ");
+
+// Coverage score → colour band. Red < 50, amber 50–79, green ≥ 80.
+function QualityScore({ score, report }: { score: number; report?: QualityReport | null }) {
+  const band = score >= 80 ? "success" : score >= 50 ? "warning" : "danger";
+  const missing = report?.failed?.map((f) => prettyCategory(f.category)) ?? [];
+  return (
+    <div className="mt-1 flex items-center gap-2 flex-wrap">
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{ background: `color-mix(in srgb, var(--color-${band}) 14%, transparent)`, color: `var(--color-${band})` }}
+        title="Sales-coverage quality score (0–100)"
+      >
+        Quality {score}
+      </span>
+      {report && report.concisenessScore < 100 && (
+        <span className="text-[11px] text-text-tertiary" title="Lower when the document repeats itself">
+          {report.concisenessScore}% concise
+        </span>
+      )}
+      {missing.length > 0 && (
+        <span className="text-[11px] text-text-tertiary">
+          Missing: {missing.join(", ")}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -27,9 +58,10 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
 
   const docs: Doc[] = (docsRes?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }));
 
-  const readyCount = docs.filter(d => d.status === "ready").length;
+  // Backend DocumentStatus enum: processing | completed | failed.
+  const readyCount = docs.filter(d => d.status === "completed").length;
   const processingCount = docs.filter(d => d.status === "processing").length;
-  const warningCount = docs.filter(d => d.status === "warning").length;
+  const warningCount = docs.filter(d => d.status === "failed" || d.isLowConfidence).length;
   const totalChunks = docs.reduce((sum, d) => sum + (d.chunkCount ?? 0), 0);
 
   const fileIcon = (name: string) => {
@@ -40,9 +72,9 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   };
 
   const statusDot = (s: string) => {
-    const cfg = s === "ready" ? { dot: "bg-success", text: "text-success", label: "Ready" }
+    const cfg = s === "completed" ? { dot: "bg-success", text: "text-success", label: "Ready" }
       : s === "processing" ? { dot: "bg-primary", text: "text-primary", label: "Processing" }
-      : { dot: "bg-warning", text: "text-warning", label: "Low Quality" };
+      : { dot: "bg-danger", text: "text-danger", label: "Failed" };
     return (
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full ${cfg.dot} ${s === "processing" ? "animate-pulse" : ""}`} />
@@ -139,13 +171,22 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
           </Reveal>
         </div>
 
-        {/* Document Quality Gate */}
-        {docs.some(d => d.status === "warning") && (
+        {/* Document Quality Gate — real low-confidence extractions */}
+        {docs.some(d => d.isLowConfidence) && (
           <div className="flex items-start gap-3 bg-warning-light border border-warning/20 rounded-lg px-4 py-3 mb-5" role="status">
             <AlertTriangle size={15} strokeWidth={1.5} className="text-warning mt-0.5 shrink-0" />
             <p className="text-[13px] text-warning leading-snug">
-              <span className="font-semibold">test.docx</span> has very little text — review before relying on it for AI suggestions.{" "}
-              <a href="#" className={`underline font-medium cursor-pointer rounded-sm ${focusRing}`}>Review document</a>
+              {(() => {
+                const flagged = docs.filter(d => d.isLowConfidence);
+                const many = flagged.length > 1;
+                return (
+                  <>
+                    <span className="font-semibold">{flagged[0].filename}</span>
+                    {many ? ` and ${flagged.length - 1} other document${flagged.length > 2 ? "s" : ""}` : ""}{" "}
+                    {many ? "have" : "has"} very little extractable text — review before relying on {many ? "them" : "it"} for AI answers.
+                  </>
+                );
+              })()}
             </p>
           </div>
         )}
@@ -160,13 +201,13 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
             dragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-border bg-surface hover:border-primary/50 hover:bg-primary/[0.02]"
           }`}
         >
-          <input type="file" multiple className="sr-only" aria-label="Upload documents" onChange={e => handleUpload(e.target.files)} />
+          <input type="file" multiple className="sr-only" aria-label="Upload documents" accept=".pdf,.docx,.xlsx,.pptx,.ppt,.txt,.md" onChange={e => handleUpload(e.target.files)} />
           <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 12%, transparent)" }}>
             <Upload size={24} strokeWidth={1.5} className="text-primary" />
           </div>
           <div className="text-center">
             <p className="text-sm font-semibold text-text-primary">Drop files here or click to upload</p>
-            <p className="text-xs text-text-tertiary mt-1">PDF, DOCX, TXT — max 25 MB per file</p>
+            <p className="text-xs text-text-tertiary mt-1">PDF, DOCX, XLSX, PPTX, TXT, MD — max 25 MB per file</p>
           </div>
           <span className="inline-flex items-center justify-center gap-2 font-body font-semibold rounded-lg px-4 py-2 text-[13px] bg-primary text-text-on-primary">
             Browse files
@@ -222,9 +263,15 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium text-text-primary truncate">{doc.filename}</div>
                       <div className="text-xs text-text-tertiary flex items-center gap-1.5 font-mono flex-wrap">
-                        <span>{doc.size}</span><span>·</span><span>{doc.uploadDate}</span>
+                        <span>{doc.fileType?.toUpperCase() ?? "FILE"}</span><span>·</span>
+                        <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
                         {doc.chunkCount !== null && (<><span>·</span><span>{doc.chunkCount} chunks</span></>)}
                       </div>
+                      {typeof doc.qualityScore === "number"
+                        ? <QualityScore score={doc.qualityScore} report={doc.qualityReport} />
+                        : doc.status === "completed" && (
+                          <div className="mt-1 text-[11px] text-text-tertiary">Evaluating quality…</div>
+                        )}
                     </div>
                     {statusDot(doc.status)}
                     <button
