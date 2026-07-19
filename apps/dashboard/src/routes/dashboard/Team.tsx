@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, AlertTriangle, Clock, Users, UserX, Shield } from "lucide-react";
 import type { Screen } from "../../types";
-import { useAllowlist, useGrantAccess, useRevokeAccess, useTenant } from "../../hooks/queries";
+import { useTeamStats, useGrantAccess, useRevokeAccess, useTenant } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
@@ -15,6 +15,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 const SEAT_CAP: Record<number, number> = { 1: 3, 2: 10, 3: 50 };
 
+function formatLastActive(iso: string | null): string {
+  if (!iso) return "Never";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
@@ -23,7 +35,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
   const { data: tenant } = useTenant();
-  const { data: rawMembers, isLoading: loading, error } = useAllowlist();
+  const { data: rawMembers, isLoading: loading, error } = useTeamStats();
   const grantAccess = useGrantAccess();
   const revokeAccess = useRevokeAccess();
 
@@ -33,6 +45,10 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
     role: "Sales Engineer",
     status: m.status,
     grantedAt: m.grantedAt,
+    lastLoginAt: m.lastLoginAt,
+    repliesSent: m.repliesSent,
+    emailsReceived: m.emailsReceived,
+    replyRate: m.replyRate,
   }));
   const sending = grantAccess.isPending;
 
@@ -120,8 +136,10 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
               </div>
               <div className="text-xs text-text-tertiary">Verified</div>
             </div>
-            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "verified").length}</div>
-            <div className="text-xs text-success mt-1">Extension active</div>
+            <div className="text-2xl font-display font-bold text-text-primary">
+              {members.filter(m => m.lastLoginAt).length}
+            </div>
+            <div className="text-xs text-success mt-1">Logged in at least once</div>
           </Card>
           </Reveal>
 
@@ -149,22 +167,24 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
             <h2 className="text-subheading text-text-primary">Team members</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[34rem]">
+            <table className="w-full border-collapse min-w-[46rem]">
               <thead>
                 <tr className="border-b border-border bg-surface-secondary/50">
                   <th scope="col" className="text-eyebrow text-left px-5 py-2.5">Member</th>
                   <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Status</th>
                   <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Date added</th>
+                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Last active</th>
+                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Replies</th>
                   <th scope="col" className="px-5 py-2.5 w-28"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
                 ) : error ? (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
                 ) : members.map((m, i) => (
                   <tr key={m.email} className={`border-b border-border last:border-0 hover:bg-surface-secondary/30 transition-colors ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}>
                     <td className="px-5 py-3.5">
@@ -183,6 +203,10 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt}</td>
+                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{formatLastActive(m.lastLoginAt)}</td>
+                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">
+                      {m.emailsReceived > 0 ? `${m.repliesSent}/${m.emailsReceived} (${Math.round(m.replyRate * 100)}%)` : "—"}
+                    </td>
                     <td className="px-5 py-3.5 text-right">
                       {m.status === "revoked" ? (
                         <span className="text-xs text-text-tertiary">—</span>

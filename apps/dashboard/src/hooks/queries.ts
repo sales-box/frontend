@@ -67,7 +67,10 @@ export function useGrantAccess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (email: string) => allowlist.grant(email),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["allowlist"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+    },
   });
 }
 
@@ -75,7 +78,10 @@ export function useRevokeAccess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (email: string) => allowlist.revoke(email),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["allowlist"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+    },
   });
 }
 
@@ -111,6 +117,13 @@ export function useAnalyticsSummary(days = 30) {
   return useQuery({
     queryKey: ["analytics-summary", days],
     queryFn: () => analytics.summary(days),
+  });
+}
+
+export function useTeamStats() {
+  return useQuery({
+    queryKey: ["team-stats"],
+    queryFn: () => analytics.team(),
   });
 }
 
