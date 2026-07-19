@@ -193,7 +193,44 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return
       }
       const data = await res.json()
-      sendResponse({ ...data, status: res.status })
+
+      // Translate raw backend stats shape to the InboxOverviewData contract
+      let transformedIntentBreakdown: { label: string; count: number; key: string }[] | undefined = undefined
+      if (data.intentBreakdown && typeof data.intentBreakdown === 'object') {
+        transformedIntentBreakdown = Object.entries(data.intentBreakdown)
+          .filter(([intent]) => intent && intent.trim().length > 0)
+          .map(([intent, count]) => {
+            const trimmedIntent = intent.trim()
+            const label = trimmedIntent
+              .split(/\s+/)
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ')
+            const key = trimmedIntent.toLowerCase().replace(/\s+/g, '-')
+            return {
+              label,
+              count: Number(count),
+              key,
+            }
+          })
+      }
+
+      let transformedReviewedBreakdown: { ready: number; needsReview: number; manual: number } | undefined = undefined
+      if (data.reviewedBreakdown && typeof data.reviewedBreakdown === 'object') {
+        const rb = data.reviewedBreakdown as Record<string, any>
+        transformedReviewedBreakdown = {
+          ready: Number(rb.green ?? 0),
+          needsReview: Number(rb.yellow ?? 0),
+          manual: Number(rb.red ?? 0),
+        }
+      }
+
+      const transformedData = {
+        ...data,
+        intentBreakdown: transformedIntentBreakdown,
+        reviewedBreakdown: transformedReviewedBreakdown,
+      }
+
+      sendResponse({ ...transformedData, status: res.status })
     } catch (err) {
       console.error('[Background] GET_INBOX_STATS Error:', err)
       sendResponse({ error: err instanceof Error ? err.message : String(err), status })

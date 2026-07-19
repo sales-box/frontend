@@ -18,6 +18,9 @@ function getMockDataForUrl(url: string): any {
   if (url.includes("/auth/me")) {
     return { tenantId: "mock-tenant-id", email: "admin@acme.com", isAdmin: true };
   }
+  if (url.includes("/auth/admin/login")) {
+    return { token: "header.eyJ0ZW5hbnRJZCI6Im1vY2stdGVuYW50LWlkIiwiZW1haWwiOiJhZG1pbkBhY21lLmNvbSIsImlzQWRtaW4iOnRydWV9.signature" };
+  }
   if (url.startsWith("/tenants/signup")) {
     return { message: "Signup successful" };
   }
@@ -63,7 +66,7 @@ function getMockDataForUrl(url: string): any {
     return {
       totalEmailsProcessed: 1420,
       byClassification: { "General Info": 620, "Sales Inquiry": 450, "Support": 250, "Refund": 100 },
-      averageConfidence: 89.4,
+      averageConfidence: 0.894,
       lowConfidenceCount: 15
     };
   }
@@ -81,6 +84,12 @@ function getMockDataForUrl(url: string): any {
       ],
       meta: { total: 2, lastPage: 1, currentPage: 1, limit: 50, prev: null, next: null }
     };
+  }
+  if (url.includes("/analytics/team")) {
+    return [
+      { email: "se1@acme.com", status: "verified", grantedAt: new Date().toISOString(), verifiedAt: new Date().toISOString(), lastLoginAt: new Date().toISOString(), emailsReceived: 24, repliesSent: 18, replyRate: 0.75 },
+      { email: "se2@acme.com", status: "granted", grantedAt: new Date().toISOString(), verifiedAt: null, lastLoginAt: null, emailsReceived: 0, repliesSent: 0, replyRate: 0 },
+    ];
   }
   return {};
 }
@@ -363,6 +372,17 @@ export interface ActivityPage {
   meta: PaginationMeta;
 }
 
+export interface TeamMemberStats {
+  email: string;
+  status: "granted" | "verified" | "revoked";
+  grantedAt: string;
+  verifiedAt: string | null;
+  lastLoginAt: string | null;
+  emailsReceived: number;
+  repliesSent: number;
+  replyRate: number;
+}
+
 export const analytics = {
   summary: (days = 30) =>
     request<AnalyticsSummary>(`/analytics/summary?days=${days}`),
@@ -381,6 +401,9 @@ export const analytics = {
     request<ActivityPage>(
       `/analytics/activity?page=${page}&limit=${limit}${date ? `&date=${encodeURIComponent(date)}` : ""}`
     ),
+
+  /** Per-SE activity: logins + email volume + reply rate. GET /analytics/team */
+  team: () => request<TeamMemberStats[]>("/analytics/team"),
 };
 
 // ─── Payments ───────────────────────────────────────────────
