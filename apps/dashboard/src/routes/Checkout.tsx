@@ -11,23 +11,39 @@ import { isLoggedIn } from "../api-client";
 import { Card } from "../components/Card";
 import { Btn } from "../components/Btn";
 import { PRICING_TIERS, type PricingTier } from "../data/pricingTiers";
+import { useThemeStore } from "../store/theme";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
-const CARD_STYLE = {
-  base: {
-    fontSize: "14px",
-    fontFamily: "var(--font-body, system-ui, sans-serif)",
-    color: "var(--color-text-primary, #1a1a2e)",
-    "::placeholder": { color: "var(--color-text-tertiary, #9ca3af)" },
-  },
-  invalid: { color: "var(--color-danger, #ef4444)" },
-};
+// Stripe renders the card field inside its own iframe, so it cannot read our
+// CSS variables — they have to be resolved here and passed as literal values.
+function readVar(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function cardStyle() {
+  return {
+    base: {
+      fontSize: "14px",
+      fontFamily: readVar("--font-body", "system-ui, sans-serif"),
+      color: readVar("--color-text-primary", "#0B1B3E"),
+      "::placeholder": { color: readVar("--color-text-tertiary", "#5F6B8A") },
+      iconColor: readVar("--color-text-secondary", "#374360"),
+    },
+    invalid: {
+      color: readVar("--color-danger", "#DF2A57"),
+      iconColor: readVar("--color-danger", "#DF2A57"),
+    },
+  };
+}
 
 function CheckoutForm({ plan, onNav }: { plan: PricingTier; onNav: (s: Screen) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const qc = useQueryClient();
+  const dark = useThemeStore(s => s.dark);
   const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -121,7 +137,8 @@ function CheckoutForm({ plan, onNav }: { plan: PricingTier; onNav: (s: Screen) =
             {loading ? (
               <div className="text-sm text-text-tertiary">Loading…</div>
             ) : (
-              <CardElement options={{ style: CARD_STYLE, hidePostalCode: true }} />
+              // `key` forces a remount on theme change so Stripe picks up the new colors.
+              <CardElement key={dark ? "dark" : "light"} options={{ style: cardStyle(), hidePostalCode: true }} />
             )}
           </div>
           <div className="flex items-center justify-between mt-2">
