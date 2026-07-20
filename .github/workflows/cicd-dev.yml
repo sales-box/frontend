@@ -91,8 +91,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/app
-            export IMAGE_TAG=${{ github.sha }}
-            docker compose down --remove-orphans
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+            export FRONTEND_IMAGE_TAG="${{ github.sha }}"
+            docker compose pull frontend
+            docker compose up -d --force-recreate frontend
             docker image prune -af
+            ./scripts/inspect.sh --frontend "${{ github.sha }}"
