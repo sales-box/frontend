@@ -59,9 +59,15 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const docs: Doc[] = (docsRes?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }));
 
   // Backend DocumentStatus enum: processing | completed | failed.
-  const readyCount = docs.filter(d => d.status === "completed").length;
-  const processingCount = docs.filter(d => d.status === "processing").length;
-  const warningCount = docs.filter(d => d.status === "failed" || d.isLowConfidence).length;
+  // A completed doc with no quality score yet is still mid-pipeline
+  // ("Evaluating quality…") — count it as in-progress, not done, and don't
+  // count it as ready until it has a score.
+  const isScoring = (d: Doc) => d.status === "completed" && d.qualityScore == null;
+  const readyCount = docs.filter(d => d.status === "completed" && !isScoring(d)).length;
+  const processingCount = docs.filter(d => d.status === "processing" || isScoring(d)).length;
+  // "Needs review" = anything that can't be trusted for AI answers: failed
+  // extraction, a low-confidence extraction flag, or a red quality score (<50).
+  const warningCount = docs.filter(d => d.status === "failed" || d.isLowConfidence || (d.qualityScore != null && d.qualityScore < 50)).length;
   const totalChunks = docs.reduce((sum, d) => sum + (d.chunkCount ?? 0), 0);
 
   const fileIcon = (name: string) => {
@@ -157,7 +163,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
               <div className="text-xs text-text-tertiary">Processing</div>
             </div>
             <div className="text-2xl font-display font-bold text-text-primary">{processingCount}</div>
-            <div className="text-xs text-text-tertiary mt-1">Being indexed</div>
+            <div className="text-xs text-text-tertiary mt-1">Indexing or scoring</div>
           </Card>
           </Reveal>
 
