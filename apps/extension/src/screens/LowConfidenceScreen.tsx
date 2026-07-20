@@ -159,56 +159,67 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
     <div className="flex flex-col h-full bg-[var(--color-surface)]">
       <PanelHeader showRefresh onRefresh={onRefresh} onClose={onClose} />
 
-      <div className="px-4 pt-4 pb-4 border-b border-[var(--color-border)] bg-[var(--color-surface-tertiary)]">
-        <p className="text-eyebrow mb-1.5">BRIEFING SHEET</p>
-        <h1 className="text-heading text-[var(--color-text-primary)] mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-          {data.clientName}
-        </h1>
-        <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
-          <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
-          {data.company}
-          {data.role && <span className="text-[var(--color-text-tertiary)]"> · {data.role}</span>}
-        </p>
-        <div className="flex items-center justify-between">
-          <Badge variant="muted">
-            <Star size={9} strokeWidth={1.5} aria-hidden="true" />
-            New prospect
-          </Badge>
-          <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1">
-            {formatTimestamp(data.emailTimestamp)}
-          </span>
-        </div>
-      </div>
-
-      <div className="px-4 py-4 border-b border-[var(--color-border)]">
-        <p className="text-eyebrow mb-3">AI CONFIDENCE</p>
-        <div className="flex gap-3">
-          <div className="flex-1"><ConfidencePill label="PRODUCT" pct={data.productConfidence} /></div>
-          <div className="flex-1"><ConfidencePill label="HISTORY" pct={data.clientHistoryConfidence} /></div>
-        </div>
-      </div>
-
-      <div className="px-4 py-4 border-b border-[var(--color-border)]">
-        <div className="rounded-[var(--radius-lg)] bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 px-3.5 py-3 flex gap-3">
-          <AlertTriangle size={16} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0 mt-0.5" aria-hidden="true" />
-          <div>
-            <p className="text-subheading text-[var(--color-warning)] mb-0.5" style={{ fontFamily: 'var(--font-body)' }}>
-              Manual review recommended
-            </p>
-            <p className="text-small text-[var(--color-warning)]/80 leading-relaxed">
-              Confidence is below the safe threshold. The AI suggestion may be inaccurate.
-            </p>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="px-4 pt-4 pb-4 border-b border-[var(--color-border)] bg-[var(--color-surface-tertiary)]">
+          <p className="text-eyebrow mb-1.5">BRIEFING SHEET</p>
+          <h1 className="text-heading text-[var(--color-text-primary)] mb-1" style={{ fontFamily: 'var(--font-display)' }}>
+            {data.clientName}
+          </h1>
+          <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
+            <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
+            {data.company}
+            {data.role && <span className="text-[var(--color-text-tertiary)]"> · {data.role}</span>}
+          </p>
+          <div className="flex items-center justify-between">
+            <Badge variant="muted">
+              <Star size={9} strokeWidth={1.5} aria-hidden="true" />
+              New prospect
+            </Badge>
+            <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1">
+              {formatTimestamp(data.emailTimestamp)}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="px-4 py-4 flex-1 min-h-0 overflow-y-auto">
-        <p className="text-eyebrow mb-3">AVAILABLE CONTEXT</p>
-        <ul className="space-y-2" aria-label="Context sources available">
-          <ContextItem icon={<BookOpen size={13} strokeWidth={1.5} aria-hidden="true" />} label="Product documentation" available={data.missingContext.hasProductDocs} />
-          <ContextItem icon={<Mail size={13} strokeWidth={1.5} aria-hidden="true" />} label="Previous email threads" available={data.missingContext.hasPreviousEmails} />
-          <ContextItem icon={<Users size={13} strokeWidth={1.5} aria-hidden="true" />} label="Account history" available={data.missingContext.hasAccountHistory} />
-        </ul>
+        <div className="px-4 py-4 border-b border-[var(--color-border)]">
+          <p className="text-eyebrow mb-3">AI CONFIDENCE</p>
+          <div className="flex gap-3">
+            <div className="flex-1"><ConfidencePill label="PRODUCT" pct={data.productConfidence} /></div>
+            <div className="flex-1"><ConfidencePill label="HISTORY" pct={data.clientHistoryConfidence} /></div>
+          </div>
+        </div>
+
+        <div className="px-4 py-4 border-b border-[var(--color-border)]">
+          <div className="rounded-[var(--radius-lg)] bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 px-3.5 py-3 flex gap-3">
+            <AlertTriangle size={16} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="text-subheading text-[var(--color-warning)] mb-0.5" style={{ fontFamily: 'var(--font-body)' }}>
+                Manual review recommended
+              </p>
+              <p className="text-small text-[var(--color-warning)]/80 leading-relaxed">
+                Confidence is below the safe threshold. The AI suggestion may be inaccurate.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-4 border-b border-[var(--color-border)]">
+          <p className="text-eyebrow mb-3">AVAILABLE CONTEXT</p>
+          <div className="flex flex-wrap gap-2" aria-label="Context sources available">
+            <Badge variant={data.missingContext.hasProductDocs ? 'success' : 'danger'}>
+              <BookOpen size={11} strokeWidth={1.5} aria-hidden="true" />
+              Product documentation
+            </Badge>
+            <Badge variant={data.missingContext.hasPreviousEmails ? 'success' : 'danger'}>
+              <Mail size={11} strokeWidth={1.5} aria-hidden="true" />
+              Previous email threads
+            </Badge>
+            <Badge variant={data.missingContext.hasAccountHistory ? 'success' : 'danger'}>
+              <Users size={11} strokeWidth={1.5} aria-hidden="true" />
+              Account history
+            </Badge>
+          </div>
+        </div>
       </div>
 
       <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
@@ -234,21 +245,5 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
         )}
       </div>
     </div>
-  )
-}
-
-function ContextItem({ icon, label, available }: {
-  icon: React.ReactNode
-  label: string
-  available: boolean
-}) {
-  return (
-    <li className="flex items-center gap-2.5">
-      <span className={available ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}>{icon}</span>
-      <span className="text-caption text-[var(--color-text-secondary)]">{label}</span>
-      <span className={`ml-auto text-small font-medium ${available ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-        {available ? 'Available' : 'Missing'}
-      </span>
-    </li>
   )
 }
