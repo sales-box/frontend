@@ -1,4 +1,9 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+// Mock fallback is a standalone-demo aid only. It is OFF by default so real
+// API failures (429, 500, network, oversize uploads) surface as errors the UI
+// can show — never silently swapped for fake data. Set VITE_USE_MOCKS=true to
+// run the dashboard without a backend.
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
 let _jwt: string | null = sessionStorage.getItem("jwt");
 let _tid: string | null = sessionStorage.getItem("tenantId");
@@ -114,8 +119,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     if (!text) return undefined as T;
     return JSON.parse(text) as T;
   } catch (err) {
-    console.warn("API request failed, falling back to mock data:", url, err);
-    return getMockDataForUrl(url) as T;
+    if (USE_MOCKS) {
+      console.warn("API request failed, using mock data (VITE_USE_MOCKS):", url, err);
+      return getMockDataForUrl(url) as T;
+    }
+    throw err;
   }
 }
 
