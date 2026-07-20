@@ -70,9 +70,16 @@ function getMockDataForUrl(url: string): any {
   if (url.includes("/analytics/summary")) {
     return {
       totalEmailsProcessed: 1420,
-      byClassification: { "General Info": 620, "Sales Inquiry": 450, "Support": 250, "Refund": 100 },
+      byClassification: { "product inquiry": 620, "demo request": 450, "support": 250, "follow-up": 100 },
       averageConfidence: 0.894,
-      lowConfidenceCount: 15
+      lowConfidenceCount: 15,
+      momChangePct: 12,
+      dailyCounts: [
+        { date: "07-13", emails: 32 }, { date: "07-14", emails: 45 }, { date: "07-15", emails: 28 },
+        { date: "07-16", emails: 50 }, { date: "07-17", emails: 64 }, { date: "07-18", emails: 48 }, { date: "07-19", emails: 70 },
+      ],
+      replies: { threads: 210 },
+      aiReviewed: { count: 180, escalated: 15 },
     };
   }
   if (url.includes("/analytics/gaps/alerts")) {
@@ -351,6 +358,10 @@ export interface AnalyticsSummary {
   byClassification: Record<string, number>;
   averageConfidence: number;
   lowConfidenceCount: number;
+  momChangePct: number | null;
+  dailyCounts: { date: string; emails: number }[];
+  replies: { threads: number };
+  aiReviewed: { count: number; escalated: number };
 }
 
 export interface KnowledgeGap {
