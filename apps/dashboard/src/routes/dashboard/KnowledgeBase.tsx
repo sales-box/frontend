@@ -91,15 +91,19 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     toast(`Deleted "${doc.filename}"`);
   };
 
-  const handleUpload = (files: FileList | null) => {
+  const handleUpload = async (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach(async file => {
+    // Upload one at a time so a multi-file selection doesn't fire a burst of
+    // concurrent requests (which trips the per-minute upload rate limit and,
+    // before the mock-fallback fix, failed silently). Each file reports its
+    // own outcome.
+    for (const file of Array.from(files)) {
       try {
         await uploadDoc.mutateAsync(file);
       } catch {
         toast(`Failed to upload "${file.name}"`);
       }
-    });
+    }
   };
 
 
