@@ -64,13 +64,29 @@ interface AppProps {
    *  without reaching outside the shadow root itself. */
   panelHost?: HTMLElement
   getCurrentMessageId?: () => string | null
+  /** Email of the Google account this Gmail tab is logged into (content.tsx).
+   *  Used to gate the panel to the connected SE account only. */
+  getCurrentAccount?: () => string | null
 }
 
-export default function App({ panelHost, getCurrentMessageId = () => null }: AppProps = {}) {
+export default function App({ panelHost, getCurrentMessageId = () => null, getCurrentAccount = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
   const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
   const [categoryEmails, setCategoryEmails] = useState<EmailRowData[]>([])
   const [categoryLoading, setCategoryLoading] = useState(false)
+
+  // Poll for the Google account this Gmail tab is logged into. Gmail mounts the
+  // account button a beat after the page, so a single synchronous read races and
+  // returns null — which is what let the panel leak onto the wrong account.
+  // Poll up to ~4.5s; callers fail CLOSED while this stays null.
+  const resolveGmailAccount = useCallback(async (): Promise<string | null> => {
+    for (let i = 0; i < 15; i++) {
+      const acc = getCurrentAccount()
+      if (acc) return acc
+      await new Promise((r) => setTimeout(r, 300))
+    }
+    return null
+  }, [getCurrentAccount])
 
   const fetchInboxStats = useCallback(async () => {
     setToastError(null)
@@ -100,18 +116,26 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
     }
   }, [])
 
-  const loadSuggestion = useCallback(async (tenantId: string, emailId: string) => {
+  const loadSuggestion = useCallback(async (tenantId: string, emailId: string, force = false) => {
     setToastError(null)
     dispatch({ type: 'LOAD_BRIEFING' })
     try {
-      const raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
-      if (raw?.error) {
-        if (raw.status === 401 || raw.status === 403) {
-          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
-          dispatch({ type: raw.status === 403 ? 'REVOKED' : 'RESET' })
-          return
+      // Draft cache — the AI pipeline (extract → match → compose) is expensive.
+      // Run it once per message and reuse the result on every later open, so
+      // reopening the same email doesn't re-invoke the LLM. Refresh forces a re-run.
+      const cacheKey = `copilotDraft:${emailId}`
+      let raw = force ? null : (await chrome.storage.local.get(cacheKey))[cacheKey]
+      if (!raw) {
+        raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
+        if (raw?.error) {
+          if (raw.status === 401 || raw.status === 403) {
+            await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+            dispatch({ type: raw.status === 403 ? 'REVOKED' : 'RESET' })
+            return
+          }
+          throw new Error(raw.error)
         }
-        throw new Error(raw.error)
+        await chrome.storage.local.set({ [cacheKey]: raw })
       }
 
       const suggestion = {
@@ -177,10 +201,23 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
   // Task 2: Session Rehydration on Mount
   useEffect(() => {
     const rehydrateSession = async () => {
-      const { jwt, tenantId, cachedInboxStats } = await chrome.storage.local.get(['jwt', 'tenantId', 'cachedInboxStats'])
+      const { jwt, tenantId, accountEmail, cachedInboxStats } = await chrome.storage.local.get(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
       if (jwt && tenantId) {
+        // Gate to the connected SE account. chrome.storage is shared across
+        // every Google account in the profile, so without this check the SE's
+        // panel + data leak onto other accounts (clients, personal inboxes).
+        // Fail CLOSED: surface SE data ONLY once we've positively confirmed this
+        // tab is the connected account. currentAccount === null (couldn't read)
+        // counts as "not confirmed" → stay collapsed.
+        const connected = accountEmail ? String(accountEmail).toLowerCase() : null
+        const currentAccount = await resolveGmailAccount()
+        if (connected && currentAccount !== connected) {
+          dispatch({ type: 'COLLAPSE' })
+          return
+        }
+
         panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
-        
+
         const messageId = getCurrentMessageId()
         if (messageId) {
           await loadSuggestion(tenantId, messageId)
@@ -208,7 +245,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
       }
     }
     rehydrateSession()
-  }, [panelHost, fetchInboxStats, getCurrentMessageId, loadSuggestion])
+  }, [panelHost, fetchInboxStats, getCurrentMessageId, resolveGmailAccount, loadSuggestion])
 
   // Listen for hashchange events in Gmail to automatically reload suggestion or return to overview
   useEffect(() => {
@@ -217,8 +254,17 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
         return
       }
 
-      const { tenantId } = await chrome.storage.local.get('tenantId')
+      const { tenantId, accountEmail } = await chrome.storage.local.get(['tenantId', 'accountEmail'])
       if (!tenantId) return
+
+      // Guard against an in-tab account switch. The DOM is already loaded here,
+      // so a plain read is reliable; block only on a positive mismatch.
+      const connected = accountEmail ? String(accountEmail).toLowerCase() : null
+      const currentAccount = getCurrentAccount()
+      if (connected && currentAccount && currentAccount !== connected) {
+        dispatch({ type: 'COLLAPSE' })
+        return
+      }
 
       const messageId = getCurrentMessageId()
       if (messageId) {
@@ -230,7 +276,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
 
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [panel.type, getCurrentMessageId, loadSuggestion, fetchInboxStats])
+  }, [panel.type, getCurrentMessageId, getCurrentAccount, loadSuggestion, fetchInboxStats])
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
@@ -304,7 +350,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
         })
         return
       }
-      await loadSuggestion(tenantId, messageId)
+      // Refresh button = explicit user intent to regenerate → bypass the cache.
+      await loadSuggestion(tenantId, messageId, true)
     }
   }, [loadSuggestion, getCurrentMessageId])
 
@@ -320,8 +367,16 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
 
   const handleExpand = useCallback(async () => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
-    const { jwt, tenantId } = await chrome.storage.local.get(['jwt', 'tenantId'])
+    const { jwt, tenantId, accountEmail } = await chrome.storage.local.get(['jwt', 'tenantId', 'accountEmail'])
     if (jwt && tenantId) {
+      // Same gate as rehydrate, fail CLOSED: expanding on any account we can't
+      // confirm is the connected SE shows "not authorized", never SE data.
+      const connected = accountEmail ? String(accountEmail).toLowerCase() : null
+      const currentAccount = await resolveGmailAccount()
+      if (connected && currentAccount !== connected) {
+        dispatch({ type: 'AUTH_FAILED', email: currentAccount ?? undefined })
+        return
+      }
       const messageId = getCurrentMessageId()
       if (messageId) {
         await loadSuggestion(tenantId, messageId)
@@ -331,7 +386,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null }: App
     } else {
       dispatch({ type: 'EXPAND' })
     }
-  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId])
+  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId, resolveGmailAccount])
 
   const handleSelectCategory = useCallback(async (category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })

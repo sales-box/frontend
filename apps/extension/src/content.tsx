@@ -149,6 +149,28 @@ function getCurrentGmailMessageId(): string | null {
   return last.getAttribute('data-legacy-message-id')
 }
 
+/**
+ * Which Google account is THIS Gmail tab logged into?
+ *
+ * chrome.storage.local is shared across every Gmail account in the browser
+ * profile, so a signed-in SE session would otherwise leak the panel onto every
+ * account (clients, personal inboxes, …). App.tsx gates on this value: SE data
+ * shows ONLY when it equals the connected SE's email (fail closed).
+ *
+ * Canonical source — the top-right account switcher button, whose aria-label is
+ *   "Google Account: <Name> (<email>)".
+ * The tab title is deliberately NOT used: a sender/subject address can appear
+ * there and produce a false-positive email, which is exactly what leaked before.
+ * Returns null until the button has mounted; callers poll + fail closed.
+ */
+function getCurrentGmailAccount(): string | null {
+  const btn = document.querySelector('a[aria-label][href*="SignOutOptions"], a[aria-label^="Google Account"]')
+  const label = btn?.getAttribute('aria-label') ?? ''
+  const m = label.match(/\(([^)]+@[^)]+)\)/) ?? label.match(/[\w.+-]+@[\w.-]+\.\w+/)
+  if (!m) return null
+  return (m[1] ?? m[0]).toLowerCase()
+}
+
 // ── Detect + inject ─────────────────────────────────────────────────────────
 function mount() {
   // Avoid double injection
@@ -262,7 +284,7 @@ function mount() {
   // React root inside shadow DOM
   createRoot(wrapper).render(
     <React.StrictMode>
-      <App panelHost={host} getCurrentMessageId={getCurrentGmailMessageId} />
+      <App panelHost={host} getCurrentMessageId={getCurrentGmailMessageId} getCurrentAccount={getCurrentGmailAccount} />
     </React.StrictMode>
   )
 }
