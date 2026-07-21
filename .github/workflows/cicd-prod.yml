@@ -100,4 +100,4 @@ jobs:
             docker compose pull frontend
             docker compose up -d --force-recreate frontend
             docker image prune -af
-            ./scripts/inspect.sh --env dev --frontend "${{ github.sha }}"
+            ./scripts/inspect.sh --env prod --frontend "${{ github.sha }}"
