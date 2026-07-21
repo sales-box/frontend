@@ -123,3 +123,7 @@ design/*
 DESIGN.md
 Inpox_Sales_Copilot_API_Endpoints.updated.json
 apps/extension/extension.pem
+
+# Graphify analysis artifacts (rebuildable from source)
+apps/extension/graphify-out/
+graphify-out/
