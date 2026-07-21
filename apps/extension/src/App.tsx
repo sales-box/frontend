@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useCallback, useState, useRef } from 'react'
 import { panelReducer, initialPanelState } from './state/panelMachine'
 import { getSession, setSession, clearSession } from './state/session'
+import { useGmailContext } from './hooks/useGmailContext'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
 import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 
@@ -30,6 +31,7 @@ interface AppProps {
 
 export default function App({ panelHost, getCurrentMessageId = () => null, getCurrentAccount = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, initialPanelState)
+  const { resolveAccount, resolveMessageId } = useGmailContext(getCurrentAccount, getCurrentMessageId)
   const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
   const [categoryEmails, setCategoryEmails] = useState<EmailRowData[]>([])
   const [categoryLoading, setCategoryLoading] = useState(false)
@@ -37,31 +39,6 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // two rapid thread opens race and the slower response wins — rendering the
   // wrong email's briefing (the flicker).
   const loadSeqRef = useRef(0)
-
-  // Poll for the Google account this Gmail tab is logged into. Gmail mounts the
-  // account button a beat after the page, so a single synchronous read races and
-  // returns null — which is what let the panel leak onto the wrong account.
-  // Poll up to ~4.5s; callers fail CLOSED while this stays null.
-  const resolveGmailAccount = useCallback(async (): Promise<string | null> => {
-    for (let i = 0; i < 15; i++) {
-      const acc = getCurrentAccount()
-      if (acc) return acc
-      await new Promise((r) => setTimeout(r, 300))
-    }
-    return null
-  }, [getCurrentAccount])
-
-  // Poll for the open thread's message id. Gmail renders the thread a beat after
-  // the URL changes, so a single read races and returns null — which used to
-  // bounce the panel back to the overview while an email was open.
-  const resolveMessageId = useCallback(async (): Promise<string | null> => {
-    for (let i = 0; i < 15; i++) {
-      const id = getCurrentMessageId()
-      if (id) return id
-      await new Promise((r) => setTimeout(r, 200))
-    }
-    return null
-  }, [getCurrentMessageId])
 
   const fetchInboxStats = useCallback(async () => {
     setToastError(null)
@@ -207,7 +184,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         // tab is the connected account. currentAccount === null (couldn't read)
         // counts as "not confirmed" → stay collapsed.
         const connected = accountEmail ? String(accountEmail).toLowerCase() : null
-        const currentAccount = await resolveGmailAccount()
+        const currentAccount = await resolveAccount()
         if (connected && currentAccount !== connected) {
           dispatch({ type: 'COLLAPSE' })
           return
@@ -242,7 +219,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       }
     }
     rehydrateSession()
-  }, [panelHost, fetchInboxStats, getCurrentMessageId, resolveGmailAccount, loadSuggestion])
+  }, [panelHost, fetchInboxStats, getCurrentMessageId, resolveAccount, loadSuggestion])
 
   // Listen for hashchange events in Gmail to automatically reload suggestion or return to overview
   useEffect(() => {
@@ -381,7 +358,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       // Same gate as rehydrate, fail CLOSED: expanding on any account we can't
       // confirm is the connected SE shows "not authorized", never SE data.
       const connected = accountEmail ? String(accountEmail).toLowerCase() : null
-      const currentAccount = await resolveGmailAccount()
+      const currentAccount = await resolveAccount()
       if (connected && currentAccount !== connected) {
         dispatch({ type: 'AUTH_FAILED', email: currentAccount ?? undefined })
         return
@@ -395,7 +372,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     } else {
       dispatch({ type: 'EXPAND' })
     }
-  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId, resolveGmailAccount])
+  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId, resolveAccount])
 
   const handleSelectCategory = useCallback(async (category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
