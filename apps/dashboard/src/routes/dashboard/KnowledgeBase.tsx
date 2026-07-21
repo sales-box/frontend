@@ -19,9 +19,9 @@ type Doc = { id?: string; filename: string; size: string; status: string; upload
 // Human-readable rubric category, e.g. "lead_time" → "lead time".
 const prettyCategory = (c: string) => c.replace(/_/g, " ");
 
-// Coverage score → colour band. Red < 60, amber 60–79, green ≥ 80.
+// Coverage score → colour band. Red < 50, amber 50–79, green ≥ 80.
 function QualityScore({ score, report }: { score: number; report?: QualityReport | null }) {
-  const band = score >= 80 ? "success" : score >= 60 ? "warning" : "danger";
+  const band = score >= 80 ? "success" : score >= 50 ? "warning" : "danger";
   const missing = report?.failed?.map((f) => prettyCategory(f.category)) ?? [];
   return (
     <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -66,8 +66,8 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const readyCount = docs.filter(d => d.status === "completed" && !isScoring(d)).length;
   const processingCount = docs.filter(d => d.status === "processing" || isScoring(d)).length;
   // "Needs review" = anything that can't be trusted for AI answers: failed
-  // extraction, a low-confidence extraction flag, or a red quality score (<60).
-  const warningCount = docs.filter(d => d.status === "failed" || d.isLowConfidence || (d.qualityScore != null && d.qualityScore < 60)).length;
+  // extraction, a low-confidence extraction flag, or a red quality score (<50).
+  const warningCount = docs.filter(d => d.status === "failed" || d.isLowConfidence || (d.qualityScore != null && d.qualityScore < 50)).length;
   const totalChunks = docs.reduce((sum, d) => sum + (d.chunkCount ?? 0), 0);
 
   const fileIcon = (name: string) => {
