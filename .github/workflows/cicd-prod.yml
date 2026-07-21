@@ -91,6 +91,7 @@ jobs:
           script: |
             set -e
             cd /home/ec2-user/app
+            [ -f .env ] && [ -n "$(tail -c 1 .env)" ] && echo "" >> .env
             if grep -q "^FRONTEND_IMAGE_TAG=" .env 2>/dev/null; then
               sed -i "s/^FRONTEND_IMAGE_TAG=.*/FRONTEND_IMAGE_TAG=${{ github.sha }}/" .env
             else
