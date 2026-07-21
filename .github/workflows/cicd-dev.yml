@@ -99,7 +99,6 @@ jobs:
             fi
             export FRONTEND_IMAGE_TAG="${{ github.sha }}"
             docker compose pull frontend
-            docker compose run --rm frontend npx -y prisma@6.19.3 migrate deploy
             docker compose up -d --force-recreate frontend
             docker image prune -af
             ./scripts/inspect.sh --env dev --frontend "${{ github.sha }}"
