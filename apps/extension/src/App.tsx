@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useCallback, useState, useRef } from 'react'
-import type { BriefingData } from './screens/BriefingSheet'
-import type { LowConfidenceData } from './screens/LowConfidenceScreen'
+import { panelReducer, initialPanelState } from './state/panelMachine'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
 import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 
@@ -12,58 +11,6 @@ import { BriefingSheet }      from './screens/BriefingSheet'
 import { LowConfidenceScreen }from './screens/LowConfidenceScreen'
 import { RevokedScreen }      from './screens/RevokedScreen'
 import { PanelHeader }        from './components/PanelHeader'
-
-// ── State machine ──────────────────────────────────────────────────────────
-type RepliedSummary = {
-  intent: string
-  productConfidence: number | null
-  clientHistoryConfidence: number | null
-  supervisorLabel: string | null
-}
-
-type PanelState =
-  | { type: 'collapsed' }
-  | { type: 'auth' }
-  | { type: 'invalid'; email?: string; errorMsg?: string }
-  | { type: 'loading' }
-  | { type: 'overview'; data: InboxOverviewData }
-  | { type: 'category-list'; category: string; data: InboxOverviewData }
-  | { type: 'briefing'; data: BriefingData }
-  | { type: 'low-confidence'; data: LowConfidenceData }
-  | { type: 'replied'; summary?: RepliedSummary | null }
-  | { type: 'revoked' }
-
-type PanelAction =
-  | { type: 'EXPAND' }
-  | { type: 'COLLAPSE' }
-  | { type: 'AUTH_FAILED'; email?: string; errorMsg?: string }
-  | { type: 'AUTH_SUCCESS' }
-  | { type: 'REVOKED' }
-  | { type: 'LOAD_BRIEFING' }
-  | { type: 'SHOW_OVERVIEW'; data: InboxOverviewData }
-  | { type: 'SHOW_CATEGORY_LIST'; category: string; data: InboxOverviewData }
-  | { type: 'SHOW_BRIEFING'; data: BriefingData }
-  | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
-  | { type: 'SHOW_REPLIED'; summary?: RepliedSummary | null }
-  | { type: 'RESET' }
-
-function panelReducer(state: PanelState, action: PanelAction): PanelState {
-  switch (action.type) {
-    case 'EXPAND':        return { type: 'auth' }
-    case 'COLLAPSE':      return { type: 'collapsed' }
-    case 'AUTH_FAILED':   return { type: 'invalid', email: action.email, errorMsg: action.errorMsg }
-    case 'AUTH_SUCCESS':  return { type: 'loading' }
-    case 'REVOKED':       return { type: 'revoked' }
-    case 'LOAD_BRIEFING': return { type: 'loading' }
-    case 'SHOW_OVERVIEW': return { type: 'overview', data: action.data }
-    case 'SHOW_CATEGORY_LIST': return { type: 'category-list', category: action.category, data: action.data }
-    case 'SHOW_BRIEFING': return { type: 'briefing', data: action.data }
-    case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
-    case 'SHOW_REPLIED':  return { type: 'replied', summary: action.summary }
-    case 'RESET':         return { type: 'auth' }
-    default:              return state
-  }
-}
 
 // ── Confidence threshold for low-confidence state ──────────────────────────
 const CONFIDENCE_THRESHOLD = 60
@@ -81,7 +28,7 @@ interface AppProps {
 }
 
 export default function App({ panelHost, getCurrentMessageId = () => null, getCurrentAccount = () => null }: AppProps = {}) {
-  const [panel, dispatch] = useReducer(panelReducer, { type: 'collapsed' })
+  const [panel, dispatch] = useReducer(panelReducer, initialPanelState)
   const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
   const [categoryEmails, setCategoryEmails] = useState<EmailRowData[]>([])
   const [categoryLoading, setCategoryLoading] = useState(false)
