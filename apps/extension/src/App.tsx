@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useCallback, useState, useRef } from 'react'
 import { panelReducer, initialPanelState } from './state/panelMachine'
+import { getSession, setSession, clearSession } from './state/session'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
 import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 
@@ -68,7 +69,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
       if (!statsResult || statsResult.error) {
         if (statsResult?.status === 401 || statsResult?.status === 403) {
-          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+          await clearSession()
           dispatch({ type: statsResult.status === 403 ? 'REVOKED' : 'RESET' })
           return
         }
@@ -77,7 +78,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         throw new Error(statsResult?.error ?? 'No response from the extension background')
       }
 
-      await chrome.storage.local.set({ cachedInboxStats: statsResult })
+      await setSession({ cachedInboxStats: statsResult })
       dispatch({
         type: 'SHOW_OVERVIEW',
         data: statsResult,
@@ -109,7 +110,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
         if (raw?.error) {
           if (raw.status === 401 || raw.status === 403) {
-            await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+            await clearSession()
             dispatch({ type: raw.status === 403 ? 'REVOKED' : 'RESET' })
             return
           }
@@ -197,7 +198,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // Task 2: Session Rehydration on Mount
   useEffect(() => {
     const rehydrateSession = async () => {
-      const { jwt, tenantId, accountEmail, cachedInboxStats } = await chrome.storage.local.get(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+      const { jwt, tenantId, accountEmail, cachedInboxStats } = await getSession()
       if (jwt && tenantId) {
         // Gate to the connected SE account. chrome.storage is shared across
         // every Google account in the profile, so without this check the SE's
@@ -250,7 +251,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         return
       }
 
-      const { tenantId, accountEmail } = await chrome.storage.local.get(['tenantId', 'accountEmail'])
+      const { tenantId, accountEmail } = await getSession()
       if (!tenantId) return
 
       // Guard against an in-tab account switch — fail CLOSED for new data:
@@ -325,7 +326,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
 
       const tenantId = authMe.tenantId
       const accountEmail = authMe.email
-      await chrome.storage.local.set({ jwt: result.token, tenantId, accountEmail })
+      await setSession({ jwt: result.token, tenantId, accountEmail })
 
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
       if (statsResult?.error) {
@@ -334,7 +335,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         return
       }
 
-      await chrome.storage.local.set({ cachedInboxStats: statsResult })
+      await setSession({ cachedInboxStats: statsResult })
 
       dispatch({
         type: 'SHOW_OVERVIEW',
@@ -347,7 +348,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [])
 
   const handleRefresh = useCallback(async () => {
-    const { tenantId } = await chrome.storage.local.get('tenantId')
+    const { tenantId } = await getSession()
     if (tenantId) {
       // Poll — a single sync read races Gmail's thread render.
       const messageId = await resolveMessageId()
@@ -369,13 +370,13 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [panelHost])
   
   const handleSwitchAccount = useCallback(async () => {
-    await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+    await clearSession()
     dispatch({ type: 'RESET' })
   }, [])
 
   const handleExpand = useCallback(async () => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-open'))
-    const { jwt, tenantId, accountEmail } = await chrome.storage.local.get(['jwt', 'tenantId', 'accountEmail'])
+    const { jwt, tenantId, accountEmail } = await getSession()
     if (jwt && tenantId) {
       // Same gate as rehydrate, fail CLOSED: expanding on any account we can't
       // confirm is the connected SE shows "not authorized", never SE data.
@@ -405,7 +406,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       const result = await chrome.runtime.sendMessage({ type: 'GET_CATEGORIZED_EMAILS', category })
       if (result?.error) {
         if (result.status === 401 || result.status === 403) {
-          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+          await clearSession()
           dispatch({ type: result.status === 403 ? 'REVOKED' : 'RESET' })
           return
         }
@@ -430,7 +431,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // Already on this thread → the hash won't change → no hashchange fires and
     // the panel would silently stay on the category list. Load directly.
     if (window.location.hash.includes(threadId)) {
-      const { tenantId } = await chrome.storage.local.get('tenantId')
+      const { tenantId } = await getSession()
       const messageId = await resolveMessageId()
       if (tenantId && messageId) await loadSuggestion(tenantId, messageId)
       return
