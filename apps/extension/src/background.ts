@@ -202,7 +202,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // Reads the JWT stored after login and calls the backend directly.
   // No second OAuth flow needed — the backend already holds the user's token
   // from the initial sign-in code-exchange.
-  if (msg.type !== 'GET_INBOX_STATS') return
+  if (msg.type !== 'GET_INBOX_STATS') {
+    // Unknown message type: respond explicitly so callers' awaits resolve to a
+    // recognizable error instead of undefined (which crashed the overview).
+    sendResponse({ error: `Unknown message type: ${String(msg?.type)}` })
+    return
+  }
   ;(async () => {
     let status: number | undefined
     try {
