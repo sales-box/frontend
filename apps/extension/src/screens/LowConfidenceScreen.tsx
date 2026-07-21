@@ -72,20 +72,22 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
   if (view === 'draft') {
     return (
       <div className="flex flex-col h-full bg-[var(--color-surface)]">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-warning-light)] flex-shrink-0">
+        <PanelHeader onClose={onClose} />
+
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <button
             onClick={() => setView('summary')}
             aria-label="Back to briefing"
-            className="p-1.5 -ml-1.5 rounded-[var(--radius-sm)] text-[var(--color-warning)] hover:bg-white/40 transition-colors cursor-pointer flex-shrink-0"
+            className="p-1 rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
           >
-            <ArrowLeft size={16} strokeWidth={1.5} />
+            <ArrowLeft size={16} />
           </button>
           <AlertTriangle size={14} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="text-subheading text-[var(--color-warning)] leading-none" style={{ fontFamily: 'var(--font-body)' }}>
+            <p className="text-subheading text-[var(--color-text-primary)] leading-none" style={{ fontFamily: 'var(--font-body)' }}>
               AI Draft — unverified
             </p>
-            <p className="text-small text-[var(--color-warning)]/70 leading-none mt-0.5">
+            <p className="text-small text-[var(--color-text-tertiary)] leading-none mt-0.5">
               Review carefully before sending
             </p>
           </div>
