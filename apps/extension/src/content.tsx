@@ -143,28 +143,12 @@ function stopGmailSpaGuard() {
 }
 
 function getCurrentGmailMessageId(): string | null {
-  const messages = Array.from(
-    document.querySelectorAll<HTMLElement>('.adn.ads[data-legacy-message-id]'),
-  )
+  const messages = document.querySelectorAll<HTMLElement>('.adn.ads[data-legacy-message-id]')
   if (messages.length === 0) return null
-
-  // Prefer the newest message NOT authored by the SE. Gmail threads our own sent
-  // replies into the conversation; processing one makes the client resolve to
-  // "Unknown" (the reply is from us, not the client) and flickers the briefing
-  // (client message → our reply). `.gD[email]` is Gmail's sender span.
-  const seEmail = getCurrentGmailAccount()
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const sender = messages[i]
-      .querySelector('.gD[email]')
-      ?.getAttribute('email')
-      ?.trim()
-      .toLowerCase()
-    if (seEmail && sender && sender === seEmail) continue // our own reply — skip
-    const id = messages[i].getAttribute('data-legacy-message-id')
-    if (id) return id
-  }
-  // Fallback: every visible message is ours (unusual) → the last one.
-  return messages[messages.length - 1].getAttribute('data-legacy-message-id')
+  // The newest message in the open thread. If it's the SE's own reply, the
+  // backend recognises the thread is already handled and returns alreadyReplied.
+  const last = messages[messages.length - 1]
+  return last.getAttribute('data-legacy-message-id')
 }
 
 /**

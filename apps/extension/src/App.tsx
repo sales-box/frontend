@@ -11,8 +11,16 @@ import { LoadingScreen }      from './screens/LoadingScreen'
 import { BriefingSheet }      from './screens/BriefingSheet'
 import { LowConfidenceScreen }from './screens/LowConfidenceScreen'
 import { RevokedScreen }      from './screens/RevokedScreen'
+import { PanelHeader }        from './components/PanelHeader'
 
 // ── State machine ──────────────────────────────────────────────────────────
+type RepliedSummary = {
+  intent: string
+  productConfidence: number | null
+  clientHistoryConfidence: number | null
+  supervisorLabel: string | null
+}
+
 type PanelState =
   | { type: 'collapsed' }
   | { type: 'auth' }
@@ -22,6 +30,7 @@ type PanelState =
   | { type: 'category-list'; category: string; data: InboxOverviewData }
   | { type: 'briefing'; data: BriefingData }
   | { type: 'low-confidence'; data: LowConfidenceData }
+  | { type: 'replied'; summary?: RepliedSummary | null }
   | { type: 'revoked' }
 
 type PanelAction =
@@ -35,6 +44,7 @@ type PanelAction =
   | { type: 'SHOW_CATEGORY_LIST'; category: string; data: InboxOverviewData }
   | { type: 'SHOW_BRIEFING'; data: BriefingData }
   | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
+  | { type: 'SHOW_REPLIED'; summary?: RepliedSummary | null }
   | { type: 'RESET' }
 
 function panelReducer(state: PanelState, action: PanelAction): PanelState {
@@ -49,6 +59,7 @@ function panelReducer(state: PanelState, action: PanelAction): PanelState {
     case 'SHOW_CATEGORY_LIST': return { type: 'category-list', category: action.category, data: action.data }
     case 'SHOW_BRIEFING': return { type: 'briefing', data: action.data }
     case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
+    case 'SHOW_REPLIED':  return { type: 'replied', summary: action.summary }
     case 'RESET':         return { type: 'auth' }
     default:              return state
   }
@@ -87,6 +98,18 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     }
     return null
   }, [getCurrentAccount])
+
+  // Poll for the open thread's message id. Gmail renders the thread a beat after
+  // the URL changes, so a single read races and returns null — which used to
+  // bounce the panel back to the overview while an email was open.
+  const resolveMessageId = useCallback(async (): Promise<string | null> => {
+    for (let i = 0; i < 15; i++) {
+      const id = getCurrentMessageId()
+      if (id) return id
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    return null
+  }, [getCurrentMessageId])
 
   const fetchInboxStats = useCallback(async () => {
     setToastError(null)
@@ -136,6 +159,14 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
           throw new Error(raw.error)
         }
         await chrome.storage.local.set({ [cacheKey]: raw })
+      }
+
+      // Thread already handled (we opened our own sent reply) — nothing to
+      // draft or regenerate. Show the done state + a read-only summary of what
+      // the AI computed for this thread.
+      if (raw?.alreadyReplied) {
+        dispatch({ type: 'SHOW_REPLIED', summary: raw.summary ?? null })
+        return
       }
 
       const suggestion = {
@@ -266,9 +297,14 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         return
       }
 
-      const messageId = getCurrentMessageId()
-      if (messageId) {
-        await loadSuggestion(tenantId, messageId)
+      // Gmail thread URLs carry an id after the folder ("#inbox/<threadId>");
+      // the inbox/search LIST views don't. Only fall back to the overview when
+      // we're genuinely on a list — never yank the briefing away while a thread
+      // is open just because its message DOM hasn't settled yet.
+      const inThread = /#[^/]+\/[A-Za-z0-9_-]{16,}/.test(window.location.hash)
+      if (inThread) {
+        const messageId = await resolveMessageId()
+        if (messageId) await loadSuggestion(tenantId, messageId)
       } else {
         await fetchInboxStats()
       }
@@ -276,7 +312,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
 
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [panel.type, getCurrentMessageId, getCurrentAccount, loadSuggestion, fetchInboxStats])
+  }, [panel.type, resolveMessageId, getCurrentAccount, loadSuggestion, fetchInboxStats])
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
@@ -533,6 +569,55 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   }}
                 />
               )
+
+            case 'replied': {
+              const s = panel.summary
+              const pct = (v: number | null | undefined) =>
+                v == null ? '—' : `${Math.round(v * 100)}%`
+              return (
+                <div className="flex flex-col h-full bg-[var(--color-surface)] overflow-y-auto">
+                  <PanelHeader onClose={handleClose} />
+                  <div className="flex flex-col items-center px-6 py-8 text-center">
+                    <div
+                      className="w-14 h-14 mb-5 rounded-full flex items-center justify-center text-2xl"
+                      style={{ background: 'color-mix(in srgb, var(--color-success) 14%, transparent)', color: 'var(--color-success)' }}
+                      aria-hidden="true"
+                    >
+                      ✓
+                    </div>
+                    <p className="text-eyebrow mb-2">DONE</p>
+                    <h1
+                      className="text-heading text-[var(--color-text-primary)] mb-3"
+                      style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                      Already <em className="text-primary not-italic">replied.</em>
+                    </h1>
+                    <p className="text-small text-[var(--color-text-secondary)] leading-relaxed max-w-[230px] mb-6">
+                      Your reply is in the thread — nothing left to draft.
+                    </p>
+                    {s && (
+                      <div className="w-full text-left">
+                        <p className="text-eyebrow mb-3">WHAT THE AI SAW</p>
+                        <div className="flex gap-3 mb-3">
+                          <div className="flex-1 rounded-[var(--radius-md)] px-3 py-2 bg-[var(--color-surface-tertiary)]">
+                            <div className="text-caption text-[var(--color-text-tertiary)]">Product</div>
+                            <div className="text-body font-semibold text-[var(--color-text-primary)]">{pct(s.productConfidence)}</div>
+                          </div>
+                          <div className="flex-1 rounded-[var(--radius-md)] px-3 py-2 bg-[var(--color-surface-tertiary)]">
+                            <div className="text-caption text-[var(--color-text-tertiary)]">History</div>
+                            <div className="text-body font-semibold text-[var(--color-text-primary)]">{pct(s.clientHistoryConfidence)}</div>
+                          </div>
+                        </div>
+                        <div className="rounded-[var(--radius-md)] px-3 py-2 bg-[var(--color-surface-tertiary)]">
+                          <div className="text-caption text-[var(--color-text-tertiary)]">Intent</div>
+                          <div className="text-body text-[var(--color-text-primary)] capitalize">{s.intent}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            }
 
             case 'revoked':
               return <RevokedScreen onClose={handleClose} />
