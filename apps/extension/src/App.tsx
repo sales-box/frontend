@@ -52,7 +52,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     })
   }, [])
 
-  const loadSuggestionInner = useCallback(async (_tenantId: string, emailId?: string | null, force = false) => {
+  const loadSuggestionInner = useCallback(async (emailId?: string | null, force = false) => {
     let resolvedId = emailId
     if (!resolvedId) {
       resolvedId = await resolveMessageId()
@@ -197,10 +197,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [])
 
   const handleRefresh = useCallback(async () => {
-    const { tenantId } = await getSession()
-    if (tenantId) {
-      await briefingLoader.run(tenantId, null, true)
-    }
+    await briefingLoader.run(null, true)
   }, [briefingLoader.run])
 
   const handleClose = useCallback(() => {
@@ -227,7 +224,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       }
       const messageId = getCurrentMessageId()
       if (messageId) {
-        await loadSuggestion(tenantId, messageId)
+        await loadSuggestion(messageId)
       } else {
         await fetchInboxStats()
       }
@@ -242,9 +239,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // Already on this thread → the hash won't change → no hashchange fires and
     // the panel would silently stay on the category list. Load directly.
     if (window.location.hash.includes(threadId)) {
-      const { tenantId } = await getSession()
       const messageId = await resolveMessageId()
-      if (tenantId && messageId) await loadSuggestion(tenantId, messageId)
+      if (messageId) await loadSuggestion(messageId)
       return
     }
     panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))

@@ -10,7 +10,7 @@ interface Options {
   resolveAccount: () => Promise<string | null>
   getCurrentMessageId: () => string | null
   fetchStats: () => Promise<void>
-  loadBriefing: (tenantId: string, messageId: string) => Promise<void>
+  loadBriefing: (messageId: string) => Promise<void>
 }
 
 const PLACEHOLDER_STATS: InboxOverviewData = {
@@ -48,7 +48,7 @@ export function useSessionRehydrate({
 
       const messageId = getCurrentMessageId()
       if (messageId) {
-        await loadBriefing(tenantId, messageId)
+        await loadBriefing(messageId)
       } else {
         const stats = cachedInboxStats ?? { ...PLACEHOLDER_STATS, syncedAt: new Date().toISOString() }
         dispatch({ type: 'SHOW_OVERVIEW', data: stats })
