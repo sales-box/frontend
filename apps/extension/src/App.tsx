@@ -265,6 +265,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // The panel body — left border is 2px with an accent tint so it reads as
   // a clear separator from the Gmail mail list.
   const panelClasses = `
+    relative
     w-[var(--panel-open-width)] h-full flex flex-col
     bg-[var(--color-surface)]
     border-l-2 border-[var(--color-border-focus)]
