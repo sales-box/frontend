@@ -1,4 +1,4 @@
-name: Frontend CI/CD (Prod)
+name: Backend CI/CD (Prod)
 
 on:
   push:
@@ -10,14 +10,59 @@ jobs:
   lint-build-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: salesbox
+          POSTGRES_PASSWORD: salesbox
+          POSTGRES_DB: salesbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U salesbox -d salesbox"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      HUSKY: 0
+      DATABASE_URL: postgresql://salesbox:salesbox@localhost:5432/salesbox?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      COOKIE_SECRET: ci-cookie-secret-0123456789abcdef
+      LLM_API_KEY: ci-llm-api-key
+      LLM_BASE_URL: https://api.groq.com/openai/v1
+      LLM_MODEL: llama-3.3-70b-versatile
+      VISION_MODEL: meta-llama/llama-4-scout-17b-16e-instruct
+      GOOGLE_PUBSUB_VERIFICATION_TOKEN: ci-pubsub-token
+      GOOGLE_PUBSUB_TOPIC_NAME: ci-pubsub-topic
+      GOOGLE_CLIENT_ID: ci-google-client-id
+      GOOGLE_CLIENT_SECRET: ci-google-client-secret
+      GOOGLE_REDIRECT_URI: http://localhost:3000/callback
+      GOOGLE_SCOPES: profile email
+      TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      FRONTEND_DASHBOARD_URL: http://localhost:5173
+      AWS_REGION: us-east-1
+      S3_BUCKET: ci-bucket
+      SMTP_USER: ci-smtp-user
+      SMTP_PASS: ci-smtp-pass
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,15 +73,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
       - name: Lint
-        run: |
-          pnpm --filter dashboard lint
-          pnpm --filter extension lint
+        run: pnpm exec eslint "src/**/*.ts" "test/**/*.ts"
 
       - name: Build
-        run: |
-          pnpm --filter dashboard build
-          pnpm --filter extension build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm test:e2e
 
       - name: Run Trivy vulnerability scanner (FS scan)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -74,9 +124,6 @@ jobs:
           tags: |
             mnagy156/salesbox-frontend-prod:latest
             mnagy156/salesbox-frontend-prod:${{ github.sha }}
-          build-args: |
-            - VITE_API_BASE_URL=https://salesbox.dev
-            - VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TOe07AXEKm3a0uyViZfkbmoa1FqE7bQkMvaAGPcB5RkCyedFWtVVF97IuHFiH6tuBwmxrOp1RytLfnvCpYLvM5c0022tcD4xt
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -90,9 +137,15 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd /home/ec2-user/app
+            if grep -q "^FRONTEND_IMAGE_TAG=" .env 2>/dev/null; then
+              sed -i "s/^FRONTEND_IMAGE_TAG=.*/FRONTEND_IMAGE_TAG=${{ github.sha }}/" .env
+            else
+              echo "FRONTEND_IMAGE_TAG=${{ github.sha }}" >> .env
+            fi
             export FRONTEND_IMAGE_TAG="${{ github.sha }}"
             docker compose pull frontend
             docker compose up -d --force-recreate frontend
             docker image prune -af
-            ./scripts/inspect.sh --frontend "${{ github.sha }}"
+            ./scripts/inspect.sh --env prod --frontend "${{ github.sha }}"
