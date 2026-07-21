@@ -337,8 +337,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   data={panel.data}
                   onClose={handleClose}
                   onRefresh={handleRefresh}
-                  onSend={handleEditInGmail}
-                  onEditInGmail={handleEditInGmail}
+                  onInsertInGmail={handleEditInGmail}
                 />
               )
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Clock, Send, Edit2, Building2, Star } from 'lucide-react'
+import { Clock, Edit2, Building2, Star } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
@@ -21,8 +21,7 @@ interface BriefingSheetProps {
   data: BriefingData
   onClose: () => void
   onRefresh: () => void
-  onSend: (reply: string) => void
-  onEditInGmail: (reply: string) => void
+  onInsertInGmail: (reply: string) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -46,7 +45,7 @@ function formatTimestamp(iso: string): string {
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
  *
  */
-export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail }: BriefingSheetProps) {
+export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
 
   return (
@@ -126,13 +125,13 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail 
       </div>
 
       {/* ── Footer actions ── */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)] flex gap-2.5 flex-shrink-0">
-        {/* PRIMARY — ink fill, ONE per view */}
+      <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+        {/* PRIMARY — ink fill */}
         <button
           id="ext-send-btn"
-          onClick={() => onSend(reply)}
+          onClick={() => onInsertInGmail(reply)}
           className="
-            flex-1 flex items-center justify-center gap-2
+            w-full flex items-center justify-center gap-2
             px-4 py-2.5 rounded-[var(--radius-sm)]
             bg-[var(--color-primary)] text-[var(--color-text-on-primary)]
             text-caption font-medium
@@ -143,29 +142,8 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail 
           "
           style={{ fontFamily: 'var(--font-body)' }}
         >
-          <Send size={13} strokeWidth={1.5} aria-hidden="true" />
-          Send
-        </button>
-
-        {/* SECONDARY — ghost */}
-        <button
-          id="ext-edit-gmail-btn"
-          onClick={() => onEditInGmail(reply)}
-          className="
-            flex items-center gap-1.5
-            px-3 py-2.5 rounded-[var(--radius-sm)]
-            border border-[var(--color-border)]
-            bg-transparent text-[var(--color-text-primary)]
-            text-caption font-medium
-            hover:bg-[var(--color-surface-tertiary)]
-            transition-colors duration-150
-            cursor-pointer
-            whitespace-nowrap
-          "
-          style={{ fontFamily: 'var(--font-body)' }}
-        >
           <Edit2 size={13} strokeWidth={1.5} aria-hidden="true" />
-          Edit in Gmail
+          Insert in Gmail
         </button>
       </div>
     </div>
