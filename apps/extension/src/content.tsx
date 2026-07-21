@@ -219,7 +219,9 @@ function mount() {
 
   host.addEventListener('copilot:navigate-thread', (e: Event) => {
     const { threadId } = (e as CustomEvent).detail
-    window.location.hash = `#inbox/${threadId}`
+    // #all (All Mail) opens a thread from ANY folder — #inbox/<id> 404s for
+    // archived/label-only threads surfaced by the category lists.
+    window.location.hash = `#all/${threadId}`
   })
 
   host.addEventListener('copilot:edit-in-gmail', (e: Event) => {
@@ -276,11 +278,6 @@ function mount() {
         console.warn('[Copilot] Could not find Reply button or compose box')
       }
     }
-  })
-
-  // Watch for Gmail conversation transitions
-  window.addEventListener('hashchange', () => {
-    // No-op (handled in App.tsx)
   })
 
   // React root inside shadow DOM

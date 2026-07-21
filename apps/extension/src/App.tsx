@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useCallback, useState } from 'react'
+import { useEffect, useReducer, useCallback, useState, useRef } from 'react'
 import type { BriefingData } from './screens/BriefingSheet'
 import type { LowConfidenceData } from './screens/LowConfidenceScreen'
 import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
@@ -85,6 +85,10 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   const [toastError, setToastError] = useState<{ message: string; retry: () => void } | null>(null)
   const [categoryEmails, setCategoryEmails] = useState<EmailRowData[]>([])
   const [categoryLoading, setCategoryLoading] = useState(false)
+  // Monotonic token: only the LATEST loadSuggestion may dispatch. Without it,
+  // two rapid thread opens race and the slower response wins — rendering the
+  // wrong email's briefing (the flicker).
+  const loadSeqRef = useRef(0)
 
   // Poll for the Google account this Gmail tab is logged into. Gmail mounts the
   // account button a beat after the page, so a single synchronous read races and
@@ -115,13 +119,15 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     setToastError(null)
     try {
       const statsResult = await chrome.runtime.sendMessage({ type: 'GET_INBOX_STATS' })
-      if (statsResult?.error) {
-        if (statsResult.status === 401 || statsResult.status === 403) {
+      if (!statsResult || statsResult.error) {
+        if (statsResult?.status === 401 || statsResult?.status === 403) {
           await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
           dispatch({ type: statsResult.status === 403 ? 'REVOKED' : 'RESET' })
           return
         }
-        throw new Error(statsResult.error)
+        // undefined = background gave no response (unknown message type / worker
+        // asleep). Dispatching SHOW_OVERVIEW with it would crash the overview.
+        throw new Error(statsResult?.error ?? 'No response from the extension background')
       }
 
       await chrome.storage.local.set({ cachedInboxStats: statsResult })
@@ -140,6 +146,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [])
 
   const loadSuggestion = useCallback(async (tenantId: string, emailId: string, force = false) => {
+    const seq = ++loadSeqRef.current
     setToastError(null)
     dispatch({ type: 'LOAD_BRIEFING' })
     try {
@@ -148,6 +155,9 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       // reopening the same email doesn't re-invoke the LLM. Refresh forces a re-run.
       const cacheKey = `copilotDraft:${emailId}`
       let raw = force ? null : (await chrome.storage.local.get(cacheKey))[cacheKey]
+      // Never serve a cached replied-state: its summary is a live DB read that
+      // changes as background processing lands. Treat it as a cache miss.
+      if (raw?.alreadyReplied) raw = null
       if (!raw) {
         raw = await chrome.runtime.sendMessage({ type: 'PROCESS_EMAIL', messageId: emailId })
         if (raw?.error) {
@@ -158,8 +168,15 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
           }
           throw new Error(raw.error)
         }
-        await chrome.storage.local.set({ [cacheKey]: raw })
+        // Cache only real draft results (replied-state must stay live).
+        if (!raw?.alreadyReplied) {
+          await chrome.storage.local.set({ [cacheKey]: raw })
+        }
       }
+
+      // A newer load started while we awaited — this result is for a thread
+      // the user already navigated away from. Drop it.
+      if (seq !== loadSeqRef.current) return
 
       // Thread already handled (we opened our own sent reply) — nothing to
       // draft or regenerate. Show the done state + a read-only summary of what
@@ -169,11 +186,12 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         return
       }
 
+      const conf = raw.confidence ?? {}
       const suggestion = {
         reply: raw.draft?.draftText ?? '',
-        productConfidence: Math.round((raw.confidence.productConfidence ?? 0) * 100),
-        clientHistoryConfidence: Math.round((raw.confidence.clientHistoryConfidence ?? 0) * 100),
-        hasHallucination: raw.confidence.hallucinationDetected ?? false,
+        productConfidence: Math.round((conf.productConfidence ?? 0) * 100),
+        clientHistoryConfidence: Math.round((conf.clientHistoryConfidence ?? 0) * 100),
+        hasHallucination: conf.hallucinationDetected ?? false,
         clientName: raw.client?.name ?? 'Unknown',
         company: raw.client?.company ?? 'Unknown company',
         role: '', // no job-title in the CRM; client status is surfaced via dealStatus, not here
@@ -288,20 +306,26 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       const { tenantId, accountEmail } = await chrome.storage.local.get(['tenantId', 'accountEmail'])
       if (!tenantId) return
 
-      // Guard against an in-tab account switch. The DOM is already loaded here,
-      // so a plain read is reliable; block only on a positive mismatch.
+      // Guard against an in-tab account switch — fail CLOSED for new data:
+      // a mismatch collapses; an unreadable account (null) skips loading
+      // rather than proceeding with the previous account's session.
       const connected = accountEmail ? String(accountEmail).toLowerCase() : null
       const currentAccount = getCurrentAccount()
-      if (connected && currentAccount && currentAccount !== connected) {
-        dispatch({ type: 'COLLAPSE' })
-        return
+      if (connected) {
+        if (currentAccount === null) return
+        if (currentAccount !== connected) {
+          dispatch({ type: 'COLLAPSE' })
+          return
+        }
       }
 
-      // Gmail thread URLs carry an id after the folder ("#inbox/<threadId>");
-      // the inbox/search LIST views don't. Only fall back to the overview when
-      // we're genuinely on a list — never yank the briefing away while a thread
-      // is open just because its message DOM hasn't settled yet.
-      const inThread = /#[^/]+\/[A-Za-z0-9_-]{16,}/.test(window.location.hash)
+      // A thread URL ends in a long id — as the LAST segment, whatever the
+      // view: #inbox/<id>, #search/<query>/<id>, #label/<name>/<id>. (The old
+      // "second segment" check misread search/label URLs and yanked the open
+      // briefing back to the overview.) The DOM probe covers exotic shapes.
+      const inThread =
+        /\/[A-Za-z0-9_-]{16,}$/.test(window.location.hash) ||
+        getCurrentMessageId() != null
       if (inThread) {
         const messageId = await resolveMessageId()
         if (messageId) await loadSuggestion(tenantId, messageId)
@@ -312,7 +336,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
 
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [panel.type, resolveMessageId, getCurrentAccount, loadSuggestion, fetchInboxStats])
+  }, [panel.type, resolveMessageId, getCurrentMessageId, getCurrentAccount, loadSuggestion, fetchInboxStats])
 
   // ── Auth flow ────────────────────────────────────────────────────────────
   const handleSignIn = useCallback(async () => {
@@ -378,7 +402,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   const handleRefresh = useCallback(async () => {
     const { tenantId } = await chrome.storage.local.get('tenantId')
     if (tenantId) {
-      const messageId = getCurrentMessageId()
+      // Poll — a single sync read races Gmail's thread render.
+      const messageId = await resolveMessageId()
       if (!messageId) {
         setToastError({
           message: 'No open Gmail thread detected',
@@ -389,7 +414,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       // Refresh button = explicit user intent to regenerate → bypass the cache.
       await loadSuggestion(tenantId, messageId, true)
     }
-  }, [loadSuggestion, getCurrentMessageId])
+  }, [loadSuggestion, resolveMessageId])
 
   const handleClose = useCallback(() => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
@@ -454,13 +479,26 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     }
   }, [])
 
-  const handleSelectEmail = useCallback((threadId: string) => {
+  const handleSelectEmail = useCallback(async (threadId: string) => {
+    // Already on this thread → the hash won't change → no hashchange fires and
+    // the panel would silently stay on the category list. Load directly.
+    if (window.location.hash.includes(threadId)) {
+      const { tenantId } = await chrome.storage.local.get('tenantId')
+      const messageId = await resolveMessageId()
+      if (tenantId && messageId) await loadSuggestion(tenantId, messageId)
+      return
+    }
     panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))
-  }, [panelHost])
+  }, [panelHost, resolveMessageId, loadSuggestion])
 
   const handleEditInGmail = useCallback((reply: string) => {
+    // The draft is about to be inserted (and likely sent) — the cached briefing
+    // for this message becomes stale the moment the SE replies. Invalidate now
+    // so the next open re-asks the backend (which then reports alreadyReplied).
+    const messageId = getCurrentMessageId()
+    if (messageId) void chrome.storage.local.remove(`copilotDraft:${messageId}`)
     panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply } }))
-  }, [panelHost])
+  }, [panelHost, getCurrentMessageId])
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (panel.type === 'collapsed') {
