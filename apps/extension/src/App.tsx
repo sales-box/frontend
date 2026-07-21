@@ -145,7 +145,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         hasHallucination: raw.confidence.hallucinationDetected ?? false,
         clientName: raw.client?.name ?? 'Unknown',
         company: raw.client?.company ?? 'Unknown company',
-        role: raw.client?.status ?? '',
+        role: '', // no job-title in the CRM; client status is surfaced via dealStatus, not here
         dealStatus: (raw.client?.status === 'active' ? 'active' : 'prospect') as 'active' | 'prospect',
         emailTimestamp: raw.emailTimestamp ?? new Date().toISOString(),
       }
@@ -390,18 +390,28 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
 
   const handleSelectCategory = useCallback(async (category: string, data: InboxOverviewData) => {
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
+    setToastError(null)
     setCategoryLoading(true)
     setCategoryEmails([])
     try {
       const result = await chrome.runtime.sendMessage({ type: 'GET_CATEGORIZED_EMAILS', category })
       if (result?.error) {
+        if (result.status === 401 || result.status === 403) {
+          await chrome.storage.local.remove(['jwt', 'tenantId', 'accountEmail', 'cachedInboxStats'])
+          dispatch({ type: result.status === 403 ? 'REVOKED' : 'RESET' })
+          return
+        }
+        // A real failure — surface it instead of rendering an empty list, which
+        // reads as "no emails" and hides the error.
         console.error('[Copilot] GET_CATEGORIZED_EMAILS failed:', result.error)
+        setToastError({ message: "Couldn't load these emails.", retry: () => handleSelectCategory(category, data) })
         setCategoryEmails([])
       } else {
         setCategoryEmails(result.emails || [])
       }
     } catch (err) {
       console.error('[Copilot] GET_CATEGORIZED_EMAILS threw:', err)
+      setToastError({ message: "Couldn't load these emails.", retry: () => handleSelectCategory(category, data) })
       setCategoryEmails([])
     } finally {
       setCategoryLoading(false)
@@ -491,7 +501,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
               return (
                 <EmailCategoryList
                   category={panel.category}
-                  emails={categoryLoading ? [] : categoryEmails}
+                  emails={categoryEmails}
+                  loading={categoryLoading}
                   onClose={handleClose}
                   onBack={() => dispatch({ type: 'SHOW_OVERVIEW', data: panel.data })}
                   onSelectEmail={handleSelectEmail}

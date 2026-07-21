@@ -1,6 +1,7 @@
 import { ArrowLeft, Inbox } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { Badge } from '../components/Badge'
+import { Skeleton } from '../components/Skeleton'
 
 export interface EmailRowData {
   threadId: string
@@ -14,14 +15,23 @@ export interface EmailRowData {
 interface EmailCategoryListProps {
   category: string
   emails?: EmailRowData[]
+  loading?: boolean
   onBack: () => void
   onSelectEmail: (threadId: string) => void
   onClose: () => void
 }
 
-export function EmailCategoryList({ category, emails = [], onBack, onSelectEmail, onClose }: EmailCategoryListProps) {
+export function EmailCategoryList({ category, emails = [], loading = false, onBack, onSelectEmail, onClose }: EmailCategoryListProps) {
   // Format the category name for display
   const displayCategory = category.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+  // ISO timestamp → compact, human-readable ("Jul 21, 05:27"). Falls back to the
+  // raw value if it isn't a valid date.
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface)]">
@@ -39,11 +49,23 @@ export function EmailCategoryList({ category, emails = [], onBack, onSelectEmail
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {emails.length === 0 ? (
+        {loading ? (
+          <div className="divide-y divide-[var(--color-border)]">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="p-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton width="w-32" height="h-4" />
+                  <Skeleton width="w-14" height="h-3" />
+                </div>
+                <Skeleton width="w-3/4" height="h-3" />
+                <Skeleton width="w-16" height="h-5" className="mt-1" />
+              </div>
+            ))}
+          </div>
+        ) : emails.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-6 text-center text-[var(--color-text-tertiary)]">
             <Inbox size={32} className="mb-4 opacity-20" />
             <p className="text-body">No emails found in this category.</p>
-            {/* TODO(AI-pipeline): replace N/A once GET /emails/categorized exists */}
           </div>
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
@@ -63,7 +85,7 @@ export function EmailCategoryList({ category, emails = [], onBack, onSelectEmail
                     </span>
                   </div>
                   <span className="text-caption text-[var(--color-text-tertiary)]" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {email.timestamp}
+                    {fmtTime(email.timestamp)}
                   </span>
                 </div>
                 
