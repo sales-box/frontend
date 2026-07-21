@@ -106,7 +106,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             <button
               id="ext-insert-draft-btn"
               onClick={() => onInsertDraft(data.suggestedReply!)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)] bg-[var(--color-warning)] text-[#2A1B00] text-caption font-semibold hover:opacity-90 transition-opacity duration-150 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[var(--color-text-on-primary)] text-caption font-semibold hover:bg-[var(--color-primary-hover)] transition-colors duration-150 cursor-pointer"
               style={{ fontFamily: 'var(--font-body)' }}
             >
               <Send size={13} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
