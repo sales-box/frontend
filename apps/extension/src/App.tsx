@@ -7,7 +7,7 @@ import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOver
 import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 import { derivePipelineScreen, type PipelineResponse } from './lib/derivePipelineScreen'
 import { getCachedDraft, setCachedDraft, invalidateDraft } from './lib/draftCache'
-import { useAsyncAction, type AsyncAction } from './hooks/useAsyncAction'
+import { useAsyncAction } from './hooks/useAsyncAction'
 import { useSessionRehydrate } from './hooks/useSessionRehydrate'
 import { useHashNavigation } from './hooks/useHashNavigation'
 
@@ -41,13 +41,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // wrong email's briefing (the flicker).
   const loadSeqRef = useRef(0)
 
-  const briefingLoaderRef = useRef<AsyncAction<[string, string | null | undefined, boolean]>>(null!)
-  const categoryLoaderRef = useRef<AsyncAction<[string, InboxOverviewData]>>(null!)
-  const fetchStatsRef = useRef<AsyncAction<[]>>(null!)
-
   const fetchInboxStatsInner = useCallback(async () => {
-    briefingLoaderRef.current?.clearToast()
-    categoryLoaderRef.current?.clearToast()
     const res = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
     if (await handleAuthErr(res, dispatch)) return
     if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
@@ -59,8 +53,6 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [])
 
   const loadSuggestionInner = useCallback(async (_tenantId: string, emailId?: string | null, force = false) => {
-    fetchStatsRef.current?.clearToast()
-    categoryLoaderRef.current?.clearToast()
     let resolvedId = emailId
     if (!resolvedId) {
       resolvedId = await resolveMessageId()
@@ -88,8 +80,6 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [resolveMessageId])
 
   const selectCategoryInner = useCallback(async (category: string, data: InboxOverviewData) => {
-    fetchStatsRef.current?.clearToast()
-    briefingLoaderRef.current?.clearToast()
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
     const res = await sendToBackground<{ emails: EmailRowData[] }>({ type: 'GET_CATEGORIZED_EMAILS', category })
     if (await handleAuthErr(res, dispatch)) return
@@ -118,13 +108,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   }, [])
 
   const fetchStats = useAsyncAction(fetchInboxStatsInner, formatStatsError)
-  fetchStatsRef.current = fetchStats
-
   const briefingLoader = useAsyncAction(loadSuggestionInner, formatBriefingError)
-  briefingLoaderRef.current = briefingLoader
-
   const categoryLoader = useAsyncAction(selectCategoryInner, formatCategoryError)
-  categoryLoaderRef.current = categoryLoader
 
   const fetchInboxStats = fetchStats.run
   const loadSuggestion = briefingLoader.run
@@ -214,9 +199,9 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   const handleRefresh = useCallback(async () => {
     const { tenantId } = await getSession()
     if (tenantId) {
-      await briefingLoaderRef.current.run(tenantId, null, true)
+      await briefingLoader.run(tenantId, null, true)
     }
-  }, [])
+  }, [briefingLoader.run])
 
   const handleClose = useCallback(() => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
