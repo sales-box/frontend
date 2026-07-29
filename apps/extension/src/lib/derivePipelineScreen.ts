@@ -14,6 +14,7 @@ export interface PipelineResponse {
   }
   client?: { name?: string; company?: string; status?: string }
   emailTimestamp?: string
+  graphThreadId?: string
 }
 
 export type DerivedScreen =
