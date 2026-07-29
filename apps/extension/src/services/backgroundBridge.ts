@@ -5,6 +5,7 @@ import { clearSession } from '../state/session'
 export type BgRequest =
   | { type: 'GET_INBOX_STATS' }
   | { type: 'PROCESS_EMAIL'; messageId: string }
+  | { type: 'SUBMIT_FEEDBACK'; graphThreadId: string; content: string }
   | { type: 'GET_CATEGORIZED_EMAILS'; category: string }
   | { type: 'GET_SE_AUTH_CODE' }
   | { type: 'SE_LOGIN'; code: string; redirectUri: string }
