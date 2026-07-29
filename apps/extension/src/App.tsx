@@ -40,6 +40,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // two rapid thread opens race and the slower response wins — rendering the
   // wrong email's briefing (the flicker).
   const loadSeqRef = useRef(0)
+  const graphThreadIdRef = useRef<string | null>(null)
 
   const briefingLoaderRef = useRef<AsyncAction<[string, string | null | undefined, boolean]>>(null!)
   const categoryLoaderRef = useRef<AsyncAction<[string, InboxOverviewData]>>(null!)
@@ -80,6 +81,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     }
 
     if (seq !== loadSeqRef.current) return
+
+    graphThreadIdRef.current = raw.graphThreadId ?? null
 
     const derived = derivePipelineScreen(raw)
     if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
@@ -271,7 +274,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // so the next open re-asks the backend (which then reports alreadyReplied).
     const messageId = getCurrentMessageId()
     if (messageId) void invalidateDraft(messageId)
-    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply } }))
+    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply, graphThreadId: graphThreadIdRef.current } }))
+    graphThreadIdRef.current = null
   }, [panelHost, getCurrentMessageId])
 
   const activeToast = fetchStats.toast ?? briefingLoader.toast ?? categoryLoader.toast
