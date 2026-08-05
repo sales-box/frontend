@@ -1,8 +1,9 @@
-import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star, Flag, CheckCircle2, ArrowLeft, ArrowRight, Send } from 'lucide-react'
+import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star, Flag, CheckCircle2, XCircle, Database, ArrowLeft, ArrowRight, Send } from 'lucide-react'
 import { useState } from 'react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
+import type { CrmSuggestionResult } from './BriefingSheet'
 
 export interface LowConfidenceData {
   clientName: string
@@ -26,6 +27,8 @@ interface LowConfidenceScreenProps {
   onComposeManually: () => void
   onInsertDraft: (reply: string) => void
   onUploadDoc: () => void
+  crmSuggestions?: CrmSuggestionResult | null
+  onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -45,10 +48,29 @@ function formatTimestamp(iso: string): string {
  *  - 'draft':   the AI's draft text (if any) + the 3 action buttons
  * No ink-filled "Send" button anywhere — nothing here is auto-sent.
  */
-export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onUploadDoc }: LowConfidenceScreenProps) {
+export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onUploadDoc, crmSuggestions, onResolveCrmActions }: LowConfidenceScreenProps) {
   const [view, setView] = useState<'summary' | 'draft'>('summary')
   const [reported, setReported] = useState(false)
   const [reporting, setReporting] = useState(false)
+
+  // Per-suggestion decision map — defaults to 'reject' (ignore)
+  const [crmDecisions, setCrmDecisions] = useState<Record<number, 'approve' | 'reject'>>(() => {
+    const defaults: Record<number, 'approve' | 'reject'> = {}
+    crmSuggestions?.suggestions.forEach(s => { defaults[s.index] = 'reject' })
+    return defaults
+  })
+
+  const hasSuggestions =
+    (crmSuggestions?.isPausedForApproval ?? false) &&
+    (crmSuggestions?.suggestions.length ?? 0) > 0
+
+  const handleCrmSubmit = () => {
+    if (!crmSuggestions || !onResolveCrmActions) return
+    const decisions = crmSuggestions.suggestions.map(s => ({
+      type: crmDecisions[s.index] ?? 'reject',
+    }))
+    onResolveCrmActions(decisions)
+  }
 
   const handleReportGap = async () => {
     if (reported || reporting) return
@@ -220,6 +242,95 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             </Badge>
           </div>
         </div>
+
+        {/* ── CRM actions ── */}
+        {hasSuggestions && (
+          <div className="px-4 py-4 border-b border-[var(--color-border)]">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Database size={11} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" aria-hidden="true" />
+              <p className="text-eyebrow">CRM ACTIONS</p>
+            </div>
+
+            <ul className="flex flex-col gap-2">
+              {crmSuggestions!.suggestions.map((s) => {
+                const decision = crmDecisions[s.index] ?? 'reject'
+                const isApproved = decision === 'approve'
+                return (
+                  <li
+                    key={s.index}
+                    className="
+                      flex items-start gap-2
+                      p-2.5 rounded-[var(--radius-sm)]
+                      border border-[var(--color-border)]
+                      bg-[var(--color-surface-tertiary)]
+                    "
+                  >
+                    <p
+                      className="flex-1 text-small text-[var(--color-text-primary)] leading-snug"
+                      style={{ fontFamily: 'var(--font-body)' }}
+                    >
+                      {s.summary}
+                    </p>
+
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        id={`ext-lc-crm-approve-${s.index}`}
+                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'approve' }))}
+                        title="Approve this action"
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
+                          text-small font-medium transition-all duration-150 cursor-pointer
+                          ${isApproved
+                            ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
+                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                          }
+                        `}
+                        style={{ fontFamily: 'var(--font-body)' }}
+                      >
+                        <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
+                        Approve
+                      </button>
+
+                      <button
+                        id={`ext-lc-crm-ignore-${s.index}`}
+                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'reject' }))}
+                        title="Ignore this action"
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
+                          text-small font-medium transition-all duration-150 cursor-pointer
+                          ${!isApproved
+                            ? 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]'
+                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                          }
+                        `}
+                        style={{ fontFamily: 'var(--font-body)' }}
+                      >
+                        <XCircle size={11} strokeWidth={1.5} aria-hidden="true" />
+                        Ignore
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+
+            <button
+              id="ext-lc-crm-submit-btn"
+              onClick={handleCrmSubmit}
+              className="
+                mt-3 w-full flex items-center justify-center gap-1.5
+                px-3 py-2 rounded-[var(--radius-sm)]
+                border border-[var(--color-border-focus)]
+                text-[var(--color-primary)] text-small font-medium
+                hover:bg-[var(--color-surface-tertiary)]
+                transition-colors duration-150 cursor-pointer
+              "
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              Submit CRM decisions
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
