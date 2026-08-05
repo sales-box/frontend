@@ -204,6 +204,74 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true
   }
 
+  // ── SUGGEST_CRM_ACTIONS ───────────────────────────────────────────────────
+  if (msg.type === 'SUGGEST_CRM_ACTIONS') {
+    ;(async () => {
+      let status: number | undefined
+      try {
+        const { jwt, accountEmail } = await chrome.storage.local.get(['jwt', 'accountEmail'])
+        if (!jwt) {
+          sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+          return
+        }
+
+        const res = await fetch(`${API_BASE}/ai/crm-actions/suggest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ messageId: msg.messageId, accountEmail }),
+        })
+        status = res.status
+        if (!res.ok) {
+          sendResponse({ error: `SUGGEST_CRM_ACTIONS failed: ${res.status}`, status: res.status })
+          return
+        }
+        const data = await res.json()
+        sendResponse({ ...data, status: res.status })
+      } catch (err) {
+        console.error('[Background] SUGGEST_CRM_ACTIONS Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+      }
+    })()
+    return true
+  }
+
+  // ── RESUME_CRM_ACTIONS ────────────────────────────────────────────────────
+  if (msg.type === 'RESUME_CRM_ACTIONS') {
+    ;(async () => {
+      let status: number | undefined
+      try {
+        const { jwt } = await chrome.storage.local.get('jwt')
+        if (!jwt) {
+          sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+          return
+        }
+
+        const res = await fetch(`${API_BASE}/ai/crm-actions/resume`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ threadId: msg.threadId, decisions: msg.decisions }),
+        })
+        status = res.status
+        if (!res.ok) {
+          sendResponse({ error: `RESUME_CRM_ACTIONS failed: ${res.status}`, status: res.status })
+          return
+        }
+        const data = await res.json()
+        sendResponse({ ...data, status: res.status })
+      } catch (err) {
+        console.error('[Background] RESUME_CRM_ACTIONS Error:', err)
+        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+      }
+    })()
+    return true
+  }
+
   // ── GET_CATEGORIZED_EMAILS ────────────────────────────────────────────────
   if (msg.type === 'GET_CATEGORIZED_EMAILS') {
     ;(async () => {

@@ -131,6 +131,29 @@ export function useDisconnectCrm() {
   });
 }
 
+export function useMcpStatus() {
+  return useQuery({
+    queryKey: ["mcp-status"],
+    queryFn: () => crm.mcpStatus(),
+  });
+}
+
+export function useConnectZohoMcp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (mcpServerUrl: string) => crm.connectMcp(mcpServerUrl),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
+  });
+}
+
+export function useDisconnectZohoMcp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.disconnectMcp(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
+  });
+}
+
 // ─── Analytics ───────────────────────────────────────────────
 
 export function useAnalyticsSummary(days = 30) {
