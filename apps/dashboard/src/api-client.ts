@@ -33,6 +33,9 @@ function getMockDataForUrl(url: string): any {
     if (url.endsWith("/crm/status")) {
       return { connected: true, status: "connected", provider: "HubSpot", lastSync: new Date().toISOString() };
     }
+    if (url.endsWith("/crm/mcp-status")) {
+      return { connected: false };
+    }
     if (url.endsWith("/allowlist")) {
       return [
         { id: "1", tenantId: "mock-tenant-id", email: "se1@acme.com", status: "verified", grantedAt: new Date().toISOString(), verifiedAt: new Date().toISOString(), revokedAt: null },
@@ -334,6 +337,11 @@ export interface CRMStatus {
   lastSync?: string | null;
 }
 
+export interface ZohoMcpStatus {
+  connected: boolean;
+  updatedAt?: string;
+}
+
 export const crm = {
   status: (id?: string) =>
     request<CRMStatus>(`/tenants/${id ?? tenantId()}/crm/status`),
@@ -347,6 +355,21 @@ export const crm = {
   disconnect: (id?: string) =>
     request<{ message: string; removedClients: number; status: string }>(
       `/tenants/${id ?? tenantId()}/crm/disconnect`,
+      { method: "DELETE" }
+    ),
+
+  mcpStatus: (id?: string) =>
+    request<ZohoMcpStatus>(`/tenants/${id ?? tenantId()}/crm/mcp-status`),
+
+  connectMcp: (mcpServerUrl: string, id?: string) =>
+    request<{ message: string; connected: boolean; mcpServerUrl: string }>(
+      `/tenants/${id ?? tenantId()}/crm/connect-mcp`,
+      { method: "POST", ...json({ mcpServerUrl }) }
+    ),
+
+  disconnectMcp: (id?: string) =>
+    request<{ message: string; connected: boolean }>(
+      `/tenants/${id ?? tenantId()}/crm/disconnect-mcp`,
       { method: "DELETE" }
     ),
 };
