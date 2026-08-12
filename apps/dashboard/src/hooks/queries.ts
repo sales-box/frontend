@@ -184,3 +184,10 @@ export function useResolveGap() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["gaps"] }),
   });
 }
+
+export function useActivityFeed(page: number, limit: number, date?: string) {
+  return useQuery({
+    queryKey: ["activity-feed", page, limit, date],
+    queryFn: () => analytics.getActivity(page, limit, date),
+  });
+}
