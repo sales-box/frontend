@@ -39,7 +39,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   const grantAccess = useGrantAccess();
   const revokeAccess = useRevokeAccess();
 
-  const members = (rawMembers ?? []).map(m => ({
+  const members = (rawMembers ?? []).filter(m => m.status !== "revoked").map(m => ({
     email: m.email,
     initials: m.email.substring(0, 2).toUpperCase(),
     role: "Sales Engineer",
