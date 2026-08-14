@@ -4,7 +4,7 @@ import type { Screen } from "../../types";
 import { Shell } from "../../components/Shell";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
-import { useDocuments, useTenant, useCrmStatus } from "../../hooks/queries";
+import { useDocuments, useTenant, useCrmStatus, useTeamStats } from "../../hooks/queries";
 import { useAuthStore } from "../../store/auth";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
@@ -19,13 +19,15 @@ export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const kb = useDocuments(1, 1);
   const tenant = useTenant();
   const crmStatus = useCrmStatus();
+  const teamStats = useTeamStats();
 
+  const hasTeamMembers = (teamStats.data ?? []).some(m => m.status !== "revoked");
   const status = {
     docs: (kb.data?.meta?.total ?? 0) > 0,
-    team: tenant.data?.status === "active",
+    team: hasTeamMembers,
     crm: crmStatus.data?.connected ?? false,
   };
-  const loading = kb.isLoading || tenant.isLoading || crmStatus.isLoading;
+  const loading = kb.isLoading || tenant.isLoading || crmStatus.isLoading || teamStats.isLoading;
 
   const setCompany = useAuthStore(s => s.setCompany);
   useEffect(() => {

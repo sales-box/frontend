@@ -100,7 +100,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                 </thead>
                 <tbody>
                   {data.map((c, i) => {
-                    const initials = c.name.split(" ").map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+                    const initials = (c.name || c.email).split(/[\s@]/).map(p => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
                     return (
                       <tr
                         key={c.id}
@@ -111,7 +111,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{initials}</div>
                             <div className="min-w-0">
-                              <div className="text-[13px] font-medium text-text-primary truncate">{c.name}</div>
+                              <div className="text-[13px] font-medium text-text-primary truncate">{c.name || c.email}</div>
                               <div className="text-xs text-text-tertiary truncate">{c.email}</div>
                             </div>
                           </div>
