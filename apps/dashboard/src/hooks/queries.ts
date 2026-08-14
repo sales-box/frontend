@@ -98,7 +98,11 @@ export function useOffboard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => allowlist.offboard(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["allowlist"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+      qc.invalidateQueries({ queryKey: ["tenant"] });
+    },
   });
 }
 
@@ -116,7 +120,10 @@ export function useConnectCrm() {
   return useMutation({
     mutationFn: ({ provider, apiKey }: { provider: string; apiKey: string }) =>
       crm.connect(provider, apiKey),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm-status"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
 }
 
