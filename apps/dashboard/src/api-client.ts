@@ -29,6 +29,9 @@ function getMockDataForUrl(url: string): any {
   if (url.startsWith("/tenants/signup")) {
     return { message: "Signup successful" };
   }
+  if (url.startsWith("/tenants/resend-verification")) {
+    return { message: "Verification email resent" };
+  }
   if (url.includes("/tenants/")) {
     if (url.endsWith("/crm/status")) {
       return { connected: true, status: "connected", provider: "HubSpot", lastSync: new Date().toISOString() };
@@ -175,6 +178,11 @@ export interface SignupPayload {
   adminName?: string;
 }
 
+export interface ResendVerificationPayload {
+  email: string;
+  companyName?: string;
+}
+
 export interface Tenant {
   id: string;
   companyName: string;
@@ -185,6 +193,9 @@ export interface Tenant {
 export const tenants = {
   signup: (data: SignupPayload) =>
     request<{ message: string }>("/tenants/signup", { method: "POST", ...json(data) }),
+
+  resendVerification: (data: ResendVerificationPayload) =>
+    request<{ message: string }>("/tenants/resend-verification", { method: "POST", ...json(data) }),
 
   verify: (token: string, email: string) =>
     request<{ message: string; tenantId: string }>(
