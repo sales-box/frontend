@@ -41,7 +41,7 @@ export function ClientRecord({ onNav, onLogout }: { onNav: (s: Screen) => void; 
           <div className="py-20 text-center text-sm text-danger">{(error as Error).message}</div>
         ) : client ? (
           <>
-            <PageHeader title={client.name} subtitle={client.email} />
+            <PageHeader title={client.name || client.email} subtitle={client.name ? client.email : ""} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               {/* Contact info sidebar */}
