@@ -3,12 +3,17 @@ import { useState } from 'react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
+import { ClassificationBar } from '../components/ClassificationBar'
+import { reasonText, type ClassificationInfo } from '../lib/routing'
 import type { CrmSuggestionResult } from './BriefingSheet'
 
-export interface LowConfidenceData {
+/** `routing` is always 'red' here — this screen IS the red state. */
+export interface LowConfidenceData extends ClassificationInfo {
   clientName: string
   company: string
   role: string
+  /** Real CRM status. Was hardcoded to "New prospect" for every client. */
+  dealStatus: 'active' | 'prospect'
   emailTimestamp: string
   productConfidence: number
   clientHistoryConfidence: number
@@ -192,14 +197,23 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             {data.company}
             {data.role && <span className="text-[var(--color-text-tertiary)]"> · {data.role}</span>}
           </p>
-          <div className="flex items-center justify-between">
-            <Badge variant="muted">
+          <div className="flex items-center justify-between gap-2">
+            <Badge variant={data.dealStatus === 'active' ? 'success' : 'muted'}>
               <Star size={9} strokeWidth={1.5} aria-hidden="true" />
-              New prospect
+              {data.dealStatus === 'active' ? 'Active deal' : 'New prospect'}
             </Badge>
-            <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1">
+            <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1 flex-shrink-0">
               {formatTimestamp(data.emailTimestamp)}
             </span>
+          </div>
+
+          <div className="mt-2">
+            <ClassificationBar
+              routing={data.routing}
+              intent={data.intent}
+              isUrgent={data.isUrgent}
+              labelReason={data.labelReason}
+            />
           </div>
         </div>
 
@@ -218,8 +232,11 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
               <p className="text-subheading text-[var(--color-warning)] mb-0.5" style={{ fontFamily: 'var(--font-body)' }}>
                 Manual review recommended
               </p>
+              {/* The reason, not an assumption. A sensitive thread lands here at
+                  99% confidence — telling the SE the score is too low would
+                  contradict the number displayed directly above it. */}
               <p className="text-small text-[var(--color-warning)]/80 leading-relaxed">
-                Confidence is below the safe threshold. The AI suggestion may be inaccurate.
+                {reasonText[data.labelReason ?? 'confidence']}
               </p>
             </div>
           </div>
