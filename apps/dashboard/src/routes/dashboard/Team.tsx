@@ -15,18 +15,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 const SEAT_CAP: Record<number, number> = { 1: 3, 2: 10, 3: 50 };
 
-function formatLastActive(iso: string | null): string {
-  if (!iso) return "Never";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
@@ -117,124 +105,124 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           <Reveal>
-          <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-                <Users size={18} strokeWidth={1.5} className="text-primary" />
+            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
+                  <Users size={18} strokeWidth={1.5} className="text-primary" />
+                </div>
+                <div className="text-xs text-text-tertiary">Total Members</div>
               </div>
-              <div className="text-xs text-text-tertiary">Total Members</div>
-            </div>
-            <div className="text-2xl font-display font-bold text-text-primary">{used}</div>
-            <div className="text-xs text-text-tertiary mt-1">of {total} seats used</div>
-            <div className="w-full h-2 rounded-full bg-surface-tertiary overflow-hidden mt-3">
-              <div className={`h-full rounded-full transition-all duration-500 ${used / total >= 0.8 ? "bg-warning" : "bg-primary"}`} style={{ width: `${(used / total) * 100}%` }} />
-            </div>
-          </Card>
+              <div className="text-2xl font-display font-bold text-text-primary">{used}</div>
+              <div className="text-xs text-text-tertiary mt-1">of {total} seats used</div>
+              <div className="w-full h-2 rounded-full bg-surface-tertiary overflow-hidden mt-3">
+                <div className={`h-full rounded-full transition-all duration-500 ${used / total >= 0.8 ? "bg-warning" : "bg-primary"}`} style={{ width: `${(used / total) * 100}%` }} />
+              </div>
+            </Card>
           </Reveal>
 
           <Reveal delay={70}>
-          <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)" }}>
-                <Shield size={18} strokeWidth={1.5} className="text-success" />
+            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)" }}>
+                  <Shield size={18} strokeWidth={1.5} className="text-success" />
+                </div>
+                <div className="text-xs text-text-tertiary">Verified</div>
               </div>
-              <div className="text-xs text-text-tertiary">Verified</div>
-            </div>
-            <div className="text-2xl font-display font-bold text-text-primary">
-              {members.filter(m => m.lastLoginAt).length}
-            </div>
-            <div className="text-xs text-success mt-1">Logged in at least once</div>
-          </Card>
+              <div className="text-2xl font-display font-bold text-text-primary">
+                {members.filter(m => m.lastLoginAt).length}
+              </div>
+              <div className="text-xs text-success mt-1">Logged in at least once</div>
+            </Card>
           </Reveal>
 
           <Reveal delay={140}>
-          <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-warning) 14%, transparent)" }}>
-                <Clock size={18} strokeWidth={1.5} className="text-warning" />
+            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-warning) 14%, transparent)" }}>
+                  <Clock size={18} strokeWidth={1.5} className="text-warning" />
+                </div>
+                <div className="text-xs text-text-tertiary">Pending</div>
               </div>
-              <div className="text-xs text-text-tertiary">Pending</div>
-            </div>
-            <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "granted").length}</div>
-            <div className="text-xs text-warning mt-1">Awaiting activation</div>
-          </Card>
+              <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "granted").length}</div>
+              <div className="text-xs text-warning mt-1">Awaiting activation</div>
+            </Card>
           </Reveal>
         </div>
 
         {/* Members table */}
         <Reveal>
-        <Card className="overflow-hidden transition-transform duration-300 hover:-translate-y-1">
-          <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-              <Users size={18} strokeWidth={1.5} className="text-primary" />
+          <Card className="overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+            <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
+                <Users size={18} strokeWidth={1.5} className="text-primary" />
+              </div>
+              <h2 className="text-subheading text-text-primary">Team members</h2>
             </div>
-            <h2 className="text-subheading text-text-primary">Team members</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[46rem]">
-              <thead>
-                <tr className="border-b border-border bg-surface-secondary/50">
-                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5">Member</th>
-                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Status</th>
-                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Date added</th>
-                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Last active</th>
-                  <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Replies</th>
-                  <th scope="col" className="px-5 py-2.5 w-28"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
-                ) : error ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
-                ) : members.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
-                ) : members.map((m, i) => (
-                  <tr key={m.email} className={`border-b border-border last:border-0 hover:bg-surface-secondary/30 transition-colors ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{m.initials}</div>
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-text-primary truncate">{m.email}</div>
-                          <div className="text-xs text-text-tertiary truncate">{m.role}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${m.status === "verified" ? "bg-success" : m.status === "granted" ? "bg-warning" : "bg-danger"}`} />
-                        <span className={`text-xs font-medium capitalize ${m.status === "verified" ? "text-success" : m.status === "granted" ? "text-warning" : "text-danger"}`}>{m.status}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt}</td>
-                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{formatLastActive(m.lastLoginAt)}</td>
-                    <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">
-                      {m.emailsReceived > 0 ? `${m.repliesSent}/${m.emailsReceived} (${Math.round(m.replyRate * 100)}%)` : "—"}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      {m.status === "revoked" ? (
-                        <span className="text-xs text-text-tertiary">—</span>
-                      ) : confirmRevoke === m.email ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => setConfirmRevoke(null)} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>Cancel</button>
-                          <button onClick={() => revoke(m.email)} className={`text-xs text-danger font-medium cursor-pointer rounded-sm ${focusRing}`}>Confirm</button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmRevoke(m.email)}
-                          aria-label={`Revoke access for ${m.email}`}
-                          className={`w-8 h-8 rounded-lg border border-border flex items-center justify-center text-text-tertiary hover:text-danger hover:border-danger/40 hover:bg-danger-light transition-colors cursor-pointer ${focusRing}`}
-                        >
-                          <UserX size={15} strokeWidth={1.5} />
-                        </button>
-                      )}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[46rem]">
+                <thead>
+                  <tr className="border-b border-border bg-surface-secondary/50">
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5">Member</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Status</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Date added</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-28">Last active</th>
+                    <th scope="col" className="text-eyebrow text-left px-5 py-2.5 w-32">Replies</th>
+                    <th scope="col" className="px-5 py-2.5 w-28"><span className="sr-only">Actions</span></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
+                  ) : error ? (
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
+                  ) : members.length === 0 ? (
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
+                  ) : members.map((m, i) => (
+                    <tr key={m.email} className={`border-b border-border last:border-0 hover:bg-surface-secondary/30 transition-colors ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{m.initials}</div>
+                          <div className="min-w-0">
+                            <div className="text-[13px] font-medium text-text-primary truncate">{m.email}</div>
+                            <div className="text-xs text-text-tertiary truncate">{m.role}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${m.status === "verified" ? "bg-success" : m.status === "granted" ? "bg-warning" : "bg-danger"}`} />
+                          <span className={`text-xs font-medium capitalize ${m.status === "verified" ? "text-success" : m.status === "granted" ? "text-warning" : "text-danger"}`}>{m.status}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt ? new Date(m.grantedAt).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.lastLoginAt ? new Date(m.lastLoginAt).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">
+                        {m.emailsReceived > 0 ? `${m.repliesSent}/${m.emailsReceived} (${Math.round(m.replyRate * 100)}%)` : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        {m.status === "revoked" ? (
+                          <span className="text-xs text-text-tertiary">—</span>
+                        ) : confirmRevoke === m.email ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setConfirmRevoke(null)} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>Cancel</button>
+                            <button onClick={() => revoke(m.email)} className={`text-xs text-danger font-medium cursor-pointer rounded-sm ${focusRing}`}>Confirm</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmRevoke(m.email)}
+                            aria-label={`Revoke access for ${m.email}`}
+                            className={`w-8 h-8 rounded-lg border border-border flex items-center justify-center text-text-tertiary hover:text-danger hover:border-danger/40 hover:bg-danger-light transition-colors cursor-pointer ${focusRing}`}
+                          >
+                            <UserX size={15} strokeWidth={1.5} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </Reveal>
       </div>
 
