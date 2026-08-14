@@ -40,6 +40,13 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // two rapid thread opens race and the slower response wins — rendering the
   // wrong email's briefing (the flicker).
   const loadSeqRef = useRef(0)
+  // True while a briefing is being fetched. Gmail fires a second `hashchange`
+  // shortly after a thread opens, and on that tick the URL can momentarily read
+  // as "not in a thread" — which sent fetchStats through and replaced the
+  // loading skeleton with the inbox overview mid-request. On a cold email the
+  // pipeline takes tens of seconds, so the overview sat there until the
+  // briefing finally resolved and swapped itself back in.
+  const briefingInFlightRef = useRef(false)
   const graphThreadIdRef = useRef<string | null>(null)
 
   const briefingLoaderRef = useRef<AsyncAction<[string, string | null | undefined, boolean]>>(null!)
@@ -61,6 +68,9 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     if (await handleAuthErr(res, dispatch)) return
     if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
     await setSession({ cachedInboxStats: res.data })
+    // Cache the stats either way, but never navigate away from a briefing the
+    // user is already waiting on.
+    if (briefingInFlightRef.current) return
     dispatch({
       type: 'SHOW_OVERVIEW',
       data: res.data,
@@ -79,40 +89,47 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     }
     const seq = ++loadSeqRef.current
     dispatch({ type: 'LOAD_BRIEFING' })
-    let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
+    briefingInFlightRef.current = true
+    try {
+      let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
 
-    setCrmSuggestions(null)
+      setCrmSuggestions(null)
 
-    const crmSuggestionPromise = !raw ? sendToBackground<CrmSuggestionResult>({
-      type: 'SUGGEST_CRM_ACTIONS',
-      messageId: resolvedId,
-    }) : null;
+      const crmSuggestionPromise = !raw ? sendToBackground<CrmSuggestionResult>({
+        type: 'SUGGEST_CRM_ACTIONS',
+        messageId: resolvedId,
+      }) : null;
 
-    if (!raw) {
-      const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
-      if (await handleAuthErr(res, dispatch)) return
-      if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
-      raw = res.data
-      await setCachedDraft(resolvedId, raw)
-    }
+      if (!raw) {
+        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
+        if (await handleAuthErr(res, dispatch)) return
+        if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
+        raw = res.data
+        await setCachedDraft(resolvedId, raw)
+      }
 
-    if (seq !== loadSeqRef.current) return
+      if (seq !== loadSeqRef.current) return
 
-    graphThreadIdRef.current = raw.graphThreadId ?? null
+      graphThreadIdRef.current = raw.graphThreadId ?? null
 
-    const derived = derivePipelineScreen(raw)
-    if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
-    else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
-    else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
+      const derived = derivePipelineScreen(raw)
+      if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
+      else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
+      else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
 
-    if(crmSuggestionPromise) {
-      crmSuggestionPromise.then((crmRes) => {
-        if (crmRes.ok && crmRes.data.isPausedForApproval) {
-          setCrmSuggestions(crmRes.data)
-        }
-      }).catch((err) => {
-        console.error('[Copilot] Failed to fetch CRM suggestions:', err)
-      })
+      if(crmSuggestionPromise) {
+        crmSuggestionPromise.then((crmRes) => {
+          if (crmRes.ok && crmRes.data.isPausedForApproval) {
+            setCrmSuggestions(crmRes.data)
+          }
+        }).catch((err) => {
+          console.error('[Copilot] Failed to fetch CRM suggestions:', err)
+        })
+      }
+    } finally {
+      // Only the newest load clears the flag — an older, superseded run must not
+      // reopen the door while its replacement is still fetching.
+      if (seq === loadSeqRef.current) briefingInFlightRef.current = false
     }
   }, [resolveMessageId])
 
