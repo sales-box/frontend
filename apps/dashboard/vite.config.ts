@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     proxy: Object.fromEntries(
       ['/auth', '/tenants', '/clients', '/emails', '/knowledge-base', '/analytics', '/external-content', '/ai', '/health', '/queue', '/gmail']
-        .map(p => [p, { target: 'https://salesbox.dev', changeOrigin: true, secure: true }])
+        .map(p => [p, { target: process.env.VITE_API_BASE_URL || 'http://localhost:3000', changeOrigin: true, secure: false }])
     )
   }
 })
