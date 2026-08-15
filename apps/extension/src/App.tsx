@@ -7,6 +7,7 @@ import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOver
 import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
 import { derivePipelineScreen, type PipelineResponse } from './lib/derivePipelineScreen'
 import { getCachedDraft, setCachedDraft, invalidateDraft } from './lib/draftCache'
+import { getCachedCrm, setCachedCrm, setCachedCrmSubmitted, invalidateCrm } from './lib/crmCache'
 import { useAsyncAction, type AsyncAction } from './hooks/useAsyncAction'
 import { useSessionRehydrate } from './hooks/useSessionRehydrate'
 import { useHashNavigation } from './hooks/useHashNavigation'
@@ -60,6 +61,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     suggestions: { index: number; summary: string }[]
   }
   const [crmSuggestions, setCrmSuggestions] = useState<CrmSuggestionResult | null>(null)
+  const [crmLoading, setCrmLoading] = useState(false)
+  const [crmSubmitted, setCrmSubmitted] = useState(false)
 
   const fetchInboxStatsInner = useCallback(async () => {
     briefingLoaderRef.current?.clearToast()
@@ -90,22 +93,40 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     const seq = ++loadSeqRef.current
     dispatch({ type: 'LOAD_BRIEFING' })
     briefingInFlightRef.current = true
+    // Capture for use in async .then() — resolvedId cannot be reassigned after this point.
+    const messageId = resolvedId
     try {
-      let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
+      let raw: PipelineResponse | null = force ? null : await getCachedDraft(messageId)
 
+      // Reset CRM state for this load — always start clean.
       setCrmSuggestions(null)
+      setCrmSubmitted(false)
 
-      const crmSuggestionPromise = !raw ? sendToBackground<CrmSuggestionResult>({
+      // CRM cache is checked independently of the draft cache.
+      // Even a cached draft may pair with a fresh or invalidated CRM cache.
+      const cachedCrm = force ? null : await getCachedCrm(messageId)
+
+      if (cachedCrm) {
+        // Restore instantly — no skeleton, no network call.
+        setCrmSuggestions(cachedCrm.suggestions)
+        setCrmSubmitted(cachedCrm.submitted)
+        setCrmLoading(false)
+      } else {
+        // No cache hit — show skeleton and fire the request in parallel with the briefing.
+        setCrmLoading(true)
+      }
+
+      const crmSuggestionPromise = !cachedCrm ? sendToBackground<CrmSuggestionResult>({
         type: 'SUGGEST_CRM_ACTIONS',
-        messageId: resolvedId,
-      }) : null;
+        messageId,
+      }) : null
 
       if (!raw) {
-        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
+        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId })
         if (await handleAuthErr(res, dispatch)) return
         if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
         raw = res.data
-        await setCachedDraft(resolvedId, raw)
+        await setCachedDraft(messageId, raw)
       }
 
       if (seq !== loadSeqRef.current) return
@@ -117,13 +138,16 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
       else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
 
-      if(crmSuggestionPromise) {
+      if (crmSuggestionPromise) {
         crmSuggestionPromise.then((crmRes) => {
-          if (crmRes.ok && crmRes.data.isPausedForApproval) {
-            setCrmSuggestions(crmRes.data)
-          }
+          const suggestions = (crmRes.ok && crmRes.data.isPausedForApproval) ? crmRes.data : null
+          if (suggestions) setCrmSuggestions(suggestions)
+          // Always persist — even a null result is cached to avoid re-fetching on next reopen.
+          void setCachedCrm(messageId, suggestions ?? null, false)
+          setCrmLoading(false)
         }).catch((err) => {
           console.error('[Copilot] Failed to fetch CRM suggestions:', err)
+          setCrmLoading(false)
         })
       }
     } finally {
@@ -316,7 +340,10 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // for this message becomes stale the moment the SE replies. Invalidate now
     // so the next open re-asks the backend (which then reports alreadyReplied).
     const messageId = getCurrentMessageId()
-    if (messageId) void invalidateDraft(messageId)
+    if (messageId) {
+      void invalidateDraft(messageId)
+      void invalidateCrm(messageId)
+    }
     panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply, graphThreadId: graphThreadIdRef.current } }))
     graphThreadIdRef.current = null
   }, [panelHost, getCurrentMessageId])
@@ -326,9 +353,13 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   ) => {
     const threadId = crmSuggestions?.threadId
     if (!threadId) return
-    setCrmSuggestions(null)
+    // Set submitted flag in state and persist it — the success banner must survive
+    // a panel collapse/reopen without re-showing the action list.
+    setCrmSubmitted(true)
+    const messageId = getCurrentMessageId()
+    if (messageId) void setCachedCrmSubmitted(messageId)
     await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
-  }, [crmSuggestions])
+  }, [crmSuggestions, getCurrentMessageId])
 
   const handleReportGap = useCallback(async () => {
     const messageId = getCurrentMessageId() ?? await resolveMessageId()
@@ -428,6 +459,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onEditInGmail={handleEditInGmail}
                   onReportGap={handleReportGap}
                   crmSuggestions={crmSuggestions}
+                  crmLoading={crmLoading}
+                  crmSubmitted={crmSubmitted}
                   onResolveCrmActions={handleResolveCrmActions}
                 />
               )
@@ -442,6 +475,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onInsertDraft={(reply) => handleEditInGmail(reply)}
                   onReportGap={handleReportGap}
                   crmSuggestions={crmSuggestions}
+                  crmLoading={crmLoading}
+                  crmSubmitted={crmSubmitted}
                   onResolveCrmActions={handleResolveCrmActions}
                 />
               )

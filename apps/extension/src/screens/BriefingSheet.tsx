@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Skeleton } from '../components/Skeleton'
 import { Clock, Send, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
@@ -43,6 +44,9 @@ interface BriefingSheetProps {
   onEditInGmail: (reply: string) => void
   onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
+  crmLoading?: boolean
+  /** Controlled by App — persisted to cache so it survives panel reopen. */
+  crmSubmitted?: boolean
   onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
 }
 
@@ -67,7 +71,7 @@ function formatTimestamp(iso: string): string {
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
  *
  */
-export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail, onReportGap, crmSuggestions, onResolveCrmActions }: BriefingSheetProps) {
+export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, onResolveCrmActions }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
   // The draft gets its own view, like LowConfidenceScreen. Sharing one screen
   // with the client card, the confidence pills and the CRM list left the reply
@@ -85,9 +89,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
     return defaults
   })
 
-  const hasSuggestions =
-    (crmSuggestions?.isPausedForApproval ?? false) &&
-    (crmSuggestions?.suggestions.length ?? 0) > 0
+  const suggestions = crmSuggestions?.suggestions ?? []
 
   const handleCrmSubmit = () => {
     if (!crmSuggestions || !onResolveCrmActions) return
@@ -318,97 +320,116 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
         </div>
       </div>
 
-      {/* ── CRM actions ── */}
-      {hasSuggestions && (
-        <div className="px-4 py-4 border-t border-[var(--color-border)] flex-shrink-0 bg-[var(--color-surface)]">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Database size={11} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" aria-hidden="true" />
-            <p className="text-eyebrow">CRM ACTIONS</p>
-          </div>
+      {/* ── CRM actions — always visible, 4 states: submitted / loading / empty / list ── */}
+      <div className="px-4 py-4 border-t border-[var(--color-border)] flex-shrink-0 bg-[var(--color-surface)]">
+        <div className="flex items-center gap-1.5 mb-3">
+          <Database size={11} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" aria-hidden="true" />
+          <p className="text-eyebrow">CRM ACTIONS</p>
+        </div>
 
-          <ul className="flex flex-col gap-2">
-            {crmSuggestions!.suggestions.map((s) => {
-              const decision = crmDecisions[s.index] ?? 'reject'
-              const isApproved = decision === 'approve'
-              return (
-                <li
-                  key={s.index}
-                  className="
-                    flex items-start gap-2
-                    p-2.5 rounded-[var(--radius-sm)]
-                    border border-[var(--color-border)]
-                    bg-[var(--color-surface-tertiary)]
-                  "
-                >
-                  {/* Summary text */}
-                  <p
-                    className="flex-1 text-small text-[var(--color-text-primary)] leading-snug"
-                    style={{ fontFamily: 'var(--font-body)' }}
-                  >
-                    {s.summary}
-                  </p>
-
-                  {/* Approve / Ignore toggle buttons */}
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      id={`ext-crm-approve-${s.index}`}
-                      onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'approve' }))}
-                      title="Approve this action"
-                      className={`
-                        flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                        text-small font-medium transition-all duration-150 cursor-pointer
-                        ${isApproved
-                          ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
-                          : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                        }
-                      `}
-                      style={{ fontFamily: 'var(--font-body)' }}
-                    >
-                      <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
-                      Approve
-                    </button>
-
-                    <button
-                      id={`ext-crm-ignore-${s.index}`}
-                      onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'reject' }))}
-                      title="Ignore this action"
-                      className={`
-                        flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                        text-small font-medium transition-all duration-150 cursor-pointer
-                        ${!isApproved
-                          ? 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]'
-                          : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                        }
-                      `}
-                      style={{ fontFamily: 'var(--font-body)' }}
-                    >
-                      <XCircle size={11} strokeWidth={1.5} aria-hidden="true" />
-                      Ignore
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-
-          {/* Submit decisions */}
-          <button
-            id="ext-crm-submit-btn"
-            onClick={handleCrmSubmit}
-            className="
-              mt-3 w-full flex items-center justify-center gap-1.5
-              px-3 py-2 rounded-[var(--radius-sm)]
-              border border-[var(--color-border-focus)]
-              text-[var(--color-primary)] text-small font-medium
-              hover:bg-[var(--color-surface-tertiary)]
-              transition-colors duration-150 cursor-pointer
-            "
+        {crmSubmitted ? (
+          <p
+            className="flex items-center gap-1.5 text-small text-[var(--color-success)]"
             style={{ fontFamily: 'var(--font-body)' }}
           >
-            Submit CRM decisions
-          </button>
-        </div>
-      )}
+            <CheckCircle2 size={12} strokeWidth={1.5} aria-hidden="true" />
+            CRM actions submitted successfully
+          </p>
+        ) : crmLoading ? (
+          <div className="flex flex-col gap-2" aria-label="Loading CRM actions">
+            <Skeleton height="h-10" />
+            <Skeleton height="h-10" />
+          </div>
+        ) : suggestions.length === 0 ? (
+          <p
+            className="text-small text-[var(--color-text-tertiary)]"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            No suggested actions
+          </p>
+        ) : (
+          <>
+            <ul className="flex flex-col gap-2">
+              {suggestions.map((s) => {
+                const decision = crmDecisions[s.index] ?? 'reject'
+                const isApproved = decision === 'approve'
+                return (
+                  <li
+                    key={s.index}
+                    className="
+                      flex items-start gap-2
+                      p-2.5 rounded-[var(--radius-sm)]
+                      border border-[var(--color-border)]
+                      bg-[var(--color-surface-tertiary)]
+                    "
+                  >
+                    <p
+                      className="flex-1 text-small text-[var(--color-text-primary)] leading-snug"
+                      style={{ fontFamily: 'var(--font-body)' }}
+                    >
+                      {s.summary}
+                    </p>
+
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        id={`ext-crm-approve-${s.index}`}
+                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'approve' }))}
+                        title="Approve this action"
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
+                          text-small font-medium transition-all duration-150 cursor-pointer
+                          ${isApproved
+                            ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
+                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                          }
+                        `}
+                        style={{ fontFamily: 'var(--font-body)' }}
+                      >
+                        <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
+                        Approve
+                      </button>
+
+                      <button
+                        id={`ext-crm-ignore-${s.index}`}
+                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'reject' }))}
+                        title="Ignore this action"
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
+                          text-small font-medium transition-all duration-150 cursor-pointer
+                          ${!isApproved
+                            ? 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]'
+                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                          }
+                        `}
+                        style={{ fontFamily: 'var(--font-body)' }}
+                      >
+                        <XCircle size={11} strokeWidth={1.5} aria-hidden="true" />
+                        Ignore
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+
+            <button
+              id="ext-crm-submit-btn"
+              onClick={handleCrmSubmit}
+              className="
+                mt-3 w-full flex items-center justify-center gap-1.5
+                px-3 py-2 rounded-[var(--radius-sm)]
+                border border-[var(--color-border-focus)]
+                text-[var(--color-primary)] text-small font-medium
+                hover:bg-[var(--color-surface-tertiary)]
+                transition-colors duration-150 cursor-pointer
+              "
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              Submit CRM decisions
+            </button>
+          </>
+        )}
+      </div>
 
       </div>{/* end scrollable body */}
 
