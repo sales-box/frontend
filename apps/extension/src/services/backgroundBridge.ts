@@ -10,7 +10,7 @@ export type BgRequest =
   | { type: 'GET_SE_AUTH_CODE' }
   | { type: 'SE_LOGIN'; code: string; redirectUri: string }
   | { type: 'GET_AUTH_ME'; jwt: string }
-  | { type: 'REPORT_KNOWLEDGE_GAP'; jwt: string; topic: string }
+  | { type: 'REPORT_KNOWLEDGE_GAP'; messageId: string }
   | { type: 'SUGGEST_CRM_ACTIONS'; messageId: string }
   | { type: 'RESUME_CRM_ACTIONS'; threadId: string; decisions: Array<{ type: 'approve' | 'reject' }> }
 

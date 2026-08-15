@@ -1,4 +1,4 @@
-import { AlertTriangle, BookOpen, Users, Mail, Edit2, ExternalLink, Building2, Star, Flag, CheckCircle2, XCircle, Database, ArrowLeft, ArrowRight, Send } from 'lucide-react'
+import { AlertTriangle, BookOpen, Users, Mail, Edit2, Building2, Star, Flag, CheckCircle2, XCircle, Database, ArrowLeft, ArrowRight, Send } from 'lucide-react'
 import { useState } from 'react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
@@ -31,7 +31,7 @@ interface LowConfidenceScreenProps {
   onRefresh: () => void
   onComposeManually: () => void
   onInsertDraft: (reply: string) => void
-  onUploadDoc: () => void
+  onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
   onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
 }
@@ -53,10 +53,12 @@ function formatTimestamp(iso: string): string {
  *  - 'draft':   the AI's draft text (if any) + the 3 action buttons
  * No ink-filled "Send" button anywhere — nothing here is auto-sent.
  */
-export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onUploadDoc, crmSuggestions, onResolveCrmActions }: LowConfidenceScreenProps) {
+export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onReportGap, crmSuggestions, onResolveCrmActions }: LowConfidenceScreenProps) {
   const [view, setView] = useState<'summary' | 'draft'>('summary')
   const [reported, setReported] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportAdded, setReportAdded] = useState(false)
 
   // Per-suggestion decision map — defaults to 'reject' (ignore)
   const [crmDecisions, setCrmDecisions] = useState<Record<number, 'approve' | 'reject'>>(() => {
@@ -80,21 +82,43 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
   const handleReportGap = async () => {
     if (reported || reporting) return
     setReporting(true)
+    setReportError(null)
     try {
-      const { jwt } = await chrome.storage.local.get('jwt')
-      const topic = data.company || 'Unknown company'
-      await chrome.runtime.sendMessage({
-        type: 'REPORT_KNOWLEDGE_GAP',
-        jwt: jwt ?? '',
-        topic,
-      })
+      const result = await onReportGap()
+      setReportAdded(result.reportAdded)
       setReported(true)
     } catch (err) {
       console.error('[Copilot] reportKnowledgeGap failed:', err)
+      setReportError('Could not report this gap. Please try again.')
     } finally {
       setReporting(false)
     }
   }
+
+  const reportControl = reported ? (
+    <p className="flex items-center justify-center gap-1.5 text-small text-[var(--color-success)]">
+      <CheckCircle2 size={12} strokeWidth={1.5} aria-hidden="true" />
+      {reportAdded
+        ? 'Reported to admin ✅'
+        : 'Already reported to admin ✅'}
+    </p>
+  ) : (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        id="ext-report-gap-btn"
+        onClick={handleReportGap}
+        disabled={reporting}
+        className="flex items-center justify-center gap-1.5 text-small text-[var(--color-warning)] hover:text-[var(--color-warning)]/80 transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ fontFamily: 'var(--font-body)' }}
+      >
+        <Flag size={11} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
+        <span className="min-w-0 text-center break-words">{reporting ? 'Reporting…' : 'Report knowledge gap'}</span>
+      </button>
+      {reportError && (
+        <p className="text-small text-[var(--color-danger)] text-center">{reportError}</p>
+      )}
+    </div>
+  )
 
   if (view === 'draft') {
     return (
@@ -150,33 +174,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             <span className="min-w-0 flex-1 text-center break-words">Compose reply manually</span>
           </button>
 
-          <button
-            id="ext-upload-doc-btn"
-            onClick={onUploadDoc}
-            className="flex items-center justify-center gap-1.5 text-small text-[var(--color-secondary)] hover:text-[var(--color-secondary-hover)] transition-colors cursor-pointer bg-transparent border-none p-0"
-            style={{ fontFamily: 'var(--font-body)' }}
-          >
-            <ExternalLink size={11} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
-            <span className="min-w-0 text-center break-words">Upload missing doc to Knowledge Base</span>
-          </button>
-
-          {reported ? (
-            <p className="flex items-center justify-center gap-1.5 text-small text-[var(--color-success)]">
-              <CheckCircle2 size={12} strokeWidth={1.5} aria-hidden="true" />
-              Reported to your admin ✅
-            </p>
-          ) : (
-            <button
-              id="ext-report-gap-btn"
-              onClick={handleReportGap}
-              disabled={reporting}
-              className="flex items-center justify-center gap-1.5 text-small text-[var(--color-warning)] hover:text-[var(--color-warning)]/80 transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ fontFamily: 'var(--font-body)' }}
-            >
-              <Flag size={11} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
-              <span className="min-w-0 text-center break-words">{reporting ? 'Reporting…' : 'Report knowledge gap'}</span>
-            </button>
-          )}
+          {reportControl}
         </div>
       </div>
     )
@@ -350,7 +348,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+      <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2.5 flex-shrink-0">
         {data.suggestedReply ? (
           <button
             onClick={() => setView('draft')}
@@ -371,6 +369,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             <span className="min-w-0 flex-1 text-center break-words">Compose reply manually</span>
           </button>
         )}
+        {reportControl}
       </div>
     </div>
   )

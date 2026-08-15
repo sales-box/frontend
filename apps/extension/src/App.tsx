@@ -330,6 +330,19 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
   }, [crmSuggestions])
 
+  const handleReportGap = useCallback(async () => {
+    const messageId = getCurrentMessageId() ?? await resolveMessageId()
+    if (!messageId) throw new Error('No open Gmail thread detected')
+    const result = await sendToBackground<{
+      occurrences: number
+      reportAdded: boolean
+    }>({ type: 'REPORT_KNOWLEDGE_GAP', messageId })
+    if (!result.ok) {
+      throw new Error(result.kind === 'error' ? result.message : result.kind)
+    }
+    return result.data
+  }, [getCurrentMessageId, resolveMessageId])
+
   const activeToast = fetchStats.toast ?? briefingLoader.toast ?? categoryLoader.toast
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -413,6 +426,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onRefresh={handleRefresh}
                   onSend={handleEditInGmail}
                   onEditInGmail={handleEditInGmail}
+                  onReportGap={handleReportGap}
                   crmSuggestions={crmSuggestions}
                   onResolveCrmActions={handleResolveCrmActions}
                 />
@@ -426,9 +440,7 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onRefresh={handleRefresh}
                   onComposeManually={() => handleEditInGmail('')}
                   onInsertDraft={(reply) => handleEditInGmail(reply)}
-                  onUploadDoc={() => {
-                    chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
-                  }}
+                  onReportGap={handleReportGap}
                   crmSuggestions={crmSuggestions}
                   onResolveCrmActions={handleResolveCrmActions}
                 />
