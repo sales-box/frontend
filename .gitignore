@@ -127,3 +127,7 @@ apps/extension/extension.pem
 # Graphify analysis artifacts (rebuildable from source)
 apps/extension/graphify-out/
 graphify-out/
+
+# Personal study notes (Arabic code walkthrough for the defense)
+WALKTHROUGH-AR.md
+apps/extension/WALKTHROUGH-AR.md
