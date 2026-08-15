@@ -1,25 +1,16 @@
-import { useReducer, useCallback, useRef, useState } from 'react'
+import { useReducer, useCallback } from 'react'
 import { panelReducer, initialPanelState } from './state/panelMachine'
-import { getSession, setSession, clearSession } from './state/session'
+import { getSession, clearSession } from './state/session'
 import { useGmailContext } from './hooks/useGmailContext'
-import { sendToBackground, handleAuthErr } from './services/backgroundBridge'
-import { InboxOverviewScreen, type InboxOverviewData } from './screens/InboxOverviewScreen'
-import { EmailCategoryList, type EmailRowData } from './screens/EmailCategoryList'
-import { derivePipelineScreen, type PipelineResponse } from './lib/derivePipelineScreen'
-import { getCachedDraft, setCachedDraft, invalidateDraft } from './lib/draftCache'
-import { getCachedCrm, setCachedCrm, setCachedCrmSubmitted, invalidateCrm } from './lib/crmCache'
-import { useAsyncAction, type AsyncAction } from './hooks/useAsyncAction'
+import { invalidateDraft } from './lib/draftCache'
+import { invalidateCrm } from './lib/crmCache'
+import { usePanelActions } from './hooks/usePanelActions'
+import { useAuthFlow } from './hooks/useAuthFlow'
 import { useSessionRehydrate } from './hooks/useSessionRehydrate'
 import { useHashNavigation } from './hooks/useHashNavigation'
 
 import { CollapsedTab } from './screens/CollapsedTab'
-import { AuthScreen } from './screens/AuthScreen'
-import { InvalidScreen } from './screens/InvalidScreen'
-import { LoadingScreen } from './screens/LoadingScreen'
-import { BriefingSheet } from './screens/BriefingSheet'
-import { LowConfidenceScreen } from './screens/LowConfidenceScreen'
-import { RevokedScreen } from './screens/RevokedScreen'
-import { RepliedScreen } from './screens/RepliedScreen'
+import { PanelRouter } from './screens/PanelRouter'
 import { ErrorToast } from './components/ErrorToast'
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -37,176 +28,27 @@ interface AppProps {
 export default function App({ panelHost, getCurrentMessageId = () => null, getCurrentAccount = () => null }: AppProps = {}) {
   const [panel, dispatch] = useReducer(panelReducer, initialPanelState)
   const { resolveAccount, resolveMessageId } = useGmailContext(getCurrentAccount, getCurrentMessageId)
-  // Monotonic token: only the LATEST loadSuggestion may dispatch. Without it,
-  // two rapid thread opens race and the slower response wins — rendering the
-  // wrong email's briefing (the flicker).
-  const loadSeqRef = useRef(0)
-  // True while a briefing is being fetched. Gmail fires a second `hashchange`
-  // shortly after a thread opens, and on that tick the URL can momentarily read
-  // as "not in a thread" — which sent fetchStats through and replaced the
-  // loading skeleton with the inbox overview mid-request. On a cold email the
-  // pipeline takes tens of seconds, so the overview sat there until the
-  // briefing finally resolved and swapped itself back in.
-  const briefingInFlightRef = useRef(false)
-  const graphThreadIdRef = useRef<string | null>(null)
-
-  const briefingLoaderRef = useRef<AsyncAction<[string, string | null | undefined, boolean]>>(null!)
-  const categoryLoaderRef = useRef<AsyncAction<[string, InboxOverviewData]>>(null!)
-  const fetchStatsRef = useRef<AsyncAction<[]>>(null!)
-
-  // CRM actions — populated non-blocking after the briefing renders
-  type CrmSuggestionResult = {
-    threadId: string
-    isPausedForApproval: boolean
-    suggestions: { index: number; summary: string }[]
-  }
-  const [crmSuggestions, setCrmSuggestions] = useState<CrmSuggestionResult | null>(null)
-  const [crmLoading, setCrmLoading] = useState(false)
-  const [crmSubmitted, setCrmSubmitted] = useState(false)
-
-  const fetchInboxStatsInner = useCallback(async () => {
-    briefingLoaderRef.current?.clearToast()
-    categoryLoaderRef.current?.clearToast()
-    const res = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
-    if (await handleAuthErr(res, dispatch)) return
-    if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
-    await setSession({ cachedInboxStats: res.data })
-    // Cache the stats either way, but never navigate away from a briefing the
-    // user is already waiting on.
-    if (briefingInFlightRef.current) return
-    dispatch({
-      type: 'SHOW_OVERVIEW',
-      data: res.data,
-    })
-  }, [])
-
-  const loadSuggestionInner = useCallback(async (_tenantId: string, emailId?: string | null, force = false) => {
-    fetchStatsRef.current?.clearToast()
-    categoryLoaderRef.current?.clearToast()
-    let resolvedId = emailId
-    if (!resolvedId) {
-      resolvedId = await resolveMessageId()
-    }
-    if (!resolvedId) {
-      throw new Error('No open Gmail thread detected')
-    }
-    const seq = ++loadSeqRef.current
-    dispatch({ type: 'LOAD_BRIEFING' })
-    briefingInFlightRef.current = true
-    // Capture for use in async .then() — resolvedId cannot be reassigned after this point.
-    const messageId = resolvedId
-    try {
-      let raw: PipelineResponse | null = force ? null : await getCachedDraft(messageId)
-
-      // Reset CRM state for this load — always start clean.
-      setCrmSuggestions(null)
-      setCrmSubmitted(false)
-
-      // CRM cache is checked independently of the draft cache.
-      // Even a cached draft may pair with a fresh or invalidated CRM cache.
-      const cachedCrm = force ? null : await getCachedCrm(messageId)
-
-      if (cachedCrm) {
-        // Restore instantly — no skeleton, no network call.
-        setCrmSuggestions(cachedCrm.suggestions)
-        setCrmSubmitted(cachedCrm.submitted)
-        setCrmLoading(false)
-      } else {
-        // No cache hit — show skeleton and fire the request in parallel with the briefing.
-        setCrmLoading(true)
-      }
-
-      const crmSuggestionPromise = !cachedCrm ? sendToBackground<CrmSuggestionResult>({
-        type: 'SUGGEST_CRM_ACTIONS',
-        messageId,
-      }) : null
-
-      if (!raw) {
-        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId })
-        if (await handleAuthErr(res, dispatch)) return
-        if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
-        raw = res.data
-        await setCachedDraft(messageId, raw)
-      }
-
-      if (seq !== loadSeqRef.current) return
-
-      graphThreadIdRef.current = raw.graphThreadId ?? null
-
-      const derived = derivePipelineScreen(raw)
-      if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
-      else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
-      else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
-
-      if (crmSuggestionPromise) {
-        crmSuggestionPromise.then((crmRes) => {
-          const suggestions = (crmRes.ok && crmRes.data.isPausedForApproval) ? crmRes.data : null
-          if (suggestions) setCrmSuggestions(suggestions)
-          // Always persist — even a null result is cached to avoid re-fetching on next reopen.
-          void setCachedCrm(messageId, suggestions ?? null, false)
-          setCrmLoading(false)
-        }).catch((err) => {
-          console.error('[Copilot] Failed to fetch CRM suggestions:', err)
-          setCrmLoading(false)
-        })
-      }
-    } finally {
-      // Only the newest load clears the flag — an older, superseded run must not
-      // reopen the door while its replacement is still fetching.
-      if (seq === loadSeqRef.current) briefingInFlightRef.current = false
-    }
-  }, [resolveMessageId])
-
-  const selectCategoryInner = useCallback(async (category: string, data: InboxOverviewData) => {
-    fetchStatsRef.current?.clearToast()
-    briefingLoaderRef.current?.clearToast()
-    dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
-    const res = await sendToBackground<{ emails: EmailRowData[] }>({ type: 'GET_CATEGORIZED_EMAILS', category })
-    if (await handleAuthErr(res, dispatch)) return
-    if (!res.ok) {
-      dispatch({ type: 'CATEGORY_FAILED', message: res.kind === 'error' ? res.message : res.kind })
-      throw new Error("Couldn't load these emails.")
-    }
-    dispatch({ type: 'CATEGORY_LOADED', emails: res.data.emails || [] })
-  }, [])
-
-  const formatStatsError = useCallback((err: unknown) => {
-    const m = err instanceof Error ? err.message : String(err)
-    return `Failed to load inbox stats: ${m}`
-  }, [])
-
-  const formatBriefingError = useCallback((err: unknown) => {
-    const m = err instanceof Error ? err.message : String(err)
-    if (m === 'No open Gmail thread detected') {
-      return m
-    }
-    return `Failed to load suggestion: ${m}`
-  }, [])
-
-  const formatCategoryError = useCallback(() => {
-    return "Couldn't load these emails."
-  }, [])
-
-  const fetchStats = useAsyncAction(fetchInboxStatsInner, formatStatsError)
-  fetchStatsRef.current = fetchStats
-
-  const briefingLoader = useAsyncAction(loadSuggestionInner, formatBriefingError)
-  briefingLoaderRef.current = briefingLoader
-
-  const categoryLoader = useAsyncAction(selectCategoryInner, formatCategoryError)
-  categoryLoaderRef.current = categoryLoader
-
-  const fetchInboxStats = fetchStats.run
-  const loadSuggestion = briefingLoader.run
-  const handleSelectCategory = categoryLoader.run
+  const {
+    fetchStats,
+    loadBriefing,
+    selectCategory,
+    toast: activeToast,
+    crmSuggestions,
+    crmLoading,
+    crmSubmitted,
+    resolveCrmActions,
+    reportGap,
+    consumeGraphThreadId,
+  } = usePanelActions({ dispatch, resolveMessageId, getCurrentMessageId })
+  const { signIn } = useAuthFlow(dispatch)
 
   useSessionRehydrate({
     dispatch,
     panelHost,
     resolveAccount,
     getCurrentMessageId,
-    fetchStats: fetchStats.run,
-    loadBriefing: briefingLoader.run,
+    fetchStats,
+    loadBriefing,
   })
 
   useHashNavigation({
@@ -215,84 +57,19 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     resolveMessageId,
     getCurrentAccount,
     getCurrentMessageId,
-    fetchStats: fetchStats.run,
-    loadBriefing: briefingLoader.run,
+    fetchStats,
+    loadBriefing,
   })
 
-  // ── Auth flow ────────────────────────────────────────────────────────────
-  const handleSignIn = useCallback(async () => {
-    try {
-      const codeRes = await sendToBackground<{ code: string; redirectUri: string }>({ type: 'GET_SE_AUTH_CODE' })
-      if (!codeRes.ok) {
-        const msg = codeRes.kind === 'error' ? codeRes.message : codeRes.kind
-        console.error('[Copilot] Failed to get auth code:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `OAuth Error: ${msg}` })
-        return
-      }
-
-      const resultRes = await sendToBackground<{ token: string }>({
-        type: 'SE_LOGIN',
-        code: codeRes.data.code,
-        redirectUri: codeRes.data.redirectUri,
-      })
-
-      if (!resultRes.ok) {
-        const msg = resultRes.kind === 'error' ? resultRes.message : resultRes.kind
-        console.error('[Copilot] Backend login failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Backend Login: ${msg}` })
-        return
-      }
-
-      dispatch({ type: 'AUTH_SUCCESS' })
-
-      const authMeRes = await sendToBackground<{ tenantId: string; email: string }>({
-        type: 'GET_AUTH_ME',
-        jwt: resultRes.data.token,
-      })
-
-      if (!authMeRes.ok) {
-        const msg = authMeRes.kind === 'error' ? authMeRes.message : authMeRes.kind
-        console.error('[Copilot] getAuthMe failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Auth Me: ${msg}` })
-        return
-      }
-
-      const tenantId = authMeRes.data.tenantId
-      const accountEmail = authMeRes.data.email
-      await setSession({ jwt: resultRes.data.token, tenantId, accountEmail })
-
-      const statsRes = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
-      if (!statsRes.ok) {
-        const msg = statsRes.kind === 'error' ? statsRes.message : statsRes.kind
-        console.error('[Copilot] Inbox stats failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Inbox Stats: ${msg}` })
-        return
-      }
-
-      await setSession({ cachedInboxStats: statsRes.data })
-
-      dispatch({
-        type: 'SHOW_OVERVIEW',
-        data: statsRes.data,
-      })
-    } catch (err) {
-      console.error('[Copilot] Login flow failed:', err)
-      dispatch({ type: 'AUTH_FAILED', errorMsg: err instanceof Error ? err.message : String(err) })
-    }
-  }, [])
-
   const handleRefresh = useCallback(async () => {
-    const { tenantId } = await getSession()
-    if (tenantId) {
-      await briefingLoaderRef.current.run(tenantId, null, true)
-    }
-  }, [])
+    await loadBriefing(null, true)
+  }, [loadBriefing])
 
   const handleClose = useCallback(() => {
     panelHost?.dispatchEvent(new CustomEvent('copilot:panel-close'))
     dispatch({ type: 'COLLAPSE' })
   }, [panelHost])
-  
+
   const handleSwitchAccount = useCallback(async () => {
     await clearSession()
     dispatch({ type: 'RESET' })
@@ -312,69 +89,42 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       }
       const messageId = getCurrentMessageId()
       if (messageId) {
-        await loadSuggestion(tenantId, messageId)
+        await loadBriefing(messageId)
       } else {
-        await fetchInboxStats()
+        await fetchStats()
       }
     } else {
       dispatch({ type: 'EXPAND' })
     }
-  }, [loadSuggestion, fetchInboxStats, panelHost, getCurrentMessageId, resolveAccount])
-
-
+  }, [loadBriefing, fetchStats, panelHost, getCurrentMessageId, resolveAccount])
 
   const handleSelectEmail = useCallback(async (threadId: string) => {
     // Already on this thread → the hash won't change → no hashchange fires and
     // the panel would silently stay on the category list. Load directly.
     if (window.location.hash.includes(threadId)) {
-      const { tenantId } = await getSession()
       const messageId = await resolveMessageId()
-      if (tenantId && messageId) await loadSuggestion(tenantId, messageId)
+      if (messageId) await loadBriefing(messageId)
       return
     }
     panelHost?.dispatchEvent(new CustomEvent('copilot:navigate-thread', { detail: { threadId } }))
-  }, [panelHost, resolveMessageId, loadSuggestion])
+  }, [panelHost, resolveMessageId, loadBriefing])
 
   const handleEditInGmail = useCallback((reply: string) => {
     // The draft is about to be inserted (and likely sent) — the cached briefing
     // for this message becomes stale the moment the SE replies. Invalidate now
     // so the next open re-asks the backend (which then reports alreadyReplied).
+    // The CRM cache goes with it: its suggestions were derived from the
+    // pre-reply state of the thread.
     const messageId = getCurrentMessageId()
     if (messageId) {
       void invalidateDraft(messageId)
       void invalidateCrm(messageId)
     }
-    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply, graphThreadId: graphThreadIdRef.current } }))
-    graphThreadIdRef.current = null
-  }, [panelHost, getCurrentMessageId])
-
-  const handleResolveCrmActions = useCallback(async (
-    decisions: Array<{ type: 'approve' | 'reject' }>,
-  ) => {
-    const threadId = crmSuggestions?.threadId
-    if (!threadId) return
-    // Set submitted flag in state and persist it — the success banner must survive
-    // a panel collapse/reopen without re-showing the action list.
-    setCrmSubmitted(true)
-    const messageId = getCurrentMessageId()
-    if (messageId) void setCachedCrmSubmitted(messageId)
-    await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
-  }, [crmSuggestions, getCurrentMessageId])
-
-  const handleReportGap = useCallback(async () => {
-    const messageId = getCurrentMessageId() ?? await resolveMessageId()
-    if (!messageId) throw new Error('No open Gmail thread detected')
-    const result = await sendToBackground<{
-      occurrences: number
-      reportAdded: boolean
-    }>({ type: 'REPORT_KNOWLEDGE_GAP', messageId })
-    if (!result.ok) {
-      throw new Error(result.kind === 'error' ? result.message : result.kind)
-    }
-    return result.data
-  }, [getCurrentMessageId, resolveMessageId])
-
-  const activeToast = fetchStats.toast ?? briefingLoader.toast ?? categoryLoader.toast
+    // The graph thread id is consumed (read-once) so it rides this insert only.
+    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', {
+      detail: { reply, graphThreadId: consumeGraphThreadId() },
+    }))
+  }, [panelHost, getCurrentMessageId, consumeGraphThreadId])
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (panel.type === 'collapsed') {
@@ -396,10 +146,10 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // The tab strip stays visible so the user can click it to collapse the
   // panel again — same affordance as expanding it.
   return (
-    <div 
-      style={{ 
-        display: 'flex', 
-        height: '100%', 
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
         alignItems: 'stretch',
         boxShadow: '-8px 0 24px rgba(0, 0, 0, 0.1)'
       }}
@@ -410,87 +160,24 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
       {/* Panel body */}
       <div id="inbox-copilot-panel" className={panelClasses} style={{ fontFamily: 'var(--font-body)' }}>
         <ErrorToast toast={activeToast} />
-        {(() => {
-          switch (panel.type) {
-            case 'auth':
-              return <AuthScreen onClose={handleClose} onSignIn={handleSignIn} />
-
-            case 'invalid':
-              return (
-                <InvalidScreen
-                  email={panel.email}
-                  errorMsg={panel.errorMsg}
-                  onClose={handleClose}
-                  onSwitchAccount={handleSwitchAccount}
-                />
-              )
-
-            case 'loading':
-              return <LoadingScreen />
-
-            case 'overview':
-              return (
-                <InboxOverviewScreen
-                  data={panel.data}
-                  onClose={handleClose}
-                  onSelectCategory={(category) => handleSelectCategory(category, panel.data)}
-                />
-              )
-
-            case 'category-list':
-              return (
-                <EmailCategoryList
-                  category={panel.category}
-                  emails={panel.emails}
-                  loading={panel.loading}
-                  onClose={handleClose}
-                  onBack={() => dispatch({ type: 'SHOW_OVERVIEW', data: panel.parent })}
-                  onSelectEmail={handleSelectEmail}
-                />
-              )
-
-            case 'briefing':
-              return (
-                <BriefingSheet
-                  data={panel.data}
-                  onClose={handleClose}
-                  onRefresh={handleRefresh}
-                  onSend={handleEditInGmail}
-                  onEditInGmail={handleEditInGmail}
-                  onReportGap={handleReportGap}
-                  crmSuggestions={crmSuggestions}
-                  crmLoading={crmLoading}
-                  crmSubmitted={crmSubmitted}
-                  onResolveCrmActions={handleResolveCrmActions}
-                />
-              )
-
-            case 'low-confidence':
-              return (
-                <LowConfidenceScreen
-                  data={panel.data}
-                  onClose={handleClose}
-                  onRefresh={handleRefresh}
-                  onComposeManually={() => handleEditInGmail('')}
-                  onInsertDraft={(reply) => handleEditInGmail(reply)}
-                  onReportGap={handleReportGap}
-                  crmSuggestions={crmSuggestions}
-                  crmLoading={crmLoading}
-                  crmSubmitted={crmSubmitted}
-                  onResolveCrmActions={handleResolveCrmActions}
-                />
-              )
-
-            case 'replied':
-              return <RepliedScreen summary={panel.summary ?? null} onClose={handleClose} />
-
-            case 'revoked':
-              return <RevokedScreen onClose={handleClose} />
-
-            default:
-              return null
-          }
-        })()}
+        <PanelRouter
+          panel={panel}
+          crmSuggestions={crmSuggestions}
+          crmLoading={crmLoading}
+          crmSubmitted={crmSubmitted}
+          handlers={{
+            onClose: handleClose,
+            onSignIn: signIn,
+            onSwitchAccount: handleSwitchAccount,
+            onRefresh: handleRefresh,
+            onSelectCategory: selectCategory,
+            onSelectEmail: handleSelectEmail,
+            onEditInGmail: handleEditInGmail,
+            onBackToOverview: (parent) => dispatch({ type: 'SHOW_OVERVIEW', data: parent }),
+            onReportGap: reportGap,
+            onResolveCrmActions: resolveCrmActions,
+          }}
+        />
       </div>
     </div>
   )

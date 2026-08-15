@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
-import { Clock, Send, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
+import { Clock, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
+import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 
 /**
  * Extends ClassificationInfo so intent, urgency and the supervisor's routing
@@ -25,29 +26,17 @@ export interface BriefingData extends ClassificationInfo {
   suggestedReply: string
 }
 
-export interface CrmSuggestion {
-  index: number
-  summary: string
-}
-
-export interface CrmSuggestionResult {
-  threadId: string
-  isPausedForApproval: boolean
-  suggestions: CrmSuggestion[]
-}
-
 interface BriefingSheetProps {
   data: BriefingData
   onClose: () => void
   onRefresh: () => void
-  onSend: (reply: string) => void
-  onEditInGmail: (reply: string) => void
+  onInsertInGmail: (reply: string) => void
   onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
   crmLoading?: boolean
-  /** Controlled by App — persisted to cache so it survives panel reopen. */
+  /** Controlled by the actions hook — persisted to cache so it survives panel reopen. */
   crmSubmitted?: boolean
-  onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
+  onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -71,7 +60,7 @@ function formatTimestamp(iso: string): string {
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
  *
  */
-export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, onResolveCrmActions }: BriefingSheetProps) {
+export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, onResolveCrmActions }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
   // The draft gets its own view, like LowConfidenceScreen. Sharing one screen
   // with the client card, the confidence pills and the CRM list left the reply
@@ -184,12 +173,14 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
         </div>
 
         <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2.5 flex-shrink-0">
-          <div className="flex gap-2.5">
-            <button
+          {/* PRIMARY — ink fill. One honest action: drop the draft into Gmail's
+              compose box. "Send" and "Edit in Gmail" both did exactly this, so
+              they collapse into a single CTA. */}
+          <button
             id="ext-send-btn"
-            onClick={() => onSend(reply)}
+            onClick={() => onInsertInGmail(reply)}
             className="
-              flex-1 flex items-center justify-center gap-2
+              w-full flex items-center justify-center gap-2
               px-4 py-2.5 rounded-[var(--radius-sm)]
               bg-[var(--color-primary)] text-[var(--color-text-on-primary)]
               text-caption font-medium
@@ -200,30 +191,9 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
             "
             style={{ fontFamily: 'var(--font-body)' }}
           >
-            <Send size={13} strokeWidth={1.5} aria-hidden="true" />
-            Send
-            </button>
-
-            <button
-            id="ext-edit-gmail-btn"
-            onClick={() => onEditInGmail(reply)}
-            className="
-              flex items-center gap-1.5
-              px-3 py-2.5 rounded-[var(--radius-sm)]
-              border border-[var(--color-border)]
-              bg-transparent text-[var(--color-text-primary)]
-              text-caption font-medium
-              hover:bg-[var(--color-surface-tertiary)]
-              transition-colors duration-150
-              cursor-pointer
-              whitespace-nowrap
-            "
-            style={{ fontFamily: 'var(--font-body)' }}
-          >
             <Edit2 size={13} strokeWidth={1.5} aria-hidden="true" />
-            Edit in Gmail
-            </button>
-          </div>
+            Insert in Gmail
+          </button>
           {reportControl}
         </div>
       </div>

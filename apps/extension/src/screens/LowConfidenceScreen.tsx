@@ -6,7 +6,7 @@ import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
-import type { CrmSuggestionResult } from './BriefingSheet'
+import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 
 /** `routing` is always 'red' here — this screen IS the red state. */
 export interface LowConfidenceData extends ClassificationInfo {
@@ -35,9 +35,9 @@ interface LowConfidenceScreenProps {
   onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
   crmLoading?: boolean
-  /** Controlled by App — persisted to cache so it survives panel reopen. */
+  /** Controlled by the actions hook — persisted to cache so it survives panel reopen. */
   crmSubmitted?: boolean
-  onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
+  onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
 function formatTimestamp(iso: string): string {
@@ -125,20 +125,22 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
   if (view === 'draft') {
     return (
       <div className="flex flex-col h-full bg-[var(--color-surface)]">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-warning-light)] flex-shrink-0">
+        <PanelHeader onClose={onClose} />
+
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
           <button
             onClick={() => setView('summary')}
             aria-label="Back to briefing"
-            className="p-1.5 -ml-1.5 rounded-[var(--radius-sm)] text-[var(--color-warning)] hover:bg-white/40 transition-colors cursor-pointer flex-shrink-0"
+            className="p-1 rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
           >
-            <ArrowLeft size={16} strokeWidth={1.5} />
+            <ArrowLeft size={16} />
           </button>
           <AlertTriangle size={14} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="text-subheading text-[var(--color-warning)] leading-none" style={{ fontFamily: 'var(--font-body)' }}>
+            <p className="text-subheading text-[var(--color-text-primary)] leading-none" style={{ fontFamily: 'var(--font-body)' }}>
               AI Draft — unverified
             </p>
-            <p className="text-small text-[var(--color-warning)]/70 leading-none mt-0.5">
+            <p className="text-small text-[var(--color-text-tertiary)] leading-none mt-0.5">
               Review carefully before sending
             </p>
           </div>
@@ -159,7 +161,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             <button
               id="ext-insert-draft-btn"
               onClick={() => onInsertDraft(data.suggestedReply!)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)] bg-[var(--color-warning)] text-[#2A1B00] text-caption font-semibold hover:opacity-90 transition-opacity duration-150 cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[var(--color-text-on-primary)] text-caption font-semibold hover:bg-[var(--color-primary-hover)] transition-colors duration-150 cursor-pointer"
               style={{ fontFamily: 'var(--font-body)' }}
             >
               <Send size={13} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />

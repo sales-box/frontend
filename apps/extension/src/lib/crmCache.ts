@@ -1,4 +1,4 @@
-import type { CrmSuggestionResult } from '../screens/BriefingSheet'
+import type { CrmSuggestionResult } from './crm'
 
 export interface CrmCacheEntry {
   suggestions: CrmSuggestionResult | null

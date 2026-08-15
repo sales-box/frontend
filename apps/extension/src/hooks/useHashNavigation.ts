@@ -10,7 +10,7 @@ interface Options {
   getCurrentAccount: () => string | null
   getCurrentMessageId: () => string | null
   fetchStats: () => Promise<void>
-  loadBriefing: (tenantId: string, messageId: string) => Promise<void>
+  loadBriefing: (messageId: string) => Promise<void>
 }
 
 export function useHashNavigation({
@@ -34,7 +34,7 @@ export function useHashNavigation({
       const inThread = /\/[A-Za-z0-9_-]{16,}$/.test(window.location.hash) || getCurrentMessageId() != null
       if (inThread) {
         const messageId = await resolveMessageId()
-        if (messageId) await loadBriefing(tenantId, messageId)
+        if (messageId) await loadBriefing(messageId)
       } else {
         await fetchStats()
       }

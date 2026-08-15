@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { PanelAction } from '../state/panelMachine'
 import { clearSession } from '../state/session'
+import type { CrmDecision } from '../lib/crm'
 
 export type BgRequest =
   | { type: 'GET_INBOX_STATS' }
@@ -12,10 +13,10 @@ export type BgRequest =
   | { type: 'GET_AUTH_ME'; jwt: string }
   | { type: 'REPORT_KNOWLEDGE_GAP'; messageId: string }
   | { type: 'SUGGEST_CRM_ACTIONS'; messageId: string }
-  | { type: 'RESUME_CRM_ACTIONS'; threadId: string; decisions: Array<{ type: 'approve' | 'reject' }> }
+  | { type: 'RESUME_CRM_ACTIONS'; threadId: string; decisions: CrmDecision[] }
 
 export type BgResponse<T> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; kind?: never }
   | { ok: false; kind: 'unauthorized' }
   | { ok: false; kind: 'revoked' }
   | { ok: false; kind: 'error'; message: string }
