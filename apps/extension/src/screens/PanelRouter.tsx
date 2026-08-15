@@ -30,10 +30,14 @@ interface PanelRouterProps {
   panel: PanelState
   /** CRM actions paused for approval, shown on the briefing / low-confidence screens. */
   crmSuggestions: CrmSuggestionResult | null
+  /** CRM lookup in flight with nothing cached — the screens show a skeleton. */
+  crmLoading: boolean
+  /** Verdicts already submitted for this thread — the screens show the banner. */
+  crmSubmitted: boolean
   handlers: PanelRouterHandlers
 }
 
-export function PanelRouter({ panel, crmSuggestions, handlers }: PanelRouterProps): ReactNode {
+export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, handlers }: PanelRouterProps): ReactNode {
   switch (panel.type) {
     case 'auth':
       return <AuthScreen onClose={handlers.onClose} onSignIn={handlers.onSignIn} />
@@ -81,6 +85,8 @@ export function PanelRouter({ panel, crmSuggestions, handlers }: PanelRouterProp
           onInsertInGmail={handlers.onEditInGmail}
           onReportGap={handlers.onReportGap}
           crmSuggestions={crmSuggestions}
+          crmLoading={crmLoading}
+          crmSubmitted={crmSubmitted}
           onResolveCrmActions={handlers.onResolveCrmActions}
         />
       )
@@ -95,6 +101,8 @@ export function PanelRouter({ panel, crmSuggestions, handlers }: PanelRouterProp
           onInsertDraft={(reply) => handlers.onEditInGmail(reply)}
           onReportGap={handlers.onReportGap}
           crmSuggestions={crmSuggestions}
+          crmLoading={crmLoading}
+          crmSubmitted={crmSubmitted}
           onResolveCrmActions={handlers.onResolveCrmActions}
         />
       )

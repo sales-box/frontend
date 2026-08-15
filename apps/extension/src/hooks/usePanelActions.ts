@@ -8,6 +8,7 @@ import { sendToBackground, handleAuthErr } from '../services/backgroundBridge'
 import { setSession } from '../state/session'
 import { derivePipelineScreen, type PipelineResponse } from '../lib/derivePipelineScreen'
 import { getCachedDraft, setCachedDraft } from '../lib/draftCache'
+import { getCachedCrm, setCachedCrm, setCachedCrmSubmitted } from '../lib/crmCache'
 import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 
 export interface PanelActions {
@@ -21,6 +22,10 @@ export interface PanelActions {
   toast: ToastState | null
   /** CRM actions the pipeline paused for approval, or null when there are none. */
   crmSuggestions: CrmSuggestionResult | null
+  /** True while the CRM lookup is in flight and nothing was cached to show. */
+  crmLoading: boolean
+  /** True once the SE submitted verdicts for this thread — survives a reopen. */
+  crmSubmitted: boolean
   /** Send the SE's approve/ignore verdicts for the paused CRM actions. */
   resolveCrmActions: (decisions: CrmDecision[]) => Promise<void>
   /** Report that the current thread exposed a gap in the knowledge base. */
@@ -53,10 +58,20 @@ export function usePanelActions(deps: {
   const briefingInFlightRef = useRef(false)
   const graphThreadIdRef = useRef<string | null>(null)
 
-  // CRM actions — populated non-blocking after the briefing renders.
+  // CRM actions — restored from cache, or populated non-blocking after the
+  // briefing renders.
   const [crmSuggestions, setCrmSuggestions] = useState<CrmSuggestionResult | null>(null)
+  const [crmLoading, setCrmLoading] = useState(false)
+  const [crmSubmitted, setCrmSubmitted] = useState(false)
+
+  // Set after the loaders exist. Each action clears the *other* actions' toasts
+  // so a stale failure from a previous screen can't outrank the current one in
+  // the priority chain below.
+  const clearOtherToasts = useRef<{ stats?: () => void; briefing?: () => void; category?: () => void }>({})
 
   const fetchInboxStatsInner = useCallback(async () => {
+    clearOtherToasts.current.briefing?.()
+    clearOtherToasts.current.category?.()
     const res = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
     if (await handleAuthErr(res, dispatch)) return
     if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
@@ -68,6 +83,8 @@ export function usePanelActions(deps: {
   }, [dispatch])
 
   const loadSuggestionInner = useCallback(async (emailId?: string | null, force = false) => {
+    clearOtherToasts.current.stats?.()
+    clearOtherToasts.current.category?.()
     let resolvedId = emailId
     if (!resolvedId) {
       resolvedId = await resolveMessageId()
@@ -75,26 +92,42 @@ export function usePanelActions(deps: {
     if (!resolvedId) {
       throw new Error('No open Gmail thread detected')
     }
+    // Captured so the async .then() below can't observe a reassigned id.
+    const messageId = resolvedId
     const seq = ++loadSeqRef.current
     dispatch({ type: 'LOAD_BRIEFING' })
     briefingInFlightRef.current = true
     try {
-      let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
+      let raw: PipelineResponse | null = force ? null : await getCachedDraft(messageId)
 
+      // Reset CRM state for this load — always start clean.
       setCrmSuggestions(null)
+      setCrmSubmitted(false)
 
-      // Fire the CRM lookup alongside PROCESS_EMAIL so the two run concurrently;
-      // only worth it on a cold load (a cached draft has no fresh suggestions).
-      const crmSuggestionPromise = !raw
-        ? sendToBackground<CrmSuggestionResult>({ type: 'SUGGEST_CRM_ACTIONS', messageId: resolvedId })
+      // The CRM cache is consulted independently of the draft cache: a cached
+      // draft can pair with a fresh or invalidated CRM entry, and vice versa.
+      const cachedCrm = force ? null : await getCachedCrm(messageId)
+
+      if (cachedCrm) {
+        // Restore instantly — no skeleton, no network call.
+        setCrmSuggestions(cachedCrm.suggestions)
+        setCrmSubmitted(cachedCrm.submitted)
+        setCrmLoading(false)
+      } else {
+        setCrmLoading(true)
+      }
+
+      // Fire the CRM lookup alongside PROCESS_EMAIL so the two run concurrently.
+      const crmSuggestionPromise = !cachedCrm
+        ? sendToBackground<CrmSuggestionResult>({ type: 'SUGGEST_CRM_ACTIONS', messageId })
         : null
 
       if (!raw) {
-        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
+        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId })
         if (await handleAuthErr(res, dispatch)) return
         if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
         raw = res.data
-        await setCachedDraft(resolvedId, raw)
+        await setCachedDraft(messageId, raw)
       }
 
       if (seq !== loadSeqRef.current) return
@@ -111,12 +144,17 @@ export function usePanelActions(deps: {
       if (crmSuggestionPromise) {
         crmSuggestionPromise
           .then((crmRes) => {
-            if (crmRes.ok && crmRes.data.isPausedForApproval) {
-              setCrmSuggestions(crmRes.data)
-            }
+            const suggestions = crmRes.ok && crmRes.data.isPausedForApproval ? crmRes.data : null
+            // Cache keyed by message id, so this is safe even if the SE has
+            // moved on; the state writes below are not, hence the seq guard.
+            void setCachedCrm(messageId, suggestions, false)
+            if (seq !== loadSeqRef.current) return
+            if (suggestions) setCrmSuggestions(suggestions)
+            setCrmLoading(false)
           })
           .catch((err) => {
             console.error('[Copilot] Failed to fetch CRM suggestions:', err)
+            if (seq === loadSeqRef.current) setCrmLoading(false)
           })
       }
     } finally {
@@ -127,6 +165,8 @@ export function usePanelActions(deps: {
   }, [dispatch, resolveMessageId])
 
   const selectCategoryInner = useCallback(async (category: string, data: InboxOverviewData) => {
+    clearOtherToasts.current.stats?.()
+    clearOtherToasts.current.briefing?.()
     dispatch({ type: 'SHOW_CATEGORY_LIST', category, data })
     const res = await sendToBackground<{ emails: EmailRowData[] }>({ type: 'GET_CATEGORIZED_EMAILS', category })
     if (await handleAuthErr(res, dispatch)) return
@@ -158,12 +198,22 @@ export function usePanelActions(deps: {
   const briefingLoader = useAsyncAction(loadSuggestionInner, formatBriefingError)
   const categoryLoader = useAsyncAction(selectCategoryInner, formatCategoryError)
 
+  clearOtherToasts.current = {
+    stats: statsLoader.clearToast,
+    briefing: briefingLoader.clearToast,
+    category: categoryLoader.clearToast,
+  }
+
   const resolveCrmActions = useCallback(async (decisions: CrmDecision[]) => {
     const threadId = crmSuggestions?.threadId
     if (!threadId) return
-    setCrmSuggestions(null)
+    // Mark submitted rather than clearing: the success banner has to survive a
+    // panel collapse/reopen without the action list coming back.
+    setCrmSubmitted(true)
+    const messageId = getCurrentMessageId()
+    if (messageId) void setCachedCrmSubmitted(messageId)
     await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
-  }, [crmSuggestions])
+  }, [crmSuggestions, getCurrentMessageId])
 
   const reportGap = useCallback(async () => {
     const messageId = getCurrentMessageId() ?? await resolveMessageId()
@@ -192,6 +242,8 @@ export function usePanelActions(deps: {
     // background category error.
     toast: statsLoader.toast ?? briefingLoader.toast ?? categoryLoader.toast,
     crmSuggestions,
+    crmLoading,
+    crmSubmitted,
     resolveCrmActions,
     reportGap,
     consumeGraphThreadId,

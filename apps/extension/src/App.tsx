@@ -3,6 +3,7 @@ import { panelReducer, initialPanelState } from './state/panelMachine'
 import { getSession, clearSession } from './state/session'
 import { useGmailContext } from './hooks/useGmailContext'
 import { invalidateDraft } from './lib/draftCache'
+import { invalidateCrm } from './lib/crmCache'
 import { usePanelActions } from './hooks/usePanelActions'
 import { useAuthFlow } from './hooks/useAuthFlow'
 import { useSessionRehydrate } from './hooks/useSessionRehydrate'
@@ -33,6 +34,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     selectCategory,
     toast: activeToast,
     crmSuggestions,
+    crmLoading,
+    crmSubmitted,
     resolveCrmActions,
     reportGap,
     consumeGraphThreadId,
@@ -110,8 +113,13 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // The draft is about to be inserted (and likely sent) — the cached briefing
     // for this message becomes stale the moment the SE replies. Invalidate now
     // so the next open re-asks the backend (which then reports alreadyReplied).
+    // The CRM cache goes with it: its suggestions were derived from the
+    // pre-reply state of the thread.
     const messageId = getCurrentMessageId()
-    if (messageId) void invalidateDraft(messageId)
+    if (messageId) {
+      void invalidateDraft(messageId)
+      void invalidateCrm(messageId)
+    }
     // The graph thread id is consumed (read-once) so it rides this insert only.
     panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', {
       detail: { reply, graphThreadId: consumeGraphThreadId() },
@@ -126,7 +134,6 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // The panel body — left border is 2px with an accent tint so it reads as
   // a clear separator from the Gmail mail list.
   const panelClasses = `
-    relative
     w-[var(--panel-open-width)] h-full flex flex-col
     bg-[var(--color-surface)]
     border-l-2 border-[var(--color-border-focus)]
@@ -156,6 +163,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
         <PanelRouter
           panel={panel}
           crmSuggestions={crmSuggestions}
+          crmLoading={crmLoading}
+          crmSubmitted={crmSubmitted}
           handlers={{
             onClose: handleClose,
             onSignIn: signIn,
