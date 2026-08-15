@@ -256,3 +256,47 @@
   background-size: 200% 200%;
   animation: gradient-shift 3s ease infinite;
 }
+
+/* ── Thinking state (long AI draft) ── */
+/* Glow breathes behind the mascot — the treatment E7 already sanctions. */
+@keyframes think-glow {
+  0%, 100% { opacity: 0.18; transform: scale(0.94); }
+  50%      { opacity: 0.42; transform: scale(1.06); }
+}
+.animate-think-glow {
+  animation: think-glow 2.8s ease-in-out infinite;
+}
+
+/* Mascot drifts, so the panel never looks frozen mid-request. */
+@keyframes think-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.animate-think-float {
+  animation: think-float 3.2s ease-in-out infinite;
+}
+
+/* Status line pulses gently while the text rotates. */
+@keyframes think-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.animate-think-shimmer {
+  animation: think-shimmer 1.8s ease-in-out infinite;
+}
+
+/* ── Reduced motion ──
+   Decoration stops; the rotating status line and step dots remain, since
+   those carry information rather than flourish. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer,
+  .animate-think-glow,
+  .animate-think-float,
+  .animate-think-shimmer,
+  .animate-logo-pulse,
+  .animate-gradient {
+    animation: none;
+  }
+  .animate-think-shimmer { opacity: 1; }
+  .animate-think-glow    { opacity: 0.28; }
+}
