@@ -6,6 +6,7 @@ import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 import { AuthScreen } from './AuthScreen'
 import { InvalidScreen } from './InvalidScreen'
 import { LoadingScreen } from './LoadingScreen'
+import { ThinkingScreen } from './ThinkingScreen'
 import { InboxOverviewScreen } from './InboxOverviewScreen'
 import { EmailCategoryList } from './EmailCategoryList'
 import { BriefingSheet } from './BriefingSheet'
@@ -53,7 +54,9 @@ export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, h
       )
 
     case 'loading':
-      return <LoadingScreen />
+      // The 20s AI draft gets the mascot thinking state; short waits keep
+      // the plain skeleton (DESIGN.md E7).
+      return panel.kind === 'briefing' ? <ThinkingScreen /> : <LoadingScreen />
 
     case 'overview':
       return (

@@ -493,7 +493,8 @@ not Fraunces — the "how many hero moments per screen" rule is unchanged):
 | D8 Analytics | One `numeral-display` hero metric at top; rest of the grid stays `mono` |
 | E2 Login Required / E3 Invalid / E6 Revoked | Full treatment — mascot illustration appropriate to the emotional beat (e.g. a "sleepy" or "locked" mascot pose for Revoked) |
 | E4 Briefing Sheet | Full treatment on client name + confidence scores (Baloo 2 numeral, tier color); rest of sheet stays sans body |
-| E7 Loading | Skeleton + optional subtle animated gradient glow behind mascot (see §6) — no other typographic treatment |
+| E7 Loading (short) | Skeleton + optional subtle animated gradient glow behind mascot (see §6) — no other typographic treatment. Applies to waits under ~2s (e.g. the post-auth inbox-stats fetch) |
+| E7b Loading (long AI operations) | Mascot + gradient glow, one rotating status line, and step dots. Carve-out from E7's "no typographic treatment" rule: `POST /ai/process` runs ~20s, and a silent skeleton for that long reads as stuck rather than working. Copy describes activity only and never claims a finding the frontend cannot verify — see `screens/thinking-copy.ts` |
 
 ---
 

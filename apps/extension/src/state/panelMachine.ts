@@ -14,7 +14,10 @@ export type PanelState =
   | { type: 'collapsed' }
   | { type: 'auth' }
   | { type: 'invalid'; email?: string; errorMsg?: string }
-  | { type: 'loading' }
+  // `kind` separates two very different waits that both land here:
+  // 'quick' is the ~445ms inbox-stats fetch after auth (plain skeleton),
+  // 'briefing' is the ~20s POST /ai/process (mascot thinking state).
+  | { type: 'loading'; kind: 'briefing' | 'quick' }
   | { type: 'overview'; data: InboxOverviewData }
   | {
       type: 'category-list'
@@ -53,9 +56,9 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case 'EXPAND':              return { type: 'auth' }
     case 'COLLAPSE':            return { type: 'collapsed' }
     case 'AUTH_FAILED':         return { type: 'invalid', email: action.email, errorMsg: action.errorMsg }
-    case 'AUTH_SUCCESS':        return { type: 'loading' }
+    case 'AUTH_SUCCESS':        return { type: 'loading', kind: 'quick' }
     case 'REVOKED':             return { type: 'revoked' }
-    case 'LOAD_BRIEFING':       return { type: 'loading' }
+    case 'LOAD_BRIEFING':       return { type: 'loading', kind: 'briefing' }
     case 'SHOW_OVERVIEW':       return { type: 'overview', data: action.data }
     case 'SHOW_CATEGORY_LIST':  return { type: 'category-list', category: action.category, parent: action.data, emails: [], loading: true }
     case 'CATEGORY_LOADING':
