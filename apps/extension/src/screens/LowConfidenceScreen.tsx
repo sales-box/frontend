@@ -5,7 +5,7 @@ import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
-import type { CrmSuggestionResult } from './BriefingSheet'
+import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 
 /** `routing` is always 'red' here — this screen IS the red state. */
 export interface LowConfidenceData extends ClassificationInfo {
@@ -33,7 +33,7 @@ interface LowConfidenceScreenProps {
   onInsertDraft: (reply: string) => void
   onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
-  onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
+  onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
 function formatTimestamp(iso: string): string {

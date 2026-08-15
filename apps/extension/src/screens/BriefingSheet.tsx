@@ -5,6 +5,7 @@ import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
+import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
 
 /**
  * Extends ClassificationInfo so intent, urgency and the supervisor's routing
@@ -24,17 +25,6 @@ export interface BriefingData extends ClassificationInfo {
   suggestedReply: string
 }
 
-export interface CrmSuggestion {
-  index: number
-  summary: string
-}
-
-export interface CrmSuggestionResult {
-  threadId: string
-  isPausedForApproval: boolean
-  suggestions: CrmSuggestion[]
-}
-
 interface BriefingSheetProps {
   data: BriefingData
   onClose: () => void
@@ -42,7 +32,7 @@ interface BriefingSheetProps {
   onInsertInGmail: (reply: string) => void
   onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
-  onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
+  onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
 function formatTimestamp(iso: string): string {
