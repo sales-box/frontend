@@ -231,4 +231,22 @@ describe('derivePipelineScreen', () => {
     expect(out.kind).toBe('low-confidence')
     if (out.kind === 'low-confidence') expect(out.data.dealStatus).toBe('active')
   })
+
+  it('leaves a missing company empty so the UI can omit the placeholder', () => {
+    const out = derivePipelineScreen({
+      draft: { draftText: 'Reply' },
+      confidence: {
+        productConfidence: 0.9,
+        clientHistoryConfidence: 0.9,
+        label: 'auto_worthy',
+      },
+      client: { name: 'Karim', status: 'new_inquiry' },
+    })
+
+    expect(out.kind).toBe('briefing')
+    if (out.kind === 'briefing') {
+      expect(out.data.company).toBe('')
+      expect(out.data.dealStatus).toBe('prospect')
+    }
+  })
 })

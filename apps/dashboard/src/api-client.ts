@@ -406,6 +406,18 @@ export interface KnowledgeGap {
   tenantId: string | null;
   createdAt: string;
   updatedAt: string;
+  evidence: Array<{
+    reportedAt: string;
+    subject: string;
+    summary: string;
+    classification: string | null;
+    emailDate: string;
+    sender: {
+      name: string | null;
+      email: string;
+      company: string | null;
+    };
+  }>;
 }
 
 export interface ActivityEntry {
@@ -443,8 +455,8 @@ export const analytics = {
   gaps: (threshold = 3) =>
     request<KnowledgeGap[]>(`/analytics/gaps/alerts?threshold=${threshold}`),
 
-  reportGap: (topic: string) =>
-    request<KnowledgeGap>("/analytics/gaps", { method: "POST", ...json({ topic }) }),
+  reportGap: (messageId: string) =>
+    request<KnowledgeGap & { reportAdded: boolean }>("/analytics/gaps", { method: "POST", ...json({ messageId }) }),
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Clock, Send, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Clock, Send, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
@@ -15,7 +15,7 @@ export interface BriefingData extends ClassificationInfo {
   clientName: string
   company: string
   role: string
-  /** e.g. "Active deal" | "New prospect" */
+  /** e.g. "Active deal" | "New" */
   dealStatus: 'active' | 'prospect'
   /** ISO timestamp */
   emailTimestamp: string
@@ -41,6 +41,7 @@ interface BriefingSheetProps {
   onRefresh: () => void
   onSend: (reply: string) => void
   onEditInGmail: (reply: string) => void
+  onReportGap: () => Promise<{ occurrences: number; reportAdded: boolean }>
   crmSuggestions?: CrmSuggestionResult | null
   onResolveCrmActions?: (decisions: Array<{ type: 'approve' | 'reject' }>) => void
 }
@@ -66,13 +67,17 @@ function formatTimestamp(iso: string): string {
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
  *
  */
-export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail, crmSuggestions, onResolveCrmActions }: BriefingSheetProps) {
+export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail, onReportGap, crmSuggestions, onResolveCrmActions }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
   // The draft gets its own view, like LowConfidenceScreen. Sharing one screen
   // with the client card, the confidence pills and the CRM list left the reply
   // box a few lines tall with its own scrollbar — the thing the SE actually
   // edits was the smallest element on screen.
   const [view, setView] = useState<'summary' | 'draft'>('summary')
+  const [reported, setReported] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportAdded, setReportAdded] = useState(false)
   // Defaults to 'reject' (ignore) — the user must explicitly approve.
   const [crmDecisions, setCrmDecisions] = useState<Record<number, 'approve' | 'reject'>>(() => {
     const defaults: Record<number, 'approve' | 'reject'> = {}
@@ -91,6 +96,47 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
     }))
     onResolveCrmActions(decisions)
   }
+
+  const handleReportGap = async () => {
+    if (reported || reporting) return
+    setReporting(true)
+    setReportError(null)
+    try {
+      const result = await onReportGap()
+      setReportAdded(result.reportAdded)
+      setReported(true)
+    } catch (err) {
+      console.error('[Copilot] reportKnowledgeGap failed:', err)
+      setReportError('Could not report this gap. Please try again.')
+    } finally {
+      setReporting(false)
+    }
+  }
+
+  const reportControl = reported ? (
+    <p className="flex items-center justify-center gap-1.5 text-small text-[var(--color-success)]">
+      <CheckCircle2 size={12} strokeWidth={1.5} aria-hidden="true" />
+      {reportAdded
+        ? 'Reported to admin ✅'
+        : 'Already reported to admin ✅'}
+    </p>
+  ) : (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        id="ext-report-gap-btn"
+        onClick={handleReportGap}
+        disabled={reporting}
+        className="flex items-center justify-center gap-1.5 text-small text-[var(--color-warning)] hover:text-[var(--color-warning)]/80 transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ fontFamily: 'var(--font-body)' }}
+      >
+        <Flag size={11} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
+        <span className="min-w-0 text-center break-words">{reporting ? 'Reporting…' : 'Report knowledge gap'}</span>
+      </button>
+      {reportError && (
+        <p className="text-small text-[var(--color-danger)] text-center">{reportError}</p>
+      )}
+    </div>
+  )
 
   if (view === 'draft') {
     return (
@@ -135,8 +181,9 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           />
         </div>
 
-        <div className="px-4 py-3 border-t border-[var(--color-border)] flex gap-2.5 flex-shrink-0">
-          <button
+        <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2.5 flex-shrink-0">
+          <div className="flex gap-2.5">
+            <button
             id="ext-send-btn"
             onClick={() => onSend(reply)}
             className="
@@ -153,9 +200,9 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           >
             <Send size={13} strokeWidth={1.5} aria-hidden="true" />
             Send
-          </button>
+            </button>
 
-          <button
+            <button
             id="ext-edit-gmail-btn"
             onClick={() => onEditInGmail(reply)}
             className="
@@ -173,7 +220,9 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           >
             <Edit2 size={13} strokeWidth={1.5} aria-hidden="true" />
             Edit in Gmail
-          </button>
+            </button>
+          </div>
+          {reportControl}
         </div>
       </div>
     )
@@ -202,18 +251,22 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           {data.clientName}
         </h1>
 
-        {/* Company · Role — body text, Inter */}
-        <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
-          <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
-          {data.company}
-          {data.role && <span className="text-[var(--color-text-tertiary)]"> · {data.role}</span>}
-        </p>
+        {/* Company is shown only when it is verified; never render an
+            "Unknown company" placeholder as customer data. */}
+        {(data.company || data.role) && (
+          <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
+            <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
+            {data.company}
+            {data.company && data.role && <span className="text-[var(--color-text-tertiary)]"> · </span>}
+            {data.role && <span className="text-[var(--color-text-tertiary)]">{data.role}</span>}
+          </p>
+        )}
 
         {/* Deal status badge + timestamp */}
         <div className="flex items-center justify-between gap-2">
           <Badge variant={data.dealStatus === 'active' ? 'success' : 'muted'}>
             <Star size={9} strokeWidth={1.5} aria-hidden="true" />
-            {data.dealStatus === 'active' ? 'Active deal' : 'New prospect'}
+            {data.dealStatus === 'active' ? 'Active deal' : 'New'}
           </Badge>
           <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1 flex-shrink-0">
             <Clock size={10} strokeWidth={1.5} aria-hidden="true" />
@@ -362,7 +415,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
       {/* ── Footer ── one route onward: open the draft. Ghost, not ink — the
            primary action is Send, and Send lives next to the text it sends.
            Same treatment as LowConfidenceScreen so the two screens read alike. */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)] flex-shrink-0">
+      <div className="px-4 py-3 border-t border-[var(--color-border)] flex flex-col gap-2.5 flex-shrink-0">
         <button
           id="ext-view-draft-btn"
           onClick={() => setView('draft')}
@@ -381,6 +434,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           <span className="min-w-0 flex-1 text-center break-words">View AI draft</span>
           <ArrowRight size={13} strokeWidth={1.5} className="flex-shrink-0" aria-hidden="true" />
         </button>
+        {reportControl}
       </div>
     </div>
   )

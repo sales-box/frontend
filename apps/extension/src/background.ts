@@ -114,20 +114,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     ;(async () => {
       let status: number | undefined
       try {
+        const { jwt } = await chrome.storage.local.get('jwt')
+        if (!jwt) {
+          sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
+          return
+        }
         const res = await fetch(`${API_BASE}/analytics/gaps`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${msg.jwt}`,
+            'Authorization': `Bearer ${jwt}`,
           },
-          body: JSON.stringify({ topic: msg.topic }),
+          body: JSON.stringify({ messageId: msg.messageId }),
         })
         status = res.status
         if (!res.ok) {
           sendResponse({ error: `REPORT_KNOWLEDGE_GAP failed: ${res.status} ${res.statusText}`, status: res.status })
           return
         }
-        sendResponse({ success: true, status: res.status })
+        const data = await res.json()
+        sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] REPORT_KNOWLEDGE_GAP Error:', err)
         sendResponse({ error: err instanceof Error ? err.message : String(err), status })
