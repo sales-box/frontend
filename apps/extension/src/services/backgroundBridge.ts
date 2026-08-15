@@ -5,11 +5,14 @@ import { clearSession } from '../state/session'
 export type BgRequest =
   | { type: 'GET_INBOX_STATS' }
   | { type: 'PROCESS_EMAIL'; messageId: string }
+  | { type: 'SUBMIT_FEEDBACK'; graphThreadId: string; content: string }
   | { type: 'GET_CATEGORIZED_EMAILS'; category: string }
   | { type: 'GET_SE_AUTH_CODE' }
   | { type: 'SE_LOGIN'; code: string; redirectUri: string }
   | { type: 'GET_AUTH_ME'; jwt: string }
-  | { type: 'REPORT_KNOWLEDGE_GAP'; jwt: string; topic: string }
+  | { type: 'REPORT_KNOWLEDGE_GAP'; messageId: string }
+  | { type: 'SUGGEST_CRM_ACTIONS'; messageId: string }
+  | { type: 'RESUME_CRM_ACTIONS'; threadId: string; decisions: Array<{ type: 'approve' | 'reject' }> }
 
 export type BgResponse<T> =
   | { ok: true; data: T }

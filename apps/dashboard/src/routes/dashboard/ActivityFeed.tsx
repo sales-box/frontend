@@ -1,15 +1,13 @@
-import { Activity } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Activity, Calendar, Loader2 } from "lucide-react";
+import { useState } from "react";
 import type { Screen } from "../../types";
-import { analytics } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
-import { useToast } from "../../components/Toast";
-
+import { useActivityFeed } from "../../hooks/queries";
 
 export interface ActivityRow {
   id: string;
@@ -17,7 +15,7 @@ export interface ActivityRow {
   client: string;
   company: string;
   classification: string | null;
-  confidence: number | null; 
+  confidence: number | null;
   action: string | null;
 }
 
@@ -33,33 +31,50 @@ function actionColor(action: string | null) {
   return "text-warning";
 }
 
+function formatTime(raw: string): string {
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function toDateInput(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 const COLS = "grid grid-cols-[80px_1fr_1fr_140px_100px_100px] gap-3";
+const LIMIT = 20;
 
 export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
-  const toast = useToast();
-  const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [date, setDate] = useState(toDateInput(new Date()));
 
-  useEffect(() => {
-    let cancelled = false;
-    analytics.getActivity(1, 50)
-      .then((result) => {
-        if (cancelled) return;
-        setRows(result.data as ActivityRow[]);
-      })
-      .catch(() => {
-        if (!cancelled) toast("Failed to load activity feed");
-      });
-    return () => { cancelled = true; };
-  }, []);
+  const { data, isLoading, isError } = useActivityFeed(page, LIMIT, date);
 
-
+  const rows: ActivityRow[] = (data?.data ?? []) as ActivityRow[];
+  const meta = data?.meta;
+  const totalPages = meta ? Math.ceil(meta.total / meta.limit) : 1;
 
   return (
     <Shell active="activity-feed" onNav={onNav} onLogout={onLogout}>
       <div className="max-w-[72rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
         <PageHeader
           title="Activity Feed"
-          subtitle="All emails processed today across your Sales Engineers."
+          subtitle="All emails processed across your Sales Engineers."
+          actions={
+            <div className="flex items-center gap-2">
+              <Calendar size={16} strokeWidth={1.5} className="text-text-tertiary" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => { setDate(e.target.value); setPage(1); }}
+                className={`text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 text-text-primary ${focusRing}`}
+              />
+            </div>
+          }
         />
 
         <Reveal>
@@ -68,10 +83,17 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
               <Activity size={18} strokeWidth={1.5} className="text-primary" />
             </div>
-            <h2 className="text-subheading text-text-primary">Today's Activity</h2>
+            <h2 className="text-subheading text-text-primary">Activity</h2>
+            {meta && <span className="text-xs text-text-tertiary ml-auto">{meta.total} total</span>}
           </div>
 
-          {rows.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 size={28} strokeWidth={1.5} className="animate-spin text-primary" />
+            </div>
+          ) : isError ? (
+            <div className="px-5 py-10 text-center text-sm text-danger">Failed to load activity feed.</div>
+          ) : rows.length === 0 ? (
             <EmptyState
               title="No activity yet"
               description="Emails processed by your Sales Engineers will appear here as they come in."
@@ -95,7 +117,7 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                       onClick={() => onNav("clients")}
                       className={`${COLS} px-5 py-3.5 items-center hover:bg-surface-secondary/30 transition-colors cursor-pointer ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}
                     >
-                      <span className="text-xs text-text-tertiary font-mono">{row.time}</span>
+                      <span className="text-xs text-text-tertiary font-mono">{formatTime(row.time)}</span>
                       <span className="text-[13px] font-medium text-text-primary truncate">{row.client}</span>
                       <span className="text-[13px] text-text-secondary truncate">{row.company}</span>
                       <span>{row.classification && <Badge variant="muted">{row.classification}</Badge>}</span>
@@ -107,6 +129,26 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+              >
+                Previous
+              </button>
+              <span className="text-xs text-text-tertiary">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+              >
+                Next
+              </button>
             </div>
           )}
         </Card>

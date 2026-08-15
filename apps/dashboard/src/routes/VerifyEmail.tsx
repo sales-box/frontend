@@ -13,7 +13,8 @@ export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
   const [searchParams] = useSearchParams();
   const [resent, setResent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const emailParam = searchParams.get("email") ?? "";
+  const emailParam = searchParams.get("email") ?? sessionStorage.getItem("pendingEmail") ?? "";
+  const companyParam = sessionStorage.getItem("pendingCompanyName") ?? "";
   const tokenParam = searchParams.get("token");
 
   useEffect(() => {
@@ -34,9 +35,13 @@ export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
   }, [cooldown]);
 
   const resend = () => {
-    tenants.signup({ companyName: "", adminEmail: emailParam, adminName: "" }).catch(() => {});
-    setResent(true);
-    setCooldown(30);
+    if (!emailParam) return;
+    tenants.resendVerification({ email: emailParam, companyName: companyParam || undefined })
+      .then(() => {
+        setResent(true);
+        setCooldown(30);
+      })
+      .catch(() => {});
   };
 
   return (

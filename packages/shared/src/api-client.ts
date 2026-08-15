@@ -40,21 +40,25 @@ export async function getAuthMe(jwt: string): Promise<{ tenantId: string; email:
 
 /**
  * Report a knowledge gap to the admin.
- * Real endpoint: POST /analytics/gaps, body { topic: string }, Bearer JWT auth.
- * Fails silently on error — this is a nice-to-have action.
+ * The server resolves the tenant-scoped Interaction and derives the stable
+ * category; callers cannot choose arbitrary topic text.
  */
-export async function reportKnowledgeGap(jwt: string, topic: string): Promise<void> {
+export async function reportKnowledgeGap(
+  jwt: string,
+  messageId: string,
+): Promise<{ occurrences: number; reportAdded: boolean }> {
   const res = await fetch(`${API_BASE}/analytics/gaps`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${jwt}`,
     },
-    body: JSON.stringify({ topic }),
+    body: JSON.stringify({ messageId }),
   })
   if (!res.ok) {
     throw new Error(`reportKnowledgeGap failed: ${res.status} ${res.statusText}`)
   }
+  return res.json() as Promise<{ occurrences: number; reportAdded: boolean }>
 }
 
 /**

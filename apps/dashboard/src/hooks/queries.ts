@@ -98,7 +98,11 @@ export function useOffboard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => allowlist.offboard(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["allowlist"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+      qc.invalidateQueries({ queryKey: ["tenant"] });
+    },
   });
 }
 
@@ -116,7 +120,10 @@ export function useConnectCrm() {
   return useMutation({
     mutationFn: ({ provider, apiKey }: { provider: string; apiKey: string }) =>
       crm.connect(provider, apiKey),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm-status"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
 }
 
@@ -128,6 +135,29 @@ export function useDisconnectCrm() {
       qc.invalidateQueries({ queryKey: ["crm-status"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
     },
+  });
+}
+
+export function useMcpStatus() {
+  return useQuery({
+    queryKey: ["mcp-status"],
+    queryFn: () => crm.mcpStatus(),
+  });
+}
+
+export function useConnectZohoMcp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (mcpServerUrl: string) => crm.connectMcp(mcpServerUrl),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
+  });
+}
+
+export function useDisconnectZohoMcp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.disconnectMcp(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
   });
 }
 
@@ -159,5 +189,12 @@ export function useResolveGap() {
   return useMutation({
     mutationFn: (id: string) => analytics.resolveGap(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["gaps"] }),
+  });
+}
+
+export function useActivityFeed(page: number, limit: number, date?: string) {
+  return useQuery({
+    queryKey: ["activity-feed", page, limit, date],
+    queryFn: () => analytics.getActivity(page, limit, date),
   });
 }

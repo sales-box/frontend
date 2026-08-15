@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import type { Screen } from "./types";
 import { useAuthStore } from "./store/auth";
@@ -22,10 +22,11 @@ import { ActivityFeed } from "./routes/dashboard/ActivityFeed";
 import { Settings } from "./routes/dashboard/Settings";
 import { Plans } from "./routes/dashboard/Plans";
 import { ExtensionDownload } from "./routes/ExtensionDownload";
-import { Checkout } from "./routes/Checkout";
 import { Privacy } from "./routes/Privacy";
 import { Terms } from "./routes/Terms";
 import { Security } from "./routes/Security";
+
+const Checkout = lazy(() => import("./routes/Checkout").then(m => ({ default: m.Checkout })));
 
 const PATHS: Record<Screen, string> = {
   landing: "/",
@@ -73,7 +74,7 @@ export default function App() {
         <Route path="/verify" element={<VerifyEmail onNav={onNav} />} />
         <Route path="/callback" element={<AuthCallback onNav={onNav} />} />
         <Route path="/set-password" element={<SetPassword onNav={onNav} />} />
-        <Route path="/checkout" element={<Checkout onNav={onNav} />} />
+        <Route path="/checkout" element={<Suspense fallback={<div className="min-h-dvh flex items-center justify-center text-sm text-text-tertiary">Loading…</div>}><Checkout onNav={onNav} /></Suspense>} />
         {/* Public extension download page — NO ProtectedRoute, intentionally.
             SEs reach this from their invite email. They have no dashboard login.
             DO NOT nest inside /dashboard or wrap in <ProtectedRoute>. */}

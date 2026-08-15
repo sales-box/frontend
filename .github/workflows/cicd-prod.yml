@@ -88,11 +88,17 @@ jobs:
         with:
           host: ${{ secrets.EC2_PROD_HOST }}
           username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd /home/ec2-user/app
+            [ -f .env ] && [ -n "$(tail -c 1 .env)" ] && echo "" >> .env
+            if grep -q "^FRONTEND_IMAGE_TAG=" .env 2>/dev/null; then
+              sed -i "s/^FRONTEND_IMAGE_TAG=.*/FRONTEND_IMAGE_TAG=${{ github.sha }}/" .env
+            else
+              echo "FRONTEND_IMAGE_TAG=${{ github.sha }}" >> .env
+            fi
             export FRONTEND_IMAGE_TAG="${{ github.sha }}"
             docker compose pull frontend
             docker compose up -d --force-recreate frontend
             docker image prune -af
-            ./scripts/inspect.sh --frontend "${{ github.sha }}"
+            ./scripts/inspect.sh --env prod --frontend "${{ github.sha }}"

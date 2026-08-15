@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useRef } from 'react'
+import { useReducer, useCallback, useRef, useState } from 'react'
 import { panelReducer, initialPanelState } from './state/panelMachine'
 import { getSession, setSession, clearSession } from './state/session'
 import { useGmailContext } from './hooks/useGmailContext'
@@ -40,12 +40,31 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
   // two rapid thread opens race and the slower response wins — rendering the
   // wrong email's briefing (the flicker).
   const loadSeqRef = useRef(0)
+  // True while a briefing is being fetched. Gmail fires a second `hashchange`
+  // shortly after a thread opens, and on that tick the URL can momentarily read
+  // as "not in a thread" — which sent fetchStats through and replaced the
+  // loading skeleton with the inbox overview mid-request. On a cold email the
+  // pipeline takes tens of seconds, so the overview sat there until the
+  // briefing finally resolved and swapped itself back in.
+  const briefingInFlightRef = useRef(false)
+  const graphThreadIdRef = useRef<string | null>(null)
+
+  // CRM actions — populated non-blocking after the briefing renders
+  type CrmSuggestionResult = {
+    threadId: string
+    isPausedForApproval: boolean
+    suggestions: { index: number; summary: string }[]
+  }
+  const [crmSuggestions, setCrmSuggestions] = useState<CrmSuggestionResult | null>(null)
 
   const fetchInboxStatsInner = useCallback(async () => {
     const res = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
     if (await handleAuthErr(res, dispatch)) return
     if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
     await setSession({ cachedInboxStats: res.data })
+    // Cache the stats either way, but never navigate away from a briefing the
+    // user is already waiting on.
+    if (briefingInFlightRef.current) return
     dispatch({
       type: 'SHOW_OVERVIEW',
       data: res.data,
@@ -62,21 +81,48 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     }
     const seq = ++loadSeqRef.current
     dispatch({ type: 'LOAD_BRIEFING' })
-    let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
-    if (!raw) {
-      const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
-      if (await handleAuthErr(res, dispatch)) return
-      if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
-      raw = res.data
-      await setCachedDraft(resolvedId, raw)
+    briefingInFlightRef.current = true
+    try {
+      let raw: PipelineResponse | null = force ? null : await getCachedDraft(resolvedId)
+
+      setCrmSuggestions(null)
+
+      const crmSuggestionPromise = !raw ? sendToBackground<CrmSuggestionResult>({
+        type: 'SUGGEST_CRM_ACTIONS',
+        messageId: resolvedId,
+      }) : null;
+
+      if (!raw) {
+        const res = await sendToBackground<PipelineResponse>({ type: 'PROCESS_EMAIL', messageId: resolvedId })
+        if (await handleAuthErr(res, dispatch)) return
+        if (!res.ok) throw new Error(res.kind === 'error' ? res.message : res.kind)
+        raw = res.data
+        await setCachedDraft(resolvedId, raw)
+      }
+
+      if (seq !== loadSeqRef.current) return
+
+      graphThreadIdRef.current = raw.graphThreadId ?? null
+
+      const derived = derivePipelineScreen(raw)
+      if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
+      else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
+      else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
+
+      if(crmSuggestionPromise) {
+        crmSuggestionPromise.then((crmRes) => {
+          if (crmRes.ok && crmRes.data.isPausedForApproval) {
+            setCrmSuggestions(crmRes.data)
+          }
+        }).catch((err) => {
+          console.error('[Copilot] Failed to fetch CRM suggestions:', err)
+        })
+      }
+    } finally {
+      // Only the newest load clears the flag — an older, superseded run must not
+      // reopen the door while its replacement is still fetching.
+      if (seq === loadSeqRef.current) briefingInFlightRef.current = false
     }
-
-    if (seq !== loadSeqRef.current) return
-
-    const derived = derivePipelineScreen(raw)
-    if (derived.kind === 'replied')          dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
-    else if (derived.kind === 'briefing')    dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
-    else                                     dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
   }, [resolveMessageId])
 
   const selectCategoryInner = useCallback(async (category: string, data: InboxOverviewData) => {
@@ -252,8 +298,31 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     // so the next open re-asks the backend (which then reports alreadyReplied).
     const messageId = getCurrentMessageId()
     if (messageId) void invalidateDraft(messageId)
-    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply } }))
+    panelHost?.dispatchEvent(new CustomEvent('copilot:edit-in-gmail', { detail: { reply, graphThreadId: graphThreadIdRef.current } }))
+    graphThreadIdRef.current = null
   }, [panelHost, getCurrentMessageId])
+
+  const handleResolveCrmActions = useCallback(async (
+    decisions: Array<{ type: 'approve' | 'reject' }>,
+  ) => {
+    const threadId = crmSuggestions?.threadId
+    if (!threadId) return
+    setCrmSuggestions(null)
+    await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
+  }, [crmSuggestions])
+
+  const handleReportGap = useCallback(async () => {
+    const messageId = getCurrentMessageId() ?? await resolveMessageId()
+    if (!messageId) throw new Error('No open Gmail thread detected')
+    const result = await sendToBackground<{
+      occurrences: number
+      reportAdded: boolean
+    }>({ type: 'REPORT_KNOWLEDGE_GAP', messageId })
+    if (!result.ok) {
+      throw new Error(result.kind === 'error' ? result.message : result.kind)
+    }
+    return result.data
+  }, [getCurrentMessageId, resolveMessageId])
 
   const activeToast = fetchStats.toast ?? briefingLoader.toast ?? categoryLoader.toast
 
@@ -338,6 +407,9 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onClose={handleClose}
                   onRefresh={handleRefresh}
                   onInsertInGmail={handleEditInGmail}
+                  onReportGap={handleReportGap}
+                  crmSuggestions={crmSuggestions}
+                  onResolveCrmActions={handleResolveCrmActions}
                 />
               )
 
@@ -349,9 +421,9 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
                   onRefresh={handleRefresh}
                   onComposeManually={() => handleEditInGmail('')}
                   onInsertDraft={(reply) => handleEditInGmail(reply)}
-                  onUploadDoc={() => {
-                    chrome.tabs.create({ url: 'https://dashboard.inboxcopilot.ai/knowledge' })
-                  }}
+                  onReportGap={handleReportGap}
+                  crmSuggestions={crmSuggestions}
+                  onResolveCrmActions={handleResolveCrmActions}
                 />
               )
 

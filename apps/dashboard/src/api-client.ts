@@ -29,9 +29,15 @@ function getMockDataForUrl(url: string): any {
   if (url.startsWith("/tenants/signup")) {
     return { message: "Signup successful" };
   }
+  if (url.startsWith("/tenants/resend-verification")) {
+    return { message: "Verification email resent" };
+  }
   if (url.includes("/tenants/")) {
     if (url.endsWith("/crm/status")) {
       return { connected: true, status: "connected", provider: "HubSpot", lastSync: new Date().toISOString() };
+    }
+    if (url.endsWith("/crm/mcp-status")) {
+      return { connected: false };
     }
     if (url.endsWith("/allowlist")) {
       return [
@@ -172,6 +178,11 @@ export interface SignupPayload {
   adminName?: string;
 }
 
+export interface ResendVerificationPayload {
+  email: string;
+  companyName?: string;
+}
+
 export interface Tenant {
   id: string;
   companyName: string;
@@ -182,6 +193,9 @@ export interface Tenant {
 export const tenants = {
   signup: (data: SignupPayload) =>
     request<{ message: string }>("/tenants/signup", { method: "POST", ...json(data) }),
+
+  resendVerification: (data: ResendVerificationPayload) =>
+    request<{ message: string }>("/tenants/resend-verification", { method: "POST", ...json(data) }),
 
   verify: (token: string, email: string) =>
     request<{ message: string; tenantId: string }>(
@@ -334,6 +348,11 @@ export interface CRMStatus {
   lastSync?: string | null;
 }
 
+export interface ZohoMcpStatus {
+  connected: boolean;
+  updatedAt?: string;
+}
+
 export const crm = {
   status: (id?: string) =>
     request<CRMStatus>(`/tenants/${id ?? tenantId()}/crm/status`),
@@ -347,6 +366,21 @@ export const crm = {
   disconnect: (id?: string) =>
     request<{ message: string; removedClients: number; status: string }>(
       `/tenants/${id ?? tenantId()}/crm/disconnect`,
+      { method: "DELETE" }
+    ),
+
+  mcpStatus: (id?: string) =>
+    request<ZohoMcpStatus>(`/tenants/${id ?? tenantId()}/crm/mcp-status`),
+
+  connectMcp: (mcpServerUrl: string, id?: string) =>
+    request<{ message: string; connected: boolean; mcpServerUrl: string }>(
+      `/tenants/${id ?? tenantId()}/crm/connect-mcp`,
+      { method: "POST", ...json({ mcpServerUrl }) }
+    ),
+
+  disconnectMcp: (id?: string) =>
+    request<{ message: string; connected: boolean }>(
+      `/tenants/${id ?? tenantId()}/crm/disconnect-mcp`,
       { method: "DELETE" }
     ),
 };
@@ -372,6 +406,18 @@ export interface KnowledgeGap {
   tenantId: string | null;
   createdAt: string;
   updatedAt: string;
+  evidence: Array<{
+    reportedAt: string;
+    subject: string;
+    summary: string;
+    classification: string | null;
+    emailDate: string;
+    sender: {
+      name: string | null;
+      email: string;
+      company: string | null;
+    };
+  }>;
 }
 
 export interface ActivityEntry {
@@ -409,8 +455,8 @@ export const analytics = {
   gaps: (threshold = 3) =>
     request<KnowledgeGap[]>(`/analytics/gaps/alerts?threshold=${threshold}`),
 
-  reportGap: (topic: string) =>
-    request<KnowledgeGap>("/analytics/gaps", { method: "POST", ...json({ topic }) }),
+  reportGap: (messageId: string) =>
+    request<KnowledgeGap & { reportAdded: boolean }>("/analytics/gaps", { method: "POST", ...json({ messageId }) }),
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),

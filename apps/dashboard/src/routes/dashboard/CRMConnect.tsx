@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Database, Link2, RefreshCw, CheckCircle2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { useCrmStatus, useConnectCrm, useDisconnectCrm } from "../../hooks/queries";
+import {
+  useCrmStatus,
+  useConnectCrm,
+  useDisconnectCrm,
+  useMcpStatus,
+  useConnectZohoMcp,
+  useDisconnectZohoMcp,
+} from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -13,14 +20,24 @@ import { useToast } from "../../components/Toast";
 
 export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
+  // HubSpot modal state
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
   const [importedCount, setImportedCount] = useState<number | null>(null);
 
+  // Zoho MCP modal state
+  const [showMcpModal, setShowMcpModal] = useState(false);
+  const [mcpUrl, setMcpUrl] = useState("");
+  const [mcpUrlTouched, setMcpUrlTouched] = useState(false);
+
   const { data: status } = useCrmStatus();
   const connectCrm = useConnectCrm();
   const disconnectCrm = useDisconnectCrm();
+
+  const { data: mcpStatus } = useMcpStatus();
+  const connectMcp = useConnectZohoMcp();
+  const disconnectMcp = useDisconnectZohoMcp();
 
   const connected = status?.connected ?? false;
   const connecting = connectCrm.isPending;
@@ -30,6 +47,15 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     : null;
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
+
+  const mcpConnected = mcpStatus?.connected ?? false;
+  const mcpConnecting = connectMcp.isPending;
+  const mcpDisconnecting = disconnectMcp.isPending;
+  const mcpUrlError = !mcpUrl.trim()
+    ? "MCP Server URL is required"
+    : !mcpUrl.startsWith("http://") && !mcpUrl.startsWith("https://")
+    ? "Must be a valid URL (http:// or https://)"
+    : "";
 
   const submitConnect = async () => {
     setKeyTouched(true);
@@ -45,6 +71,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       toast("Failed to connect to HubSpot");
     }
   };
+
   const disconnect = async () => {
     try {
       await disconnectCrm.mutateAsync();
@@ -52,6 +79,29 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       toast("HubSpot disconnected");
     } catch {
       toast("Failed to disconnect HubSpot");
+    }
+  };
+
+  const submitConnectMcp = async () => {
+    setMcpUrlTouched(true);
+    if (mcpUrlError || mcpConnecting) return;
+    try {
+      await connectMcp.mutateAsync(mcpUrl.trim());
+      toast("Zoho MCP connected successfully");
+      setShowMcpModal(false);
+      setMcpUrl("");
+      setMcpUrlTouched(false);
+    } catch {
+      toast("Failed to connect Zoho MCP");
+    }
+  };
+
+  const disconnectZohoMcp = async () => {
+    try {
+      await disconnectMcp.mutateAsync();
+      toast("Zoho MCP disconnected");
+    } catch {
+      toast("Failed to disconnect Zoho MCP");
     }
   };
 
@@ -66,6 +116,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* HubSpot Card */}
           <Card className={`p-6 ${connected ? "ring-1 ring-success" : ""}`}>
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
@@ -100,23 +151,36 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             )}
           </Card>
 
-          {/* Zoho — legible even though disabled: muted CTA, not a dimmed card */}
-          <Card className="p-6">
+          {/* Zoho MCP Card */}
+          <Card className={`p-6 ${mcpConnected ? "ring-1 ring-success" : ""}`}>
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-surface-secondary border border-border flex items-center justify-center">
                   <span className="text-accent-cool font-bold text-[13px] font-mono">Zo</span>
                 </div>
-                <div><div className="text-sm font-semibold text-text-primary">Zoho</div><div className="text-xs text-text-tertiary">CRM</div></div>
+                <div><div className="text-sm font-semibold text-text-primary">Zoho (via MCP)</div><div className="text-xs text-text-tertiary">CRM Agent</div></div>
               </div>
-              <Badge variant="muted">Coming soon</Badge>
+              {mcpConnected ? <Badge variant="success"><CheckCircle2 size={11} strokeWidth={1.5} /> Connected</Badge> : <Badge variant="muted">Not connected</Badge>}
             </div>
-            <p className="text-xs text-text-tertiary leading-relaxed mb-4">Zoho integration available Q4 2026.</p>
-            <Btn variant="secondary" size="sm" disabled aria-label="Connect Zoho — coming soon">Connect Zoho</Btn>
+
+            {mcpConnected ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[13px] text-success"><CheckCircle2 size={13} strokeWidth={1.5} /> Connected to Zoho MCP</div>
+                <Btn variant="secondary" size="sm" loading={mcpDisconnecting} onClick={disconnectZohoMcp}>Disconnect</Btn>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Connect your presigned Zoho MCP Server URL to enable multi-action CRM workflows.</p>
+                <Btn variant="primary" size="sm" onClick={() => setShowMcpModal(true)}>
+                  <Link2 size={13} strokeWidth={1.5} /> Connect Zoho MCP
+                </Btn>
+              </div>
+            )}
           </Card>
         </div>
       </div>
 
+      {/* HubSpot Modal */}
       <Modal
         open={showKeyModal}
         onClose={() => { setShowKeyModal(false); setApiKey(""); setKeyTouched(false); }}
@@ -136,6 +200,30 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
           onBlur={() => setKeyTouched(true)}
           error={keyTouched ? keyError : undefined}
           hint="Find your key in HubSpot → Settings → Integrations → Private Apps."
+          autoComplete="off"
+        />
+      </Modal>
+
+      {/* Zoho MCP Modal */}
+      <Modal
+        open={showMcpModal}
+        onClose={() => { setShowMcpModal(false); setMcpUrl(""); setMcpUrlTouched(false); }}
+        title="Connect Zoho MCP"
+        footer={
+          <>
+            <Btn variant="secondary" size="sm" onClick={() => { setShowMcpModal(false); setMcpUrl(""); setMcpUrlTouched(false); }}>Cancel</Btn>
+            <Btn variant="primary" size="sm" loading={mcpConnecting} onClick={submitConnectMcp}>
+              {mcpConnecting ? "Connecting…" : "Connect"}
+            </Btn>
+          </>
+        }
+      >
+        <FormInput
+          label="Zoho MCP Server Presigned URL" type="url" placeholder="https://crm-data-metadata-....zohomcp.com/mcp/..." required
+          value={mcpUrl} onChange={setMcpUrl}
+          onBlur={() => setMcpUrlTouched(true)}
+          error={mcpUrlTouched ? mcpUrlError : undefined}
+          hint="Paste the presigned URL provided by your Zoho MCP service."
           autoComplete="off"
         />
       </Modal>

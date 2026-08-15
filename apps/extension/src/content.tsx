@@ -173,6 +173,32 @@ function getCurrentGmailAccount(): string | null {
   return (m[1] ?? m[0]).toLowerCase()
 }
 
+function showFeedbackToast(message: string) {
+  const toast = document.createElement('div')
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10000;
+    background-color: #1e293b;
+    color: #f8fafc;
+    padding: 12px 18px;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    transition: opacity 0.3s ease;
+  `
+  toast.textContent = message
+  document.body.appendChild(toast)
+
+  setTimeout(() => {
+    toast.style.opacity = '0'
+    setTimeout(() => toast.remove(), 300)
+  }, 4000)
+}
+
 // ── Detect + inject ─────────────────────────────────────────────────────────
 function mount() {
   // Avoid double injection
@@ -225,9 +251,9 @@ function mount() {
   })
 
   host.addEventListener('copilot:edit-in-gmail', (e: Event) => {
-    const { reply } = (e as CustomEvent).detail
+    const { reply, graphThreadId } = (e as CustomEvent).detail
     
-    const insertReply = (el: HTMLDivElement) => {
+    const insertReplyAndAttachFeedback = (el: HTMLDivElement) => {
       el.focus()
       if (reply) {
         const range = document.createRange()
@@ -244,12 +270,54 @@ function mount() {
           el.dispatchEvent(new Event('input', { bubbles: true }))
         }
       }
+
+      if (graphThreadId) {
+        setTimeout(() => {
+          const sendBtn = document.querySelector(
+            'div[role="button"][aria-label*="Send"], div[data-tooltip*="Send"]',
+          )
+          if (sendBtn) {
+            sendBtn.addEventListener(
+              'click',
+              () => {
+                const finalContent = (el.innerText || el.textContent || '').trim()
+                if (!finalContent) {
+                  console.warn('[Copilot] Compose box empty, skipping feedback submission')
+                  return
+                }
+
+                console.log('[Copilot] Submitting feedback for graphThreadId:', graphThreadId)
+                console.log('[Copilot] Edited content:', finalContent)
+
+                chrome.runtime.sendMessage(
+                  {
+                    type: 'SUBMIT_FEEDBACK',
+                    graphThreadId,
+                    content: finalContent,
+                  },
+                  (res) => {
+                    if (res && res.memoryUpdated) {
+                      console.log('[Copilot] Feedback processed: new memory learned')
+                      showFeedbackToast('🧠 Preferences learned from your edited reply!')
+                    } else if (res && !res.error) {
+                      console.log('[Copilot] Feedback processed: draft unchanged')
+                    } else if (res && res.error) {
+                      console.error('[Copilot] Feedback submission error:', res.error)
+                    }
+                  },
+                )
+              },
+              { once: true },
+            )
+          }
+        }, 200)
+      }
     }
 
     let composeEl = document.querySelector('div[contenteditable="true"]') as HTMLDivElement | null
 
     if (composeEl) {
-      insertReply(composeEl)
+      insertReplyAndAttachFeedback(composeEl)
     } else {
       let replyBtn = document.querySelector('span.ams, div[role="button"][aria-label^="Reply"], div[role="button"][aria-label="Reply"]') as HTMLElement | null
       
@@ -269,7 +337,7 @@ function mount() {
         setTimeout(() => {
           composeEl = document.querySelector('div[contenteditable="true"]') as HTMLDivElement | null
           if (composeEl) {
-            insertReply(composeEl)
+            insertReplyAndAttachFeedback(composeEl)
           } else {
             console.warn('[Copilot] Compose box not found after clicking Reply')
           }

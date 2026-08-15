@@ -44,7 +44,28 @@ function useChartColors() {
   return colors;
 }
 
-type Gap = { id?: string; topic: string; occurrences: number; resolved: boolean; tenantId?: string | null; createdAt: string; updatedAt?: string };
+type GapEvidence = {
+  subject: string;
+  summary: string;
+  classification: string | null;
+  emailDate: string;
+  sender: { name: string | null; email: string; company: string | null };
+};
+
+type Gap = {
+  id?: string;
+  topic: string;
+  occurrences: number;
+  resolved: boolean;
+  tenantId?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  evidence?: GapEvidence[];
+};
+
+function gapTitle(topic: string): string {
+  return topic.replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
 
 export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -55,7 +76,9 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     border: `1px solid ${c.border}`, background: c.surface, color: c.text,
   };
   const summary = useAnalyticsSummary(WINDOW_DAYS);
-  const gapsQuery = useKnowledgeGaps();
+  // Show the admin every real report immediately. Occurrence count still
+  // communicates priority; hiding counts 1-2 made "Reported to admin" false.
+  const gapsQuery = useKnowledgeGaps(1);
   const teamStatsQuery = useTeamStats();
   const resolveMutation = useResolveGap();
   const tenantQuery = useTenant();
@@ -204,25 +227,41 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
           ) : (
             <div className="divide-y divide-border">
               {gaps.map(g => (
-                <div key={g.topic} className={`flex items-center gap-3 py-3 flex-wrap transition-opacity duration-300 ${g.resolved ? "opacity-60" : ""}`}>
-                  {g.resolved
-                    ? <CheckCircle2 size={15} strokeWidth={1.5} className="text-success" />
-                    : <AlertTriangle size={15} strokeWidth={1.5} className={gapSeverity(g.occurrences) === "danger" ? "text-danger" : gapSeverity(g.occurrences) === "warning" ? "text-warning" : "text-text-tertiary"} />
-                  }
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-[13px] font-medium ${g.resolved ? "line-through text-text-tertiary" : "text-text-primary"}`}>{g.topic}</div>
-                    <div className="text-xs text-text-tertiary mt-0.5 font-mono">First seen {g.createdAt}</div>
+                <div key={g.topic} className={`py-3 transition-opacity duration-300 ${g.resolved ? "opacity-60" : ""}`}>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {g.resolved
+                      ? <CheckCircle2 size={15} strokeWidth={1.5} className="text-success" />
+                      : <AlertTriangle size={15} strokeWidth={1.5} className={gapSeverity(g.occurrences) === "danger" ? "text-danger" : gapSeverity(g.occurrences) === "warning" ? "text-warning" : "text-text-tertiary"} />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13px] font-medium ${g.resolved ? "line-through text-text-tertiary" : "text-text-primary"}`}>{gapTitle(g.topic)}</div>
+                      <div className="text-xs text-text-tertiary mt-0.5 font-mono">First seen {new Date(g.createdAt).toLocaleString()}</div>
+                    </div>
+                    <Badge variant={g.resolved ? "success" : gapSeverity(g.occurrences)}>{g.resolved ? "Resolved" : `${g.occurrences} occurrence${g.occurrences === 1 ? "" : "s"}`}</Badge>
+                    <button
+                      onClick={() => resolveGap(g)}
+                      disabled={g.resolved}
+                      aria-label={g.resolved ? `"${g.topic}" resolved` : `Mark "${g.topic}" resolved`}
+                      title={g.resolved ? "Resolved" : "Mark resolved"}
+                      className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${g.resolved ? "border-success bg-success/15 text-success cursor-default" : `border-border text-text-tertiary hover:bg-success/15 hover:text-success hover:border-success cursor-pointer ${focusRing}`}`}
+                    >
+                      <CheckCircle2 size={16} strokeWidth={1.5} />
+                    </button>
                   </div>
-                  <Badge variant={g.resolved ? "success" : gapSeverity(g.occurrences)}>{g.resolved ? "Resolved" : `${g.occurrences} occurrences`}</Badge>
-                  <button
-                    onClick={() => resolveGap(g)}
-                    disabled={g.resolved}
-                    aria-label={g.resolved ? `"${g.topic}" resolved` : `Mark "${g.topic}" resolved`}
-                    title={g.resolved ? "Resolved" : "Mark resolved"}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${g.resolved ? "border-success bg-success/15 text-success cursor-default" : `border-border text-text-tertiary hover:bg-success/15 hover:text-success hover:border-success cursor-pointer ${focusRing}`}`}
-                  >
-                    <CheckCircle2 size={16} strokeWidth={1.5} />
-                  </button>
+
+                  {(g.evidence?.length ?? 0) > 0 && (
+                    <div className="ml-7 mt-2 space-y-2">
+                      {g.evidence!.map((item, index) => (
+                        <div key={`${item.emailDate}-${item.sender.email}-${index}`} className="rounded-lg border border-border bg-surface-tertiary px-3 py-2">
+                          <div className="text-xs font-medium text-text-primary">{item.subject}</div>
+                          <div className="text-[11px] text-text-tertiary mt-0.5">
+                            {item.sender.name || item.sender.email} · {new Date(item.emailDate).toLocaleString()}
+                          </div>
+                          {item.summary && <div className="text-xs text-text-secondary mt-1">{item.summary.slice(0, 220)}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
