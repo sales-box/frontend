@@ -15,7 +15,7 @@ export interface BriefingData extends ClassificationInfo {
   clientName: string
   company: string
   role: string
-  /** e.g. "Active deal" | "New prospect" */
+  /** e.g. "Active deal" | "New" */
   dealStatus: 'active' | 'prospect'
   /** ISO timestamp */
   emailTimestamp: string
@@ -251,18 +251,22 @@ export function BriefingSheet({ data, onClose, onRefresh, onSend, onEditInGmail,
           {data.clientName}
         </h1>
 
-        {/* Company · Role — body text, Inter */}
-        <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
-          <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
-          {data.company}
-          {data.role && <span className="text-[var(--color-text-tertiary)]"> · {data.role}</span>}
-        </p>
+        {/* Company is shown only when it is verified; never render an
+            "Unknown company" placeholder as customer data. */}
+        {(data.company || data.role) && (
+          <p className="text-caption text-[var(--color-text-secondary)] mb-2.5">
+            <Building2 size={11} strokeWidth={1.5} className="inline mr-1 -mt-0.5" aria-hidden="true" />
+            {data.company}
+            {data.company && data.role && <span className="text-[var(--color-text-tertiary)]"> · </span>}
+            {data.role && <span className="text-[var(--color-text-tertiary)]">{data.role}</span>}
+          </p>
+        )}
 
         {/* Deal status badge + timestamp */}
         <div className="flex items-center justify-between gap-2">
           <Badge variant={data.dealStatus === 'active' ? 'success' : 'muted'}>
             <Star size={9} strokeWidth={1.5} aria-hidden="true" />
-            {data.dealStatus === 'active' ? 'Active deal' : 'New prospect'}
+            {data.dealStatus === 'active' ? 'Active deal' : 'New'}
           </Badge>
           <span className="text-small text-[var(--color-text-tertiary)] flex items-center gap-1 flex-shrink-0">
             <Clock size={10} strokeWidth={1.5} aria-hidden="true" />

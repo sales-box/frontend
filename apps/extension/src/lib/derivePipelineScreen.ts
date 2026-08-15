@@ -54,7 +54,10 @@ export function derivePipelineScreen(raw: PipelineResponse): DerivedScreen {
 
   const common = {
     clientName: raw.client?.name ?? 'Unknown',
-    company: raw.client?.company ?? 'Unknown company',
+    // An absent company is not useful customer-facing information. Keep the
+    // value empty so the card can omit the line instead of presenting
+    // "Unknown company" as though it were a real account name.
+    company: raw.client?.company?.trim() ?? '',
     role: '',
     emailTimestamp: raw.emailTimestamp ?? new Date().toISOString(),
     productConfidence,
