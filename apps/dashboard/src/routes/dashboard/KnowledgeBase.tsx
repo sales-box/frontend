@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning } from "lucide-react";
+import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X } from "lucide-react";
 import type { Screen } from "../../types";
-import { useDocuments, useUploadDocument, useDeleteDocument } from "../../hooks/queries";
+import { useDocuments, useUploadDocument, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
 import type { QualityReport } from "../../api-client";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
@@ -11,6 +11,8 @@ import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 import { useToast } from "../../components/Toast";
+import { Modal } from "../../components/Modal";
+import { FormInput } from "../../components/FormInput";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
@@ -50,11 +52,14 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const toast = useToast();
   const [dragging, setDragging] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
 
   const { data: docsRes, isLoading, error } = useDocuments();
   const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
+  const deleteAll = useDeleteAllDocuments();
 
   const docs: Doc[] = (docsRes?.data ?? []).map(d => ({ ...d, size: "", uploadDate: d.uploadDate }));
 
@@ -95,6 +100,21 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     if (doc.id) deleteDoc.mutate(doc.id);
     setDeleteConfirm(null);
     toast(`Deleted "${doc.filename}"`);
+  };
+
+  // The tenant-wide total, not the page. `docs` only holds the current page, so
+  // using its length would understate what the button is about to destroy.
+  const totalDocs = docsRes?.meta?.total ?? docs.length;
+
+  const confirmDeleteAll = async () => {
+    try {
+      const { deleted } = await deleteAll.mutateAsync();
+      toast(`Deleted ${deleted} document${deleted === 1 ? "" : "s"}`);
+      setShowDeleteAll(false);
+      setTyped("");
+    } catch {
+      toast("Couldn't empty the knowledge base. Please try again.");
+    }
   };
 
   const handleUpload = async (files: FileList | null) => {
@@ -247,6 +267,16 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
               <FileText size={18} strokeWidth={1.5} className="text-primary" />
             </div>
             <h2 className="text-subheading text-text-primary">Documents</h2>
+            {/* Sits with the list it empties, not up in the page header — a
+                destructive action belongs next to the thing it destroys. */}
+            {totalDocs > 0 && (
+              <div className="ml-auto">
+                <Btn variant="danger" size="sm" onClick={() => { setTyped(""); setShowDeleteAll(true); }}>
+                  <Trash2 size={13} strokeWidth={1.5} />
+                  Delete all
+                </Btn>
+              </div>
+            )}
           </div>
           {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-text-tertiary">Loading documents…</div>
@@ -325,6 +355,60 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
         </Card>
         </Reveal>
       </div>
+
+      {/* Emptying the KB starves the Matcher for every SE at once and there is
+          no restore path, so it asks for the word to be typed — same treatment
+          as offboarding the team in Settings. */}
+      <Modal
+        open={showDeleteAll}
+        onClose={() => { setShowDeleteAll(false); setTyped(""); }}
+        title="Delete the entire Knowledge Base"
+        footer={
+          <>
+            <Btn variant="secondary" size="sm" onClick={() => { setShowDeleteAll(false); setTyped(""); }}>Cancel</Btn>
+            <Btn
+              variant="danger"
+              size="sm"
+              loading={deleteAll.isPending}
+              disabled={typed !== "DELETE"}
+              onClick={confirmDeleteAll}
+            >
+              Delete all {totalDocs} documents
+            </Btn>
+          </>
+        }
+      >
+        <div>
+          <div className="flex items-start gap-3 mb-5">
+            <div className="w-10 h-10 rounded-lg bg-danger-light flex items-center justify-center shrink-0">
+              <AlertTriangle size={18} strokeWidth={1.5} className="text-danger" />
+            </div>
+            <p className="text-[13px] text-text-secondary leading-relaxed">
+              This permanently removes <strong className="text-text-primary">{totalDocs} document{totalDocs === 1 ? "" : "s"}</strong> from your Knowledge Base.
+            </p>
+          </div>
+
+          <div className="bg-danger-light border border-danger/15 rounded-lg p-4">
+            <ul className="space-y-1.5">
+              {[
+                "Every document, its chunks and its embeddings are deleted",
+                "Replies stop being grounded — the AI will find no product answers",
+                "There is no restore. Documents must be uploaded again",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-2 text-[13px] text-danger">
+                  <X size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-[13px] text-text-secondary leading-relaxed mt-5 mb-3">
+            Type <strong className="text-text-primary font-mono">DELETE</strong> to confirm.
+          </p>
+          <FormInput value={typed} onChange={setTyped} placeholder="DELETE" />
+        </div>
+      </Modal>
     </Shell>
   );
 }
