@@ -265,6 +265,10 @@ export const knowledgeBase = {
 
   delete: (id: string) =>
     request<void>(`/knowledge-base/documents/${id}`, { method: "DELETE" }),
+
+  /** Empties the whole knowledge base. Admin-only, and there is no restore. */
+  deleteAll: () =>
+    request<{ deleted: number }>("/knowledge-base/documents", { method: "DELETE" }),
 };
 
 // ─── Access Control (Allowlist / Team) ───────────────────────

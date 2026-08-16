@@ -63,6 +63,14 @@ export function useDeleteDocument() {
   });
 }
 
+export function useDeleteAllDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => knowledgeBase.deleteAll(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["kb"] }),
+  });
+}
+
 // ─── Team / Allowlist ────────────────────────────────────────
 
 export function useAllowlist() {
