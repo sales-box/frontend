@@ -22,7 +22,25 @@ export type BgResponse<T> =
   | { ok: false; kind: 'error'; message: string }
 
 export async function sendToBackground<T>(req: BgRequest): Promise<BgResponse<T>> {
-  const raw = await chrome.runtime.sendMessage(req)
+  let raw: unknown
+  try {
+    raw = await chrome.runtime.sendMessage(req)
+  } catch (err) {
+    // MV3 rejects this promise with chrome.runtime.lastError when the service
+    // worker is torn down under a pending request, or when the extension was
+    // reloaded and this tab still holds the old content script. Left uncaught,
+    // the message reached the panel verbatim: "A listener indicated an
+    // asynchronous response by returning true, but the message channel closed
+    // before a response was received" — Chrome internals, naming concepts that
+    // exist nowhere in the product. The union already has a case for this.
+    console.error('[Copilot] background channel closed:', err)
+    return {
+      ok: false,
+      kind: 'error',
+      message: 'Lost contact with the extension. Reload this Gmail tab and try again.',
+    }
+  }
+
   if (raw === undefined || raw === null) {
     return { ok: false, kind: 'error', message: 'No response from the extension background' }
   }

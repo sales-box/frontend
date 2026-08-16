@@ -8,6 +8,51 @@
 // OAuth client_id (Chrome Extension type) is set in manifest.json → oauth2.client_id.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://salesbox.dev'
+// Every request needs a ceiling. Without one a hung backend is waited on
+// forever, the service worker is eventually torn down under the pending call,
+// and the panel reports it as a closed message channel — a Chrome-internals
+// string that says nothing about what went wrong.
+const TIMEOUT_MS = 30_000
+// The AI routes run the full pipeline against an LLM. A cold email genuinely
+// takes tens of seconds, so they get their own, much larger budget: aborting a
+// slow-but-healthy run would be worse than waiting for it.
+const AI_TIMEOUT_MS = 180_000
+
+function apiFetch(path: string, init: RequestInit = {}, timeoutMs = TIMEOUT_MS) {
+  return fetch(`${API_BASE}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+}
+
+/**
+ * A non-2xx response, said in a sentence the SE can act on.
+ *
+ * The `status` field on the response is what routes 401/403 to the auth flows,
+ * and it is untouched — this only replaces the human-facing string, which used
+ * to read "inbox-stats failed: 500". The route name and the code stay in
+ * console.error where they are useful to us.
+ */
+function describeHttpError(status: number): string {
+  if (status >= 500) return 'Something went wrong on the server. Try again in a moment.'
+  if (status === 429) return "That's a lot of requests at once. Wait a moment and try again."
+  if (status === 404) return 'That request went somewhere the server does not recognise.'
+  return 'The server rejected that request.'
+}
+
+/**
+ * Whatever fetch threw, said in a sentence the SE can act on. The raw error
+ * still goes to console.error for us — it just stops being the UI copy.
+ */
+function describeFetchError(err: unknown): string {
+  if (err instanceof DOMException && err.name === 'TimeoutError') {
+    return 'The server took too long to respond. Try again in a moment.'
+  }
+  // fetch rejects with a bare TypeError for DNS failure, refused connections
+  // and offline — the most common case, and the least self-explanatory.
+  if (err instanceof TypeError) {
+    return "Can't reach the server. Check your connection."
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── GET_SE_AUTH_CODE ──────────────────────────────────────────────────────
   // Obtains a Google OAuth *authorization code* via launchWebAuthFlow.
@@ -62,7 +107,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     ;(async () => {
       let status: number | undefined
       try {
-        const res = await fetch(`${API_BASE}/auth/se/login`, {
+        const res = await apiFetch(`/auth/se/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: msg.code, redirectUri: msg.redirectUri }),
@@ -73,14 +118,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return
         }
         if (!res.ok) {
-          sendResponse({ error: `SE_LOGIN failed: ${res.status} ${res.statusText}`, status: res.status })
+          console.error('[Background] SE_LOGIN failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] SE_LOGIN Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -91,19 +137,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     ;(async () => {
       let status: number | undefined
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
+        const res = await apiFetch(`/auth/me`, {
           headers: { 'Authorization': `Bearer ${msg.jwt}` },
         })
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `GET_AUTH_ME failed: ${res.status} ${res.statusText}`, status: res.status })
+          console.error('[Background] GET_AUTH_ME failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] GET_AUTH_ME Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -119,7 +166,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
           return
         }
-        const res = await fetch(`${API_BASE}/analytics/gaps`, {
+        const res = await apiFetch(`/analytics/gaps`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -129,14 +176,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         })
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `REPORT_KNOWLEDGE_GAP failed: ${res.status} ${res.statusText}`, status: res.status })
+          console.error('[Background] REPORT_KNOWLEDGE_GAP failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] REPORT_KNOWLEDGE_GAP Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -153,24 +201,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return
         }
 
-        const res = await fetch(`${API_BASE}/ai/process`, {
+        const res = await apiFetch(`/ai/process`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwt}`,
           },
           body: JSON.stringify({ messageId: msg.messageId, accountEmail }),
-        })
+        }, AI_TIMEOUT_MS)
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `PROCESS_EMAIL failed: ${res.status}`, status: res.status })
+          console.error('[Background] PROCESS_EMAIL failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] PROCESS_EMAIL Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -187,24 +236,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return
         }
 
-        const res = await fetch(`${API_BASE}/ai/resume`, {
+        const res = await apiFetch(`/ai/resume`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwt}`,
           },
           body: JSON.stringify({ graphThreadId: msg.graphThreadId, content: msg.content }),
-        })
+        }, AI_TIMEOUT_MS)
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `SUBMIT_FEEDBACK failed: ${res.status}`, status: res.status })
+          console.error('[Background] SUBMIT_FEEDBACK failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] SUBMIT_FEEDBACK Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -221,24 +271,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return
         }
 
-        const res = await fetch(`${API_BASE}/ai/crm-actions/suggest`, {
+        const res = await apiFetch(`/ai/crm-actions/suggest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwt}`,
           },
           body: JSON.stringify({ messageId: msg.messageId, accountEmail }),
-        })
+        }, AI_TIMEOUT_MS)
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `SUGGEST_CRM_ACTIONS failed: ${res.status}`, status: res.status })
+          console.error('[Background] SUGGEST_CRM_ACTIONS failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] SUGGEST_CRM_ACTIONS Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -255,24 +306,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           return
         }
 
-        const res = await fetch(`${API_BASE}/ai/crm-actions/resume`, {
+        const res = await apiFetch(`/ai/crm-actions/resume`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${jwt}`,
           },
           body: JSON.stringify({ threadId: msg.threadId, decisions: msg.decisions }),
-        })
+        }, AI_TIMEOUT_MS)
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `RESUME_CRM_ACTIONS failed: ${res.status}`, status: res.status })
+          console.error('[Background] RESUME_CRM_ACTIONS failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] RESUME_CRM_ACTIONS Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -288,19 +340,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ error: 'No JWT found — user must sign in again', status: 401 })
           return
         }
-        const res = await fetch(`${API_BASE}/emails/categorized?category=${encodeURIComponent(msg.category)}`, {
+        const res = await apiFetch(`/emails/categorized?category=${encodeURIComponent(msg.category)}`, {
           headers: { Authorization: `Bearer ${jwt}` },
         })
         status = res.status
         if (!res.ok) {
-          sendResponse({ error: `categorized failed: ${res.status}`, status: res.status })
+          console.error('[Background] categorized failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
           return
         }
         const data = await res.json()
         sendResponse({ emails: data, status: res.status })
       } catch (err) {
         console.error('[Background] GET_CATEGORIZED_EMAILS Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse({ error: describeFetchError(err), status })
       }
     })()
     return true
@@ -325,12 +378,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return
       }
 
-      const res = await fetch(`${API_BASE}/emails/inbox-stats`, {
+      const res = await apiFetch(`/emails/inbox-stats`, {
         headers: { Authorization: `Bearer ${jwt}` },
       })
       status = res.status
       if (!res.ok) {
-        sendResponse({ error: `inbox-stats failed: ${res.status}`, status: res.status })
+        console.error('[Background] inbox-stats failed:', res.status, res.statusText)
+          sendResponse({ error: describeHttpError(res.status), status: res.status })
         return
       }
       const data = await res.json()
@@ -374,7 +428,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse({ ...transformedData, status: res.status })
     } catch (err) {
       console.error('[Background] GET_INBOX_STATS Error:', err)
-      sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+      sendResponse({ error: describeFetchError(err), status })
     }
   })()
   return true

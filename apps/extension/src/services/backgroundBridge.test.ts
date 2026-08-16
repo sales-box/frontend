@@ -36,6 +36,37 @@ describe('sendToBackground — response shape mapping', () => {
     const res = await sendToBackground<typeof payload>({ type: 'GET_INBOX_STATS' })
     expect(res).toEqual({ ok: true, data: payload })
   })
+
+  describe('when the message channel dies', () => {
+    // MV3 rejects sendMessage with chrome.runtime.lastError when the service
+    // worker is torn down under a pending request. That message used to reach
+    // the panel verbatim.
+    const CHANNEL_CLOSED =
+      'A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received'
+
+    it('returns a handled error instead of throwing', async () => {
+      vi.mocked(chrome.runtime.sendMessage).mockRejectedValueOnce(new Error(CHANNEL_CLOSED))
+      await expect(sendToBackground({ type: 'GET_INBOX_STATS' })).resolves.toEqual({
+        ok: false,
+        kind: 'error',
+        message: 'Lost contact with the extension. Reload this Gmail tab and try again.',
+      })
+    })
+
+    it('never puts Chrome internals in the message', async () => {
+      vi.mocked(chrome.runtime.sendMessage).mockRejectedValueOnce(new Error(CHANNEL_CLOSED))
+      const res = await sendToBackground({ type: 'GET_INBOX_STATS' })
+      const message = res.ok ? '' : (res as { message?: string }).message ?? ''
+      expect(message).not.toMatch(/listener|message channel|asynchronous response/i)
+    })
+
+    it('handles a non-Error rejection too', async () => {
+      vi.mocked(chrome.runtime.sendMessage).mockRejectedValueOnce('Extension context invalidated.')
+      const res = await sendToBackground({ type: 'PROCESS_EMAIL', messageId: 'm1' })
+      expect(res.ok).toBe(false)
+      if (!res.ok) expect(res.kind).toBe('error')
+    })
+  })
 })
 
 describe('handleAuthErr', () => {

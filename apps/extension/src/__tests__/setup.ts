@@ -30,5 +30,9 @@ beforeEach(() => {
       }),
     },
   },
-  tabs: { create: vi.fn() },
+  // No `tabs` here, deliberately. The content script's isolated world has no
+  // chrome.tabs, and App.tsx is mounted only from the content script — mocking
+  // it meant a completely inert "Upload missing doc" button passed its tests.
+  // If something reaches for chrome.tabs again, let it fail here the way it
+  // fails in Gmail.
 }
