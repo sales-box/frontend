@@ -1,4 +1,4 @@
-import { AlertTriangle, BookOpen, Users, Mail, Edit2, Building2, Star, Flag, CheckCircle2, XCircle, Database, ArrowLeft, ArrowRight, Send } from 'lucide-react'
+import { AlertTriangle, BookOpen, Users, Mail, Edit2, Building2, Star, Flag, CheckCircle2, Circle, AlertCircle, Database, ArrowLeft, ArrowRight, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { PanelHeader } from '../components/PanelHeader'
@@ -37,6 +37,8 @@ interface LowConfidenceScreenProps {
   crmLoading?: boolean
   /** Controlled by the actions hook — persisted to cache so it survives panel reopen. */
   crmSubmitted?: boolean
+  crmSubmitting?: boolean
+  crmError?: string | null
   onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
@@ -57,7 +59,7 @@ function formatTimestamp(iso: string): string {
  *  - 'draft':   the AI's draft text (if any) + the 3 action buttons
  * No ink-filled "Send" button anywhere — nothing here is auto-sent.
  */
-export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, onResolveCrmActions }: LowConfidenceScreenProps) {
+export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManually, onInsertDraft, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, crmSubmitting = false, crmError = null, onResolveCrmActions }: LowConfidenceScreenProps) {
   const [view, setView] = useState<'summary' | 'draft'>('summary')
   const [reported, setReported] = useState(false)
   const [reporting, setReporting] = useState(false)
@@ -315,43 +317,30 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
                         {s.summary}
                       </p>
 
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button
-                          id={`ext-lc-crm-approve-${s.index}`}
-                          onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'approve' }))}
-                          title="Approve this action"
-                          className={`
-                            flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                            text-small font-medium transition-all duration-150 cursor-pointer
-                            ${isApproved
-                              ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
-                              : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                            }
-                          `}
-                          style={{ fontFamily: 'var(--font-body)' }}
-                        >
-                          <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
-                          Approve
-                        </button>
-
-                        <button
-                          id={`ext-lc-crm-ignore-${s.index}`}
-                          onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'reject' }))}
-                          title="Ignore this action"
-                          className={`
-                            flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                            text-small font-medium transition-all duration-150 cursor-pointer
-                            ${!isApproved
-                              ? 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]'
-                              : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                            }
-                          `}
-                          style={{ fontFamily: 'var(--font-body)' }}
-                        >
-                          <XCircle size={11} strokeWidth={1.5} aria-hidden="true" />
-                          Ignore
-                        </button>
-                      </div>
+                      {/* Single toggle — see the note in BriefingSheet. */}
+                      <button
+                        id={`ext-lc-crm-approve-${s.index}`}
+                        onClick={() => setCrmDecisions(prev => ({
+                          ...prev,
+                          [s.index]: isApproved ? 'reject' : 'approve',
+                        }))}
+                        aria-pressed={isApproved}
+                        title={isApproved ? 'Approved — click to undo' : 'Approve this action'}
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)] flex-shrink-0
+                          text-small font-medium transition-all duration-150 cursor-pointer
+                          ${isApproved
+                            ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
+                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                          }
+                        `}
+                        style={{ fontFamily: 'var(--font-body)' }}
+                      >
+                        {isApproved
+                          ? <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
+                          : <Circle size={11} strokeWidth={1.5} aria-hidden="true" />}
+                        {isApproved ? 'Approved' : 'Approve'}
+                      </button>
                     </li>
                   )
                 })}
@@ -360,6 +349,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
               <button
                 id="ext-lc-crm-submit-btn"
                 onClick={handleCrmSubmit}
+                disabled={crmSubmitting}
                 className="
                   mt-3 w-full flex items-center justify-center gap-1.5
                   px-3 py-2 rounded-[var(--radius-sm)]
@@ -367,11 +357,29 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
                   text-[var(--color-primary)] text-small font-medium
                   hover:bg-[var(--color-surface-tertiary)]
                   transition-colors duration-150 cursor-pointer
+                  disabled:opacity-60 disabled:cursor-not-allowed
                 "
                 style={{ fontFamily: 'var(--font-body)' }}
               >
-                Submit CRM decisions
+                {crmSubmitting ? 'Submitting…' : 'Submit CRM decisions'}
               </button>
+
+              <p
+                className="mt-2 text-small text-[var(--color-text-tertiary)] text-center"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                Anything left unapproved is ignored.
+              </p>
+
+              {crmError && (
+                <p
+                  className="mt-2 flex items-start gap-1.5 text-small text-[var(--color-danger)]"
+                  style={{ fontFamily: 'var(--font-body)' }}
+                >
+                  <AlertCircle size={12} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 flex-shrink-0" />
+                  {crmError}
+                </p>
+              )}
             </>
           )}
         </div>

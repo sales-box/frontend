@@ -36,6 +36,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
     crmSuggestions,
     crmLoading,
     crmSubmitted,
+    crmSubmitting,
+    crmError,
     resolveCrmActions,
     reportGap,
     consumeGraphThreadId,
@@ -165,6 +167,8 @@ export default function App({ panelHost, getCurrentMessageId = () => null, getCu
           crmSuggestions={crmSuggestions}
           crmLoading={crmLoading}
           crmSubmitted={crmSubmitted}
+          crmSubmitting={crmSubmitting}
+          crmError={crmError}
           handlers={{
             onClose: handleClose,
             onSignIn: signIn,
