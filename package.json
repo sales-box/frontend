@@ -9,11 +9,5 @@
     "dev": "pnpm --filter dashboard dev",
     "dev:extension": "pnpm --filter extension dev",
     "build": "pnpm -r build"
-  },
-  "pnpm": {
-    "overrides": {
-      "react-router": ">=8.3.0",
-      "nanoid": ">=3.3.17"
-    }
   }
 }
