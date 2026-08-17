@@ -9,7 +9,7 @@ import { setSession } from '../state/session'
 import { derivePipelineScreen, type PipelineResponse } from '../lib/derivePipelineScreen'
 import { getCachedDraft, setCachedDraft } from '../lib/draftCache'
 import { getCachedCrm, setCachedCrm, setCachedCrmSubmitted } from '../lib/crmCache'
-import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
+import { describeCrmSubmitError, type CrmSuggestionResult, type CrmDecision } from '../lib/crm'
 
 export interface PanelActions {
   /** Load the inbox overview (category counts). */
@@ -227,9 +227,8 @@ export function usePanelActions(deps: {
       // failed resume — a disconnected CRM, a dropped request — still read as
       // "submitted successfully". Approvals are writes to the user's CRM; the
       // panel must not claim one happened when it did not.
-      setCrmError(
-        res.kind === 'error' ? res.message : 'Could not submit these actions. Please try again.',
-      )
+      console.error('[Copilot] resumeCrmActions failed:', res)
+      setCrmError(describeCrmSubmitError(res.kind === 'error' ? res.status : undefined))
       return
     }
 
