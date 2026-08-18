@@ -4,8 +4,10 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install pnpm globally
-RUN npm install -g pnpm@9
+# pnpm via corepack, so the version comes from packageManager in package.json
+# rather than being pinned twice and drifting. A hardcoded pnpm@9 could not read
+# the overrides in pnpm-workspace.yaml and failed the frozen install.
+RUN corepack enable
 
 # Copy root configurations, workspace definition, and dependency manifests to cache layers
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
