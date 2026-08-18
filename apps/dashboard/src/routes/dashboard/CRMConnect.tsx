@@ -67,8 +67,9 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       setShowKeyModal(false);
       setApiKey("");
       setKeyTouched(false);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to connect to HubSpot");
+    } catch {
+      // The MutationCache onError in main.tsx already toasts the API's message
+      // for every failed mutation. Toasting here as well showed it twice.
     }
   };
 
@@ -77,8 +78,9 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       await disconnectCrm.mutateAsync();
       setImportedCount(null);
       toast("HubSpot disconnected");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to disconnect HubSpot");
+    } catch {
+      // The MutationCache onError in main.tsx already toasts the API's message
+      // for every failed mutation. Toasting here as well showed it twice.
     }
   };
 
@@ -91,8 +93,9 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       setShowMcpModal(false);
       setMcpUrl("");
       setMcpUrlTouched(false);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to connect Zoho MCP");
+    } catch {
+      // The MutationCache onError in main.tsx already toasts the API's message
+      // for every failed mutation. Toasting here as well showed it twice.
     }
   };
 
@@ -100,8 +103,9 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     try {
       await disconnectMcp.mutateAsync();
       toast("Zoho MCP disconnected");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to disconnect Zoho MCP");
+    } catch {
+      // The MutationCache onError in main.tsx already toasts the API's message
+      // for every failed mutation. Toasting here as well showed it twice.
     }
   };
 
