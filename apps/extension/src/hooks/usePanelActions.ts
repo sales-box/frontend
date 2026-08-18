@@ -9,7 +9,7 @@ import { setSession } from '../state/session'
 import { derivePipelineScreen, type PipelineResponse } from '../lib/derivePipelineScreen'
 import { getCachedDraft, setCachedDraft } from '../lib/draftCache'
 import { getCachedCrm, setCachedCrm, setCachedCrmSubmitted } from '../lib/crmCache'
-import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
+import { describeCrmSubmitError, type CrmSuggestionResult, type CrmDecision } from '../lib/crm'
 
 export interface PanelActions {
   /** Load the inbox overview (category counts). */
@@ -24,8 +24,12 @@ export interface PanelActions {
   crmSuggestions: CrmSuggestionResult | null
   /** True while the CRM lookup is in flight and nothing was cached to show. */
   crmLoading: boolean
-  /** True once the SE submitted verdicts for this thread — survives a reopen. */
+  /** True once the backend confirmed the verdicts — survives a reopen. */
   crmSubmitted: boolean
+  /** True while the verdicts are in flight. */
+  crmSubmitting: boolean
+  /** Set when the submission failed, so the panel never fakes a success. */
+  crmError: string | null
   /** Send the SE's approve/ignore verdicts for the paused CRM actions. */
   resolveCrmActions: (decisions: CrmDecision[]) => Promise<void>
   /** Report that the current thread exposed a gap in the knowledge base. */
@@ -63,6 +67,8 @@ export function usePanelActions(deps: {
   const [crmSuggestions, setCrmSuggestions] = useState<CrmSuggestionResult | null>(null)
   const [crmLoading, setCrmLoading] = useState(false)
   const [crmSubmitted, setCrmSubmitted] = useState(false)
+  const [crmSubmitting, setCrmSubmitting] = useState(false)
+  const [crmError, setCrmError] = useState<string | null>(null)
 
   // Set after the loaders exist. Each action clears the *other* actions' toasts
   // so a stale failure from a previous screen can't outrank the current one in
@@ -103,6 +109,8 @@ export function usePanelActions(deps: {
       // Reset CRM state for this load — always start clean.
       setCrmSuggestions(null)
       setCrmSubmitted(false)
+      setCrmError(null)
+      setCrmSubmitting(false)
 
       // The CRM cache is consulted independently of the draft cache: a cached
       // draft can pair with a fresh or invalidated CRM entry, and vice versa.
@@ -144,7 +152,21 @@ export function usePanelActions(deps: {
       if (crmSuggestionPromise) {
         crmSuggestionPromise
           .then((crmRes) => {
-            const suggestions = crmRes.ok && crmRes.data.isPausedForApproval ? crmRes.data : null
+            if (!crmRes.ok) {
+              // A failed lookup is not an answer, and must not be cached as
+              // one. This used to write `null` on any failure, so a CRM that
+              // was briefly disconnected left the email reading "No suggested
+              // actions" for good — reconnecting did not help, because the
+              // panel never asked again. Leaving the cache empty means the
+              // next open retries.
+              console.error('[Copilot] CRM suggestion lookup failed:', crmRes)
+              if (seq !== loadSeqRef.current) return
+              setCrmError(describeCrmSubmitError(crmRes.kind === 'error' ? crmRes.status : undefined))
+              setCrmLoading(false)
+              return
+            }
+
+            const suggestions = crmRes.data.isPausedForApproval ? crmRes.data : null
             // Cache keyed by message id, so this is safe even if the SE has
             // moved on; the state writes below are not, hence the seq guard.
             void setCachedCrm(messageId, suggestions, false)
@@ -207,13 +229,41 @@ export function usePanelActions(deps: {
   const resolveCrmActions = useCallback(async (decisions: CrmDecision[]) => {
     const threadId = crmSuggestions?.threadId
     if (!threadId) return
+    setCrmSubmitting(true)
+    setCrmError(null)
+
+    const res = await sendToBackground<{ applied?: boolean }>({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
+    setCrmSubmitting(false)
+
+    if (await handleAuthErr(res, dispatch)) return
+    if (!res.ok) {
+      // The banner used to be set before this call and never reconciled, so a
+      // failed resume — a disconnected CRM, a dropped request — still read as
+      // "submitted successfully". Approvals are writes to the user's CRM; the
+      // panel must not claim one happened when it did not.
+      console.error('[Copilot] resumeCrmActions failed:', res)
+      setCrmError(describeCrmSubmitError(res.kind === 'error' ? res.status : undefined))
+      return
+    }
+
+    if (res.data?.applied === false) {
+      // A 2xx that applied nothing. The graph had no approval pending — it had
+      // already been resumed, or a previous attempt failed after consuming it —
+      // so the decisions were dropped. This came back in 59ms and the panel
+      // showed the success banner over a deal that was never created.
+      setCrmError(
+        'These actions were no longer awaiting approval, so nothing was written. ' +
+          'Refresh the panel to analyse this email again.',
+      )
+      return
+    }
+
     // Mark submitted rather than clearing: the success banner has to survive a
     // panel collapse/reopen without the action list coming back.
     setCrmSubmitted(true)
     const messageId = getCurrentMessageId()
     if (messageId) void setCachedCrmSubmitted(messageId)
-    await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
-  }, [crmSuggestions, getCurrentMessageId])
+  }, [crmSuggestions, getCurrentMessageId, dispatch])
 
   const reportGap = useCallback(async () => {
     const messageId = getCurrentMessageId() ?? await resolveMessageId()
@@ -244,6 +294,8 @@ export function usePanelActions(deps: {
     crmSuggestions,
     crmLoading,
     crmSubmitted,
+    crmSubmitting,
+    crmError,
     resolveCrmActions,
     reportGap,
     consumeGraphThreadId,

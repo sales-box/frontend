@@ -19,7 +19,7 @@ export type BgResponse<T> =
   | { ok: true; data: T; kind?: never }
   | { ok: false; kind: 'unauthorized' }
   | { ok: false; kind: 'revoked' }
-  | { ok: false; kind: 'error'; message: string }
+  | { ok: false; kind: 'error'; message: string; status?: number }
 
 export async function sendToBackground<T>(req: BgRequest): Promise<BgResponse<T>> {
   const raw = await chrome.runtime.sendMessage(req)
@@ -30,7 +30,9 @@ export async function sendToBackground<T>(req: BgRequest): Promise<BgResponse<T>
     const status = (raw as { status?: number }).status
     if (status === 401) return { ok: false, kind: 'unauthorized' }
     if (status === 403) return { ok: false, kind: 'revoked' }
-    return { ok: false, kind: 'error', message: String((raw as { error: unknown }).error) }
+    // Carry the status through. Callers map it to a message an SE can act on;
+    // the raw `error` text names internal message types and HTTP codes.
+    return { ok: false, kind: 'error', message: String((raw as { error: unknown }).error), status }
   }
   return { ok: true, data: raw as T }
 }

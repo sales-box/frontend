@@ -1,3 +1,10 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Security pins. These lived in package.json under "pnpm.overrides" until
+# pnpm 11 stopped reading that field — it warned on every command and then
+# rewrote the lockfile without them, silently unpinning both packages.
+overrides:
+  react-router: '>=8.3.0'
+  nanoid: '>=3.3.17'

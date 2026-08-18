@@ -34,10 +34,12 @@ interface PanelRouterProps {
   crmLoading: boolean
   /** Verdicts already submitted for this thread — the screens show the banner. */
   crmSubmitted: boolean
+  crmSubmitting: boolean
+  crmError: string | null
   handlers: PanelRouterHandlers
 }
 
-export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, handlers }: PanelRouterProps): ReactNode {
+export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, crmSubmitting, crmError, handlers }: PanelRouterProps): ReactNode {
   switch (panel.type) {
     case 'auth':
       return <AuthScreen onClose={handlers.onClose} onSignIn={handlers.onSignIn} />
@@ -87,6 +89,8 @@ export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, h
           crmSuggestions={crmSuggestions}
           crmLoading={crmLoading}
           crmSubmitted={crmSubmitted}
+          crmSubmitting={crmSubmitting}
+          crmError={crmError}
           onResolveCrmActions={handlers.onResolveCrmActions}
         />
       )
@@ -103,6 +107,8 @@ export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, h
           crmSuggestions={crmSuggestions}
           crmLoading={crmLoading}
           crmSubmitted={crmSubmitted}
+          crmSubmitting={crmSubmitting}
+          crmError={crmError}
           onResolveCrmActions={handlers.onResolveCrmActions}
         />
       )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
-import { Clock, Edit2, Building2, Star, CheckCircle2, XCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
+import { Clock, Edit2, Building2, Star, CheckCircle2, Circle, AlertCircle, Database, Eye, ArrowLeft, ArrowRight, Flag } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { ConfidencePill } from '../components/ConfidencePill'
 import { Badge } from '../components/Badge'
@@ -36,6 +36,8 @@ interface BriefingSheetProps {
   crmLoading?: boolean
   /** Controlled by the actions hook — persisted to cache so it survives panel reopen. */
   crmSubmitted?: boolean
+  crmSubmitting?: boolean
+  crmError?: string | null
   onResolveCrmActions?: (decisions: CrmDecision[]) => void
 }
 
@@ -60,7 +62,7 @@ function formatTimestamp(iso: string): string {
  * Everything else (company, role, timestamp, reply body) → Inter body/caption.
  *
  */
-export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, onResolveCrmActions }: BriefingSheetProps) {
+export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onReportGap, crmSuggestions, crmLoading = false, crmSubmitted = false, crmSubmitting = false, crmError = null, onResolveCrmActions }: BriefingSheetProps) {
   const [reply, setReply] = useState(data.suggestedReply)
   // The draft gets its own view, like LowConfidenceScreen. Sharing one screen
   // with the client card, the confidence pills and the CRM list left the reply
@@ -311,12 +313,25 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
             <Skeleton height="h-10" />
           </div>
         ) : suggestions.length === 0 ? (
-          <p
-            className="text-small text-[var(--color-text-tertiary)]"
-            style={{ fontFamily: 'var(--font-body)' }}
-          >
-            No suggested actions
-          </p>
+          crmError ? (
+            // Not the same as having no actions: we could not find out. Saying
+            // "No suggested actions" here would report a failed lookup as a
+            // clean bill of health.
+            <p
+              className="flex items-start gap-1.5 text-small text-[var(--color-danger)]"
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              <AlertCircle size={12} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 flex-shrink-0" />
+              {crmError}
+            </p>
+          ) : (
+            <p
+              className="text-small text-[var(--color-text-tertiary)]"
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              No suggested actions
+            </p>
+          )
         ) : (
           <>
             <ul className="flex flex-col gap-2">
@@ -340,43 +355,33 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
                       {s.summary}
                     </p>
 
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button
-                        id={`ext-crm-approve-${s.index}`}
-                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'approve' }))}
-                        title="Approve this action"
-                        className={`
-                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                          text-small font-medium transition-all duration-150 cursor-pointer
-                          ${isApproved
-                            ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
-                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                          }
-                        `}
-                        style={{ fontFamily: 'var(--font-body)' }}
-                      >
-                        <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
-                        Approve
-                      </button>
-
-                      <button
-                        id={`ext-crm-ignore-${s.index}`}
-                        onClick={() => setCrmDecisions(prev => ({ ...prev, [s.index]: 'reject' }))}
-                        title="Ignore this action"
-                        className={`
-                          flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)]
-                          text-small font-medium transition-all duration-150 cursor-pointer
-                          ${!isApproved
-                            ? 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)]'
-                            : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
-                          }
-                        `}
-                        style={{ fontFamily: 'var(--font-body)' }}
-                      >
-                        <XCircle size={11} strokeWidth={1.5} aria-hidden="true" />
-                        Ignore
-                      </button>
-                    </div>
+                    {/* One toggle, not two buttons. Ignore is the default, so a
+                        separate Ignore button started out already selected and
+                        did nothing when pressed — it read as broken. Approve
+                        flips both ways, which keeps the undo it provided. */}
+                    <button
+                      id={`ext-crm-approve-${s.index}`}
+                      onClick={() => setCrmDecisions(prev => ({
+                        ...prev,
+                        [s.index]: isApproved ? 'reject' : 'approve',
+                      }))}
+                      aria-pressed={isApproved}
+                      title={isApproved ? 'Approved — click to undo' : 'Approve this action'}
+                      className={`
+                        flex items-center gap-1 px-2 py-1 rounded-[var(--radius-sm)] flex-shrink-0
+                        text-small font-medium transition-all duration-150 cursor-pointer
+                        ${isApproved
+                          ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)]'
+                          : 'border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]'
+                        }
+                      `}
+                      style={{ fontFamily: 'var(--font-body)' }}
+                    >
+                      {isApproved
+                        ? <CheckCircle2 size={11} strokeWidth={1.5} aria-hidden="true" />
+                        : <Circle size={11} strokeWidth={1.5} aria-hidden="true" />}
+                      {isApproved ? 'Approved' : 'Approve'}
+                    </button>
                   </li>
                 )
               })}
@@ -385,6 +390,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
             <button
               id="ext-crm-submit-btn"
               onClick={handleCrmSubmit}
+              disabled={crmSubmitting}
               className="
                 mt-3 w-full flex items-center justify-center gap-1.5
                 px-3 py-2 rounded-[var(--radius-sm)]
@@ -392,11 +398,31 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
                 text-[var(--color-primary)] text-small font-medium
                 hover:bg-[var(--color-surface-tertiary)]
                 transition-colors duration-150 cursor-pointer
+                disabled:opacity-60 disabled:cursor-not-allowed
               "
               style={{ fontFamily: 'var(--font-body)' }}
             >
-              Submit CRM decisions
+              {crmSubmitting ? 'Submitting…' : 'Submit CRM decisions'}
             </button>
+
+            {/* With the Ignore button gone, the panel has to say out loud what
+                leaving an action unapproved means. */}
+            <p
+              className="mt-2 text-small text-[var(--color-text-tertiary)] text-center"
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              Anything left unapproved is ignored.
+            </p>
+
+            {crmError && (
+              <p
+                className="mt-2 flex items-start gap-1.5 text-small text-[var(--color-danger)]"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                <AlertCircle size={12} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 flex-shrink-0" />
+                {crmError}
+              </p>
+            )}
           </>
         )}
       </div>
