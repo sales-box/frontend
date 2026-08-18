@@ -288,12 +288,22 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
               <Skeleton height="h-10" />
             </div>
           ) : suggestions.length === 0 ? (
-            <p
-              className="text-small text-[var(--color-text-tertiary)]"
-              style={{ fontFamily: 'var(--font-body)' }}
-            >
-              No suggested actions
-            </p>
+            crmError ? (
+              <p
+                className="flex items-start gap-1.5 text-small text-[var(--color-danger)]"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                <AlertCircle size={12} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 flex-shrink-0" />
+                {crmError}
+              </p>
+            ) : (
+              <p
+                className="text-small text-[var(--color-text-tertiary)]"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                No suggested actions
+              </p>
+            )
           ) : (
             <>
               <ul className="flex flex-col gap-2">

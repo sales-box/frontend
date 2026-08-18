@@ -152,7 +152,21 @@ export function usePanelActions(deps: {
       if (crmSuggestionPromise) {
         crmSuggestionPromise
           .then((crmRes) => {
-            const suggestions = crmRes.ok && crmRes.data.isPausedForApproval ? crmRes.data : null
+            if (!crmRes.ok) {
+              // A failed lookup is not an answer, and must not be cached as
+              // one. This used to write `null` on any failure, so a CRM that
+              // was briefly disconnected left the email reading "No suggested
+              // actions" for good — reconnecting did not help, because the
+              // panel never asked again. Leaving the cache empty means the
+              // next open retries.
+              console.error('[Copilot] CRM suggestion lookup failed:', crmRes)
+              if (seq !== loadSeqRef.current) return
+              setCrmError(describeCrmSubmitError(crmRes.kind === 'error' ? crmRes.status : undefined))
+              setCrmLoading(false)
+              return
+            }
+
+            const suggestions = crmRes.data.isPausedForApproval ? crmRes.data : null
             // Cache keyed by message id, so this is safe even if the SE has
             // moved on; the state writes below are not, hence the seq guard.
             void setCachedCrm(messageId, suggestions, false)
