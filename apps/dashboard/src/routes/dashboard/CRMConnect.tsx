@@ -67,8 +67,8 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       setShowKeyModal(false);
       setApiKey("");
       setKeyTouched(false);
-    } catch {
-      toast("Failed to connect to HubSpot");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to connect to HubSpot");
     }
   };
 
@@ -77,8 +77,8 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       await disconnectCrm.mutateAsync();
       setImportedCount(null);
       toast("HubSpot disconnected");
-    } catch {
-      toast("Failed to disconnect HubSpot");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to disconnect HubSpot");
     }
   };
 
@@ -91,8 +91,8 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
       setShowMcpModal(false);
       setMcpUrl("");
       setMcpUrlTouched(false);
-    } catch {
-      toast("Failed to connect Zoho MCP");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to connect Zoho MCP");
     }
   };
 
@@ -100,19 +100,19 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     try {
       await disconnectMcp.mutateAsync();
       toast("Zoho MCP disconnected");
-    } catch {
-      toast("Failed to disconnect Zoho MCP");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to disconnect Zoho MCP");
     }
   };
 
   return (
     <Shell active="crm" onNav={onNav} onLogout={onLogout}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 py-10">
-        <PageHeader title="CRM Connect" subtitle="Optionally sync your CRM for richer client history context." />
+        <PageHeader title="CRM Connect" subtitle="Connect one CRM to give replies client context — and to let the assistant file work back to it, with your approval." />
 
         <div className="flex items-start gap-2.5 text-[13px] text-text-secondary bg-surface-secondary rounded-lg px-4 py-3 mb-6">
           <Database size={14} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-text-tertiary" />
-          <span><strong className="text-text-primary">CRM integration is optional.</strong> Your product knowledge comes from Knowledge Base uploads. CRM data enriches replies with client history and deal context.</span>
+          <span><strong className="text-text-primary">CRM integration is optional.</strong> Your product knowledge comes from Knowledge Base uploads. A connected CRM adds client history to replies, and lets the assistant propose records for you to approve. <strong className="text-text-primary">One CRM per workspace</strong> — disconnect before switching.</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -143,10 +143,14 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
               </div>
             ) : (
               <div>
-                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Read-only sync of contacts, deal history, and company info. No data is written back to HubSpot.</p>
-                <Btn variant="primary" size="sm" onClick={() => setShowKeyModal(true)}>
-                  <Link2 size={13} strokeWidth={1.5} /> Connect HubSpot
-                </Btn>
+                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Imports your contacts for client history, and lets the assistant propose contacts, deals, tasks and notes — each one written only after you approve it.</p>
+                {mcpConnected ? (
+                  <p className="text-xs text-text-tertiary">Disconnect Zoho first — one CRM per workspace.</p>
+                ) : (
+                  <Btn variant="primary" size="sm" onClick={() => setShowKeyModal(true)}>
+                    <Link2 size={13} strokeWidth={1.5} /> Connect HubSpot
+                  </Btn>
+                )}
               </div>
             )}
           </Card>
@@ -170,10 +174,14 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
               </div>
             ) : (
               <div>
-                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Connect your presigned Zoho MCP Server URL to enable multi-action CRM workflows.</p>
-                <Btn variant="primary" size="sm" onClick={() => setShowMcpModal(true)}>
-                  <Link2 size={13} strokeWidth={1.5} /> Connect Zoho MCP
-                </Btn>
+                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Imports your contacts for client history, and lets the assistant propose leads, deals, tasks and notes — each one written only after you approve it. Needs your presigned Zoho MCP Server URL.</p>
+                {connected ? (
+                  <p className="text-xs text-text-tertiary">Disconnect HubSpot first — one CRM per workspace.</p>
+                ) : (
+                  <Btn variant="primary" size="sm" onClick={() => setShowMcpModal(true)}>
+                    <Link2 size={13} strokeWidth={1.5} /> Connect Zoho MCP
+                  </Btn>
+                )}
               </div>
             )}
           </Card>

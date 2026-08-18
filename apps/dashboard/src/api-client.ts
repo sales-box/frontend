@@ -125,7 +125,22 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
         throw new Error("Session expired");
       }
       const body = await res.text().catch(() => "");
-      throw new Error(`${res.status} ${res.statusText}: ${body}`);
+      // Prefer the API's own message. Nest puts a human sentence in `message`,
+      // and the CRM connect routes now rely on it to say things like which
+      // provider is already connected, or why an MCP URL was rejected —
+      // detail that "400 Bad Request: {…}" throws away.
+      let apiMessage = "";
+      try {
+        const parsed = JSON.parse(body) as { message?: string | string[] };
+        apiMessage = Array.isArray(parsed.message)
+          ? parsed.message.join(", ")
+          : (parsed.message ?? "");
+      } catch {
+        // Not JSON — fall through to the status line.
+      }
+      throw new Error(
+        apiMessage || `${res.status} ${res.statusText}: ${body}`,
+      );
     }
     if (res.status === 204) return undefined as T;
     const text = await res.text();
