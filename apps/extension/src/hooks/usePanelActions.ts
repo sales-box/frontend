@@ -232,7 +232,7 @@ export function usePanelActions(deps: {
     setCrmSubmitting(true)
     setCrmError(null)
 
-    const res = await sendToBackground({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
+    const res = await sendToBackground<{ applied?: boolean }>({ type: 'RESUME_CRM_ACTIONS', threadId, decisions })
     setCrmSubmitting(false)
 
     if (await handleAuthErr(res, dispatch)) return
@@ -243,6 +243,18 @@ export function usePanelActions(deps: {
       // panel must not claim one happened when it did not.
       console.error('[Copilot] resumeCrmActions failed:', res)
       setCrmError(describeCrmSubmitError(res.kind === 'error' ? res.status : undefined))
+      return
+    }
+
+    if (res.data?.applied === false) {
+      // A 2xx that applied nothing. The graph had no approval pending — it had
+      // already been resumed, or a previous attempt failed after consuming it —
+      // so the decisions were dropped. This came back in 59ms and the panel
+      // showed the success banner over a deal that was never created.
+      setCrmError(
+        'These actions were no longer awaiting approval, so nothing was written. ' +
+          'Refresh the panel to analyse this email again.',
+      )
       return
     }
 
