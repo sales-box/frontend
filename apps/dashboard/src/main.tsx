@@ -24,10 +24,10 @@ const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    onError: (error) => globalToast(extractMessage(error)),
+    onError: (error) => globalToast(extractMessage(error), "error"),
   }),
   mutationCache: new MutationCache({
-    onError: (error) => globalToast(extractMessage(error)),
+    onError: (error) => globalToast(extractMessage(error), "error"),
   }),
 })
 
