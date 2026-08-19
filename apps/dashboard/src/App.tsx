@@ -25,6 +25,10 @@ import { ExtensionDownload } from "./routes/ExtensionDownload";
 import { Privacy } from "./routes/Privacy";
 import { Terms } from "./routes/Terms";
 import { Security } from "./routes/Security";
+import { PlatformLogin } from "./routes/platform/PlatformLogin";
+import { PlatformTenants } from "./routes/platform/PlatformTenants";
+import { PlatformTenantDetail } from "./routes/platform/PlatformTenantDetail";
+import { usePlatformAuthStore } from "./store/platformAuth";
 
 const Checkout = lazy(() => import("./routes/Checkout").then(m => ({ default: m.Checkout })));
 
@@ -53,6 +57,14 @@ const PATHS: Record<Screen, string> = {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  return <>{children}</>;
+}
+
+// Separate gate for the platform-operator console — its own session (platformJwt),
+// never the tenant-admin one.
+function PlatformProtectedRoute({ children }: { children: ReactNode }) {
+  const isAuthenticated = usePlatformAuthStore(s => s.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/platform/login" replace />;
   return <>{children}</>;
 }
 
@@ -93,6 +105,10 @@ export default function App() {
         <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityFeed onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/plans" element={<ProtectedRoute><Plans onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        {/* Platform-operator console — separate identity + session (platformJwt). */}
+        <Route path="/platform/login" element={<PlatformLogin />} />
+        <Route path="/platform" element={<PlatformProtectedRoute><PlatformTenants /></PlatformProtectedRoute>} />
+        <Route path="/platform/tenants/:id" element={<PlatformProtectedRoute><PlatformTenantDetail /></PlatformProtectedRoute>} />
         <Route path="*" element={<NotFound onNav={onNav} />} />
       </Routes>
     </ToastProvider>
