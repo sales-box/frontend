@@ -1,4 +1,16 @@
-# React + TypeScript + Vite
+# Dashboard
+
+## Screenshot mode
+
+Run the dashboard with a populated demo workspace:
+
+```bash
+pnpm dev:screenshots
+```
+
+Open any `/dashboard` route directly. Screenshot mode creates a demo admin session and serves fixtures in-browser without contacting the backend. It is enabled only when `VITE_SCREENSHOT_MODE=true`; normal development and production builds continue to use the configured API.
+
+## Development
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

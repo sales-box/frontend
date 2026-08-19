@@ -1,13 +1,25 @@
+import { getScreenshotData, SCREENSHOT_TOKEN } from "./mock-data";
+
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 // Mock fallback is a standalone-demo aid only. It is OFF by default so real
 // API failures (429, 500, network, oversize uploads) surface as errors the UI
 // can show — never silently swapped for fake data. Set VITE_USE_MOCKS=true to
 // run the dashboard without a backend.
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
+const SCREENSHOT_MODE = import.meta.env.VITE_SCREENSHOT_MODE === "true";
 
 let _jwt: string | null = sessionStorage.getItem("jwt");
 let _tid: string | null = sessionStorage.getItem("tenantId");
 let _companyName: string | null = sessionStorage.getItem("companyName");
+
+if (SCREENSHOT_MODE && !_jwt) {
+  _jwt = SCREENSHOT_TOKEN;
+  _tid = "demo-tenant";
+  _companyName = "Northpeak Systems";
+  sessionStorage.setItem("jwt", _jwt);
+  sessionStorage.setItem("tenantId", _tid);
+  sessionStorage.setItem("companyName", _companyName);
+}
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
@@ -113,6 +125,9 @@ function getMockDataForUrl(url: string): any {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  if (SCREENSHOT_MODE) {
+    return getScreenshotData(url, init) as T;
+  }
   try {
     const res = await fetch(`${BASE}${url}`, {
       ...init,

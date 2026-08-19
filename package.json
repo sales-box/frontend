@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "pnpm --filter dashboard dev",
+    "dev:screenshots": "pnpm --filter dashboard dev:screenshots",
     "dev:extension": "pnpm --filter extension dev",
     "build": "pnpm -r build"
   },
