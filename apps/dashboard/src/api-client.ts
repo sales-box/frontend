@@ -103,11 +103,26 @@ function getMockDataForUrl(url: string): any {
       meta: { total: 2, lastPage: 1, currentPage: 1, limit: 50, prev: null, next: null }
     };
   }
-  if (url.includes("/analytics/team")) {
-    return [
-      { email: "se1@acme.com", status: "verified", grantedAt: new Date().toISOString(), verifiedAt: new Date().toISOString(), lastLoginAt: new Date().toISOString(), emailsReceived: 24, repliesSent: 18, replyRate: 0.75 },
-      { email: "se2@acme.com", status: "granted", grantedAt: new Date().toISOString(), verifiedAt: null, lastLoginAt: null, emailsReceived: 0, repliesSent: 0, replyRate: 0 },
-    ];
+  if (url.includes("/analytics/escalations")) {
+    return {
+      data: [
+        {
+          id: "esc1",
+          messageId: "msg-esc-1",
+          accountEmail: "se1@acme.com",
+          severity: "high",
+          reason: "Contract termination threat & legal escalation",
+          status: "pending",
+          reviewedBy: null,
+          reviewedAt: null,
+          createdAt: new Date().toISOString(),
+          analysis: { intent: "sensitive", intentConfidence: 0.95, isUrgent: true, urgencyReason: "Legal threat", reasoning: "Customer threatened legal action over contract clause", supervisorLabel: "red", createdAt: new Date().toISOString() },
+          client: { name: "John Customer", email: "john@enterprise.com", company: "Enterprise Co" },
+          subject: "URGENT: Contract Violation Notice",
+        },
+      ],
+      meta: { total: 1, lastPage: 1, currentPage: 1, limit: 50, prev: null, next: null }
+    };
   }
   return {};
 }
@@ -456,6 +471,38 @@ export interface ActivityPage {
   meta: PaginationMeta;
 }
 
+export interface EscalationItem {
+  id: string;
+  messageId: string;
+  accountEmail: string;
+  severity: "high" | "medium" | "low";
+  reason: string;
+  status: "pending" | "reviewed" | "dismissed";
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  analysis: {
+    intent: string;
+    intentConfidence: number;
+    isUrgent: boolean;
+    urgencyReason: string | null;
+    reasoning: string | null;
+    supervisorLabel: string | null;
+    createdAt: string;
+  } | null;
+  client: {
+    name: string | null;
+    email: string;
+    company: string | null;
+  } | null;
+  subject: string | null;
+}
+
+export interface EscalationsPage {
+  data: EscalationItem[];
+  meta: PaginationMeta;
+}
+
 export interface TeamMemberStats {
   email: string;
   status: "granted" | "verified" | "revoked";
@@ -488,6 +535,19 @@ export const analytics = {
 
   /** Per-SE activity: logins + email volume + reply rate. GET /analytics/team */
   team: () => request<TeamMemberStats[]>("/analytics/team"),
+
+  /** Admin Escalation & Attention Feed. GET /analytics/escalations */
+  getEscalations: (page = 1, limit = 50, status?: string, date?: string) =>
+    request<EscalationsPage>(
+      `/analytics/escalations?page=${page}&limit=${limit}${status ? `&status=${encodeURIComponent(status)}` : ""}${date ? `&date=${encodeURIComponent(date)}` : ""}`
+    ),
+
+  /** Mark escalation item as reviewed or dismissed. PATCH /analytics/escalations/:id/resolve */
+  resolveEscalation: (id: string, status: "reviewed" | "dismissed" = "reviewed") =>
+    request<EscalationItem>(`/analytics/escalations/${id}/resolve`, {
+      method: "PATCH",
+      ...json({ status }),
+    }),
 };
 
 // ─── Payments ───────────────────────────────────────────────
