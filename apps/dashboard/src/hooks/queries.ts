@@ -206,3 +206,19 @@ export function useActivityFeed(page: number, limit: number, date?: string) {
     queryFn: () => analytics.getActivity(page, limit, date),
   });
 }
+
+export function useEscalations(page = 1, limit = 50, status?: string, date?: string) {
+  return useQuery({
+    queryKey: ["escalations", page, limit, status, date],
+    queryFn: () => analytics.getEscalations(page, limit, status, date),
+  });
+}
+
+export function useResolveEscalation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status?: "reviewed" | "dismissed" }) =>
+      analytics.resolveEscalation(id, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["escalations"] }),
+  });
+}
