@@ -18,7 +18,7 @@ export function PlatformLogin() {
     try {
       const { token } = await platformApi.login(email.trim(), password);
       login(token);
-      navigate("/platform");
+      navigate("/admin");
     } catch {
       setError("Invalid credentials");
     } finally {

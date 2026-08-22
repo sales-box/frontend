@@ -29,7 +29,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     if (res.status === 401) {
       clearPlatformSession();
-      window.location.replace("/platform/login");
+      window.location.replace("/admin/login");
       throw new Error("Session expired");
     }
     const body = await res.text().catch(() => "");

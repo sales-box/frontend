@@ -64,7 +64,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 // never the tenant-admin one.
 function PlatformProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = usePlatformAuthStore(s => s.isAuthenticated);
-  if (!isAuthenticated) return <Navigate to="/platform/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
 
@@ -106,9 +106,9 @@ export default function App() {
         <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/plans" element={<ProtectedRoute><Plans onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         {/* Platform-operator console — separate identity + session (platformJwt). */}
-        <Route path="/platform/login" element={<PlatformLogin />} />
-        <Route path="/platform" element={<PlatformProtectedRoute><PlatformTenants /></PlatformProtectedRoute>} />
-        <Route path="/platform/tenants/:id" element={<PlatformProtectedRoute><PlatformTenantDetail /></PlatformProtectedRoute>} />
+        <Route path="/admin/login" element={<PlatformLogin />} />
+        <Route path="/admin" element={<PlatformProtectedRoute><PlatformTenants /></PlatformProtectedRoute>} />
+        <Route path="/admin/tenants/:id" element={<PlatformProtectedRoute><PlatformTenantDetail /></PlatformProtectedRoute>} />
         <Route path="*" element={<NotFound onNav={onNav} />} />
       </Routes>
     </ToastProvider>

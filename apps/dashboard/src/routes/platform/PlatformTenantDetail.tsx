@@ -57,7 +57,7 @@ export function PlatformTenantDetail() {
     tenant.status === "offboarded" || tenant.status === "abandoned";
 
   return (
-    <Shell onBack={() => navigate("/platform")}>
+    <Shell onBack={() => navigate("/admin")}>
       <div className="space-y-6">
         <div>
           <h1 className="text-xl font-semibold">{tenant.companyName}</h1>

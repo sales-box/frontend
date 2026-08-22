@@ -48,7 +48,7 @@ export function PlatformTenants() {
         <button
           onClick={() => {
             logout();
-            navigate("/platform/login");
+            navigate("/admin/login");
           }}
           className="text-sm text-slate-400 hover:text-slate-100"
         >
@@ -79,7 +79,7 @@ export function PlatformTenants() {
                   >
                     <td className="py-2">
                       <Link
-                        to={`/platform/tenants/${t.id}`}
+                        to={`/admin/tenants/${t.id}`}
                         className="text-slate-100 hover:underline"
                       >
                         {t.companyName}
