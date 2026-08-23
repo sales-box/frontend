@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2 } from "lucide-react";
 import type { Screen } from "../../types";
-import { useDocuments, useUploadDocument, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
-import type { QualityReport } from "../../api-client";
+import { useDocuments, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
+import { knowledgeBase, type QualityReport } from "../../api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
 import { Badge } from "../../components/Badge";
@@ -48,16 +49,27 @@ function QualityScore({ score, report }: { score: number; report?: QualityReport
   );
 }
 
+type UploadEntry = {
+  id: string;
+  name: string;
+  status: "queued" | "uploading" | "done" | "failed";
+  progress: number;
+  error?: string;
+};
+
 export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
+  const qc = useQueryClient();
   const [dragging, setDragging] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  const uploadingRef = useRef(false);
+  const queueRef = useRef<{ file: File; id: string }[]>([]);
 
   const { data: docsRes, isLoading, error } = useDocuments();
-  const uploadDoc = useUploadDocument();
   const deleteDoc = useDeleteDocument();
   const deleteAll = useDeleteAllDocuments();
 
@@ -117,20 +129,45 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     }
   };
 
-  const handleUpload = async (files: FileList | null) => {
-    if (!files) return;
-    // Upload one at a time so a multi-file selection doesn't fire a burst of
-    // concurrent requests (which trips the per-minute upload rate limit and,
-    // before the mock-fallback fix, failed silently). Each file reports its
-    // own outcome.
-    for (const file of Array.from(files)) {
+  // Drains the queue one file at a time (a multi-file selection must not fire a
+  // burst — that trips the per-minute upload rate limit). Each file reports its
+  // own progress; the list is refetched once when the whole queue is done.
+  const processQueue = useCallback(async () => {
+    if (uploadingRef.current) return;
+    uploadingRef.current = true;
+    while (queueRef.current.length > 0) {
+      const next = queueRef.current.shift()!;
+      setUploads(prev => prev.map(u => u.id === next.id ? { ...u, status: "uploading", progress: 0 } : u));
       try {
-        await uploadDoc.mutateAsync(file);
-      } catch {
-        toast(`Failed to upload "${file.name}"`);
+        const { promise } = knowledgeBase.uploadWithProgress(next.file, (pct) => {
+          setUploads(prev => prev.map(u => u.id === next.id ? { ...u, progress: pct } : u));
+        });
+        await promise;
+        setUploads(prev => prev.map(u => u.id === next.id ? { ...u, status: "done", progress: 100 } : u));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setUploads(prev => prev.map(u => u.id === next.id ? { ...u, status: "failed", error: msg } : u));
+        toast(`Failed to upload "${next.file.name}"`);
       }
     }
-  };
+    uploadingRef.current = false;
+    qc.invalidateQueries({ queryKey: ["kb"] });
+  }, [qc, toast]);
+
+  const dismissUploads = useCallback(() => {
+    setUploads(prev => prev.filter(u => u.status === "queued" || u.status === "uploading"));
+  }, []);
+
+  const handleUpload = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const entries: { entry: UploadEntry; file: File }[] = Array.from(files).map((file, i) => ({
+      file,
+      entry: { id: `${Date.now()}-${i}`, name: file.name, status: "queued" as const, progress: 0 },
+    }));
+    setUploads(prev => [...prev, ...entries.map(e => e.entry)]);
+    queueRef.current.push(...entries.map(e => ({ file: e.file, id: e.entry.id })));
+    processQueue();
+  }, [processQueue]);
 
 
   return (
@@ -244,6 +281,57 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
           </span>
         </label>
         </Reveal>
+
+        {/* Upload queue */}
+        {uploads.length > 0 && (
+          <Card className="mb-5 overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2">
+                <Upload size={14} strokeWidth={1.5} className="text-primary" />
+                <span className="text-[13px] font-semibold text-text-primary">
+                  Uploading {uploads.filter(u => u.status === "queued" || u.status === "uploading").length > 0
+                    ? `${uploads.filter(u => u.status === "done").length}/${uploads.length}`
+                    : `${uploads.length} done`}
+                </span>
+              </div>
+              {uploads.every(u => u.status === "done" || u.status === "failed") && (
+                <button onClick={dismissUploads} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer ${focusRing}`}>Dismiss</button>
+              )}
+            </div>
+            <div className="divide-y divide-border">
+              {uploads.map(u => (
+                <div key={u.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--color-primary) 10%, transparent)" }}>
+                    {u.status === "uploading" ? <Loader2 size={14} strokeWidth={1.5} className="text-primary animate-spin" />
+                     : u.status === "done" ? <CheckCircle2 size={14} strokeWidth={1.5} className="text-success" />
+                     : u.status === "failed" ? <AlertTriangle size={14} strokeWidth={1.5} className="text-danger" />
+                     : <Clock size={14} strokeWidth={1.5} className="text-text-tertiary" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] text-text-primary truncate">{u.name}</div>
+                    {u.status === "uploading" && (
+                      <div className="mt-1.5 h-1.5 rounded-full bg-border overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+                          style={{ width: `${u.progress}%` }}
+                        />
+                      </div>
+                    )}
+                    {u.status === "failed" && u.error && (
+                      <div className="text-[11px] text-danger mt-0.5 truncate">{u.error}</div>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-mono text-text-tertiary shrink-0 w-12 text-right">
+                    {u.status === "uploading" ? `${u.progress}%`
+                     : u.status === "done" ? "Done"
+                     : u.status === "failed" ? "Error"
+                     : "Queued"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Search */}
         {docs.length > 0 && (
