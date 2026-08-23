@@ -119,6 +119,18 @@ function QualityCriteriaPanel() {
   );
 }
 
+/**
+ * A distinct name per draft, because upload REPLACES any document with the same
+ * filename. A fixed "draft.txt" made every accepted draft silently delete the
+ * one before it — the exact destruction this panel exists to prevent,
+ * reintroduced by a constant.
+ */
+function draftFilename(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `draft-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.txt`;
+}
+
 /** Long enough to be worth scoring; below this the result is just noise. */
 const MIN_DRAFT_CHARS = 20;
 /** Scored on a pause, not a keystroke — every check is a real request. */
@@ -152,22 +164,34 @@ function QualityPreviewPanel({
   // — not whatever happens to be in the picker afterwards.
   const checkedFile = useRef<File | null>(null);
   const lastScored = useRef<string>("");
+  // Monotonic request id. Previews are debounced and vary wildly in cost — a
+  // 20MB PDF against a one-line draft — so responses can and do arrive out of
+  // order. Without this the slower, older one wins and the panel shows a score
+  // for text the admin has already changed.
+  const requestSeq = useRef(0);
 
   const check = useCallback(async (file?: File) => {
     if (!file) return;
+    const seq = ++requestSeq.current;
     setChecking(true);
     setError(null);
     setAccepted(false);
     try {
       const res = await knowledgeBase.previewQuality(file);
+      if (seq !== requestSeq.current) return; // superseded — drop it
       checkedFile.current = file;
       setResult(res);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       checkedFile.current = null;
+      // Let this text be retried. lastScored was set before the request, so
+      // leaving it in place after a failure means the identical draft can
+      // never be scored again — the admin retypes it and nothing happens.
+      lastScored.current = "";
       setResult(null);
       setError(err instanceof Error ? err.message : "Could not read that file");
     } finally {
-      setChecking(false);
+      if (seq === requestSeq.current) setChecking(false);
     }
   }, []);
 
@@ -181,9 +205,10 @@ function QualityPreviewPanel({
   useEffect(() => {
     const text = draft.trim();
     if (text.length < MIN_DRAFT_CHARS) {
-      if (lastScored.current) {
+      if (lastScored.current || error) {
         lastScored.current = "";
         setResult(null);
+        setError(null); // otherwise a failure stays on screen over an empty box
         checkedFile.current = null;
       }
       return;
@@ -194,13 +219,26 @@ function QualityPreviewPanel({
       lastScored.current = text;
       // Wrapped as a .txt file so it goes through the identical path an
       // uploaded document takes — same extraction, same chunking, same rubric.
-      void check(new File([draft], "draft.txt", { type: "text/plain" }));
+      //
+      // The name carries a timestamp because upload REPLACES any document with
+      // the same filename. A fixed "draft.txt" made every accepted draft
+      // silently delete the one before it — the exact destruction this panel
+      // exists to prevent, reintroduced by a constant.
+      void check(
+        new File([draft], draftFilename(), { type: "text/plain" }),
+      );
     }, DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [draft, check]);
+  }, [draft, check, error]);
+
+  // True while the score on screen no longer describes what is in the box.
+  // During the 900ms debounce no request has started yet, so `checking` is
+  // false and the held file is still the PRE-EDIT draft — accepting there
+  // would store text the admin has already replaced.
+  const stale = checking || draft.trim() !== lastScored.current;
 
   const accept = () => {
-    if (!checkedFile.current) return;
+    if (!checkedFile.current || stale) return;
     onAccept([checkedFile.current]);
     setAccepted(true);
   };
@@ -262,11 +300,14 @@ function QualityPreviewPanel({
                 second file-picker away. */}
             <span className="ml-auto shrink-0">
               {accepted ? (
+                // "Queued", not "Added": onAccept hands the file to the upload
+                // queue and returns. The queue below reports the real outcome,
+                // and claiming success here would stay green through a failure.
                 <span className="inline-flex items-center gap-1.5 text-[13px] text-success">
-                  <CheckCircle2 size={14} strokeWidth={1.5} /> Added
+                  <CheckCircle2 size={14} strokeWidth={1.5} /> Queued for upload
                 </span>
               ) : (
-                <Btn variant="primary" size="sm" disabled={checking} onClick={accept}>
+                <Btn variant="primary" size="sm" disabled={stale} onClick={accept}>
                   Add to knowledge base
                 </Btn>
               )}
