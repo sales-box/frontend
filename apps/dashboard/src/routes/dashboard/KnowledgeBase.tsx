@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown } from "lucide-react";
 import type { Screen } from "../../types";
 import { useDocuments, useDeleteDocument, useDeleteAllDocuments, useQualityCriteria } from "../../hooks/queries";
@@ -119,34 +119,90 @@ function QualityCriteriaPanel() {
   );
 }
 
+/** Long enough to be worth scoring; below this the result is just noise. */
+const MIN_DRAFT_CHARS = 20;
+/** Scored on a pause, not a keystroke — every check is a real request. */
+const DRAFT_DEBOUNCE_MS = 900;
+
 /**
- * Check a file's score before committing it.
+ * Score before you commit — for a file, or for text as it is written.
  *
- * Uploading was the only way to find out what a document scored, and uploading
- * is destructive: persist() deletes any existing document with the same
- * filename before it writes. So "let me upload this and see" had already
+ * Uploading used to be the only way to find out what a document scored, and
+ * uploading is destructive: persist() deletes any existing document with the
+ * same filename before it writes. So "let me upload this and see" had already
  * replaced the better version of Pricing.pdf by the time the number appeared.
  *
- * This stores nothing. The admin can check, fix the file, check again, and only
- * then upload.
+ * Nothing here is stored. Check, fix, check again, and accept when it is ready
+ * — accepting from this panel, not by hunting the file down again in the
+ * dropzone.
  */
-function QualityPreviewPanel({ bands }: { bands: { good: number; fair: number } }) {
+function QualityPreviewPanel({
+  bands,
+  onAccept,
+}: {
+  bands: { good: number; fair: number };
+  onAccept: (files: File[]) => void;
+}) {
   const [result, setResult] = useState<QualityPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [accepted, setAccepted] = useState(false);
+  // The exact file that produced the current result, so accepting uploads THAT
+  // — not whatever happens to be in the picker afterwards.
+  const checkedFile = useRef<File | null>(null);
+  const lastScored = useRef<string>("");
 
-  const check = async (file?: File) => {
+  const check = useCallback(async (file?: File) => {
     if (!file) return;
     setChecking(true);
     setError(null);
+    setAccepted(false);
     try {
-      setResult(await knowledgeBase.previewQuality(file));
+      const res = await knowledgeBase.previewQuality(file);
+      checkedFile.current = file;
+      setResult(res);
     } catch (err) {
+      checkedFile.current = null;
       setResult(null);
       setError(err instanceof Error ? err.message : "Could not read that file");
     } finally {
       setChecking(false);
     }
+  }, []);
+
+  // Live scoring while the admin writes or pastes.
+  //
+  // It goes to the server rather than running the rubric in the browser. The
+  // patterns are deliberately not published — they are a recipe for text that
+  // matches and says nothing — and a second copy of the rules here would drift
+  // from the ones that actually score the upload. Debounced, and skipped when
+  // the text has not changed, so a pause costs one request rather than a burst.
+  useEffect(() => {
+    const text = draft.trim();
+    if (text.length < MIN_DRAFT_CHARS) {
+      if (lastScored.current) {
+        lastScored.current = "";
+        setResult(null);
+        checkedFile.current = null;
+      }
+      return;
+    }
+    if (text === lastScored.current) return;
+
+    const timer = setTimeout(() => {
+      lastScored.current = text;
+      // Wrapped as a .txt file so it goes through the identical path an
+      // uploaded document takes — same extraction, same chunking, same rubric.
+      void check(new File([draft], "draft.txt", { type: "text/plain" }));
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [draft, check]);
+
+  const accept = () => {
+    if (!checkedFile.current) return;
+    onAccept([checkedFile.current]);
+    setAccepted(true);
   };
 
   const band = (score: number) =>
@@ -159,9 +215,9 @@ function QualityPreviewPanel({ bands }: { bands: { good: number; fair: number } 
           <FileWarning size={18} strokeWidth={1.5} className="text-secondary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Check a file first</h2>
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Check before you add it</h2>
           <p className="text-xs text-text-tertiary">
-            See what it would score without adding it to your knowledge base.
+            Score a file, or write below and watch the score change. Nothing is saved until you accept.
           </p>
         </div>
         <label className={`inline-flex items-center gap-2 font-body font-semibold rounded-lg px-3 py-1.5 text-[13px] border border-border bg-surface text-text-secondary hover:border-primary/50 hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-within:ring-2 focus-within:ring-primary/25 ${checking ? "opacity-60 pointer-events-none" : ""}`}>
@@ -171,11 +227,20 @@ function QualityPreviewPanel({ bands }: { bands: { good: number; fair: number } 
             accept=".pdf,.docx,.xlsx,.pptx,.ppt,.txt,.md"
             aria-label="Choose a file to check"
             disabled={checking}
-            onChange={e => { void check(e.target.files?.[0]); e.target.value = ""; }}
+            onChange={e => { setDraft(""); lastScored.current = ""; void check(e.target.files?.[0]); e.target.value = ""; }}
           />
           {checking ? "Checking…" : "Choose a file"}
         </label>
       </div>
+
+      <textarea
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        rows={4}
+        placeholder="…or paste / write the content here and the score updates as you go"
+        aria-label="Draft content to score"
+        className="w-full px-3.5 py-2.5 mb-3 text-sm font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors resize-y"
+      />
 
       {error && <p className="text-[13px] text-danger">{error}</p>}
 
@@ -190,6 +255,22 @@ function QualityPreviewPanel({ bands }: { bands: { good: number; fair: number } 
             </span>
             <span className="text-[13px] text-text-secondary truncate">{result.filename}</span>
             <span className="text-[11px] text-text-tertiary font-mono">{result.chunks} passage{result.chunks === 1 ? "" : "s"}</span>
+            {checking && <span className="text-[11px] text-text-tertiary">updating…</span>}
+
+            {/* Accept, from here. Without this the admin has to find the file
+                again in the dropzone — the "يقبل" half of the task was a
+                second file-picker away. */}
+            <span className="ml-auto shrink-0">
+              {accepted ? (
+                <span className="inline-flex items-center gap-1.5 text-[13px] text-success">
+                  <CheckCircle2 size={14} strokeWidth={1.5} /> Added
+                </span>
+              ) : (
+                <Btn variant="primary" size="sm" disabled={checking} onClick={accept}>
+                  Add to knowledge base
+                </Btn>
+              )}
+            </span>
           </div>
 
           {result.isLowConfidence && (
@@ -479,9 +560,9 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     setUploads(prev => prev.filter(u => u.status === "queued" || u.status === "uploading"));
   }, []);
 
-  const handleUpload = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const entries: { entry: UploadEntry; file: File }[] = Array.from(files).map((file, i) => ({
+  const uploadFiles = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    const entries: { entry: UploadEntry; file: File }[] = files.map((file, i) => ({
       file,
       entry: { id: `${Date.now()}-${i}`, name: file.name, status: "queued" as const, progress: 0 },
     }));
@@ -489,6 +570,11 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     queueRef.current.push(...entries.map(e => ({ file: e.file, id: e.entry.id })));
     processQueue();
   }, [processQueue]);
+
+  const handleUpload = useCallback((files: FileList | null) => {
+    if (!files) return;
+    uploadFiles(Array.from(files));
+  }, [uploadFiles]);
 
 
   return (
@@ -585,7 +671,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
         <QualityCriteriaPanel />
         </Reveal>
         <Reveal>
-        <QualityPreviewPanel bands={criteria.data?.bands ?? { good: 80, fair: 50 }} />
+        <QualityPreviewPanel bands={criteria.data?.bands ?? { good: 80, fair: 50 }} onAccept={uploadFiles} />
         </Reveal>
 
         {/* Accessible dropzone */}
