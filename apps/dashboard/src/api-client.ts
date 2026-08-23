@@ -295,6 +295,31 @@ export interface QualityCriteria {
   bands: { good: number; fair: number };
 }
 
+export interface QualityGap {
+  category: string;
+  asks: string;
+  example: string;
+  /** Points closing this gap would gain. */
+  worth: number;
+}
+
+/** What a file would score, computed without storing it. */
+export interface QualityPreview {
+  filename: string;
+  score: number;
+  chunks: number;
+  isLowConfidence: boolean;
+  qualityReason?: string;
+  covers: string[];
+  gaps: QualityGap[];
+  /**
+   * Always false. Repetition needs chunk embeddings, which need storage — so a
+   * preview genuinely cannot measure it, and says so rather than leaving the
+   * absence to read as a perfect result.
+   */
+  redundancyMeasured: boolean;
+}
+
 /** Which half of the hybrid search surfaced a passage. */
 export type KbFoundBy = "semantic" | "keyword" | "both";
 
@@ -334,6 +359,20 @@ export const knowledgeBase = {
   /** What the quality score measures and what each part is worth. */
   criteria: () =>
     request<QualityCriteria>("/knowledge-base/quality/criteria"),
+
+  /**
+   * Score a file WITHOUT storing it. Safe to run on a file you may not keep —
+   * a real upload would already have replaced any existing document of the
+   * same name before returning a score.
+   */
+  previewQuality: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<QualityPreview>("/knowledge-base/quality/preview", {
+      method: "POST",
+      body: form,
+    });
+  },
 
   /**
    * Ask the knowledge base a question and see what the AI would retrieve.
