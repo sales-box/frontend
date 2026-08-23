@@ -293,6 +293,42 @@ export const knowledgeBase = {
     );
   },
 
+  uploadWithProgress: (
+    file: File,
+    onProgress: (pct: number) => void,
+  ): { promise: Promise<{ filename: string; chunksCreated: number; status: string; isLowConfidence: boolean; qualityReason: string | null }>; abort: () => void } => {
+    const form = new FormData();
+    form.append("file", file);
+    const xhr = new XMLHttpRequest();
+    const promise = new Promise<{ filename: string; chunksCreated: number; status: string; isLowConfidence: boolean; qualityReason: string | null }>((resolve, reject) => {
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      });
+      xhr.addEventListener("load", () => {
+        if (xhr.status === 401) {
+          clearSession();
+          window.location.replace("/signin");
+          reject(new Error("Session expired"));
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); } catch { resolve(undefined as any); }
+        } else {
+          let msg = "";
+          try { msg = JSON.parse(xhr.responseText)?.message ?? ""; } catch { /* */ }
+          reject(new Error(msg || `${xhr.status} ${xhr.statusText}`));
+        }
+      });
+      xhr.addEventListener("error", () => reject(new Error("Network error")));
+      xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+      xhr.open("POST", `${BASE}/knowledge-base/upload`);
+      const hdrs = authHeaders();
+      Object.entries(hdrs).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+      xhr.send(form);
+    });
+    return { promise, abort: () => xhr.abort() };
+  },
+
   delete: (id: string) =>
     request<void>(`/knowledge-base/documents/${id}`, { method: "DELETE" }),
 
