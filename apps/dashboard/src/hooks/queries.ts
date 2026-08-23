@@ -55,6 +55,20 @@ export function useUploadDocument() {
   });
 }
 
+/**
+ * What the quality score measures. Static per deployment — the rubric only
+ * changes when the backend is redeployed — so it is cached hard rather than
+ * refetched on every visit to the screen.
+ */
+export function useQualityCriteria() {
+  return useQuery({
+    queryKey: ["kb-quality-criteria"],
+    queryFn: () => knowledgeBase.criteria(),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+}
+
 export function useDeleteDocument() {
   const qc = useQueryClient();
   return useMutation({

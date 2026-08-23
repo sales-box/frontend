@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
-import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2 } from "lucide-react";
+import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown } from "lucide-react";
 import type { Screen } from "../../types";
-import { useDocuments, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
+import { useDocuments, useDeleteDocument, useDeleteAllDocuments, useQualityCriteria } from "../../hooks/queries";
 import { knowledgeBase, type QualityReport, type KbSearchResult, type KbMatchStrength } from "../../api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "../../components/Shell";
@@ -46,6 +46,76 @@ function QualityScore({ score, report }: { score: number; report?: QualityReport
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * What the quality score is actually looking for, shown BEFORE a file is
+ * picked rather than after it has been scored.
+ *
+ * The rubric only existed as a constant on the server. An admin could upload a
+ * document, get a number back, and have no way to find out what the number was
+ * measuring — so the only route to a good score was trial and error.
+ *
+ * The criteria come from the endpoint rather than being written out here, so
+ * they cannot drift from what the scorer does. That includes the score bands:
+ * they used to be hard-coded in two places on this screen and nowhere on the
+ * backend that produces the score.
+ */
+function QualityCriteriaPanel() {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, error } = useQualityCriteria();
+
+  if (isLoading || error || !data) return null;
+
+  return (
+    <Card className="mb-5 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-2.5 px-5 py-4 text-left cursor-pointer hover:bg-surface-secondary/40 transition-colors ${focusRing}`}
+      >
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--color-accent-cool) 14%, transparent)" }}>
+          <BookOpen size={18} strokeWidth={1.5} className="text-accent-cool" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">
+            What makes a good document
+          </h2>
+          <p className="text-xs text-text-tertiary">
+            Every upload is scored against {data.criteria.length} checks. {data.bands.good}+ is healthy, under {data.bands.fair} is weak.
+          </p>
+        </div>
+        <ChevronDown
+          size={16}
+          strokeWidth={1.5}
+          className={`text-text-tertiary shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 pt-1">
+          <ul className="space-y-2.5">
+            {data.criteria.map(c => (
+              <li key={c.category} className="flex gap-3">
+                <span className="shrink-0 mt-0.5 inline-flex items-center justify-center min-w-[2.6rem] h-5 rounded-full bg-surface-secondary text-[11px] font-semibold text-text-secondary">
+                  +{c.worth}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-text-primary">{c.asks}</span>
+                  {/* The scoring is regex-based and fussier than the question
+                      sounds — "competitive pricing" is not a price. The example
+                      is what makes this list actionable instead of agreeable. */}
+                  <span className="block mt-0.5 font-mono text-[11px] text-text-tertiary break-words">
+                    {c.example}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -385,6 +455,12 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
             </p>
           </div>
         )}
+
+        {/* Sits directly above the dropzone: the criteria are only useful
+            while the admin still has the chance to fix the file. */}
+        <Reveal>
+        <QualityCriteriaPanel />
+        </Reveal>
 
         {/* Accessible dropzone */}
         <Reveal>

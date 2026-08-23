@@ -279,6 +279,22 @@ export interface PaginationMeta {
   next: number | null;
 }
 
+export interface RubricCriterion {
+  category: string;
+  /** The question the scorer asks of every document. */
+  asks: string;
+  /** A line that would satisfy it. */
+  example: string;
+  /** Points it is worth, out of 100. */
+  worth: number;
+}
+
+export interface QualityCriteria {
+  criteria: RubricCriterion[];
+  /** Score bands, published by the backend so the two cannot disagree. */
+  bands: { good: number; fair: number };
+}
+
 /** Which half of the hybrid search surfaced a passage. */
 export type KbFoundBy = "semantic" | "keyword" | "both";
 
@@ -314,6 +330,10 @@ export const knowledgeBase = {
     request<{ data: KBDocument[]; meta: PaginationMeta }>(
       `/knowledge-base/documents?page=${page}&limit=${limit}`
     ),
+
+  /** What the quality score measures and what each part is worth. */
+  criteria: () =>
+    request<QualityCriteria>("/knowledge-base/quality/criteria"),
 
   /**
    * Ask the knowledge base a question and see what the AI would retrieve.
