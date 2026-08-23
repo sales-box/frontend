@@ -279,11 +279,51 @@ export interface PaginationMeta {
   next: number | null;
 }
 
+/** Which half of the hybrid search surfaced a passage. */
+export type KbFoundBy = "semantic" | "keyword" | "both";
+
+/**
+ * How well a passage really matches. Vector search always returns its top
+ * results, so a "weak" hit means it came back without answering anything.
+ */
+export type KbMatchStrength = "strong" | "moderate" | "weak";
+
+export interface KbSearchHit {
+  chunkId: string;
+  documentId: string;
+  filename: string;
+  chunkIndex: number | null;
+  content: string;
+  /** Null for keyword-only hits — that half has no comparable score. */
+  similarity: number | null;
+  strength: KbMatchStrength;
+  foundBy: KbFoundBy;
+  isLowConfidence: boolean;
+}
+
+export interface KbSearchResult {
+  question: string;
+  outcome: "ok" | "weak_match" | "no_match" | "empty_knowledge_base";
+  tookMs: number;
+  candidates: { semantic: number; keyword: number };
+  hits: KbSearchHit[];
+}
+
 export const knowledgeBase = {
   list: (page = 1, limit = 50) =>
     request<{ data: KBDocument[]; meta: PaginationMeta }>(
       `/knowledge-base/documents?page=${page}&limit=${limit}`
     ),
+
+  /**
+   * Ask the knowledge base a question and see what the AI would retrieve.
+   * Runs real retrieval and stops before the LLM — no reply is generated.
+   */
+  test: (question: string) =>
+    request<KbSearchResult>("/knowledge-base/test", {
+      method: "POST",
+      ...json({ question }),
+    }),
 
   upload: (file: File) => {
     const form = new FormData();

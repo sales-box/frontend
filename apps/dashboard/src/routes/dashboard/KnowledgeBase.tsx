@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2 } from "lucide-react";
 import type { Screen } from "../../types";
 import { useDocuments, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
-import { knowledgeBase, type QualityReport } from "../../api-client";
+import { knowledgeBase, type QualityReport, type KbSearchResult, type KbMatchStrength } from "../../api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
@@ -46,6 +46,129 @@ function QualityScore({ score, report }: { score: number; report?: QualityReport
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * "What would the AI find?" — the admin's own retrieval check.
+ *
+ * This card was a disabled placeholder while the retrieval stack underneath was
+ * fully working, so the only way to discover a gap in the knowledge base was to
+ * wait for a real client email to need it.
+ *
+ * It deliberately shows what retrieval ACTUALLY returned rather than a tidied
+ * version: vector search always hands back its top results, so a question the
+ * knowledge base does not cover still produces passages. They are labelled
+ * instead of hidden — the point of the screen is to be able to trust it.
+ */
+function TestKnowledgeBase() {
+  const [question, setQuestion] = useState("");
+  const [result, setResult] = useState<KbSearchResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const ask = async () => {
+    const q = question.trim();
+    if (q.length < 3 || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      setResult(await knowledgeBase.test(q));
+    } catch (err) {
+      setResult(null);
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const OUTCOME: Record<KbSearchResult["outcome"], { tone: string; text: string }> = {
+    ok: { tone: "text-success", text: "The AI can answer this from your documents." },
+    weak_match: {
+      tone: "text-warning",
+      text: "Nothing here really answers this. These passages came back because search always returns its closest matches — not because they cover the question.",
+    },
+    no_match: { tone: "text-warning", text: "Nothing in your knowledge base matched." },
+    empty_knowledge_base: {
+      tone: "text-text-tertiary",
+      text: "Nothing is indexed yet. Upload a document first — a new upload takes a moment to become searchable.",
+    },
+  };
+
+  const strengthStyle = (s: KbMatchStrength) =>
+    s === "strong" ? "success" : s === "moderate" ? "warning" : "danger";
+
+  return (
+    <Card className="p-5 mt-5">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
+          <Zap size={18} strokeWidth={1.5} className="text-primary" />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Test Knowledge Base</h2>
+          <p className="text-xs text-text-tertiary">Ask what a client would ask, and see what the AI would find.</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={question}
+          onChange={e => setQuestion(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") void ask(); }}
+          placeholder="e.g. What is the lead time on the WP-120?"
+          aria-label="Question to test against the knowledge base"
+          className="flex-1 px-3.5 py-2.5 text-sm font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors"
+        />
+        <Btn variant="primary" loading={running} disabled={question.trim().length < 3} onClick={() => { void ask(); }}>
+          {running ? "Searching…" : "Test"}
+        </Btn>
+      </div>
+
+      {error && <p className="text-[13px] text-danger mt-3">{error}</p>}
+
+      {result && (
+        <div className="mt-4">
+          <div className="flex items-baseline gap-2 flex-wrap mb-3">
+            <span className={`text-[13px] font-medium ${OUTCOME[result.outcome].tone}`}>
+              {OUTCOME[result.outcome].text}
+            </span>
+            {/* The two halves are shown separately because they fail differently:
+                the keyword half is the one that catches an exact SKU the
+                embedding misses, and seeing it return 0 explains a lot. */}
+            <span className="text-[11px] text-text-tertiary font-mono">
+              {result.candidates.semantic} by meaning · {result.candidates.keyword} by keyword · {result.tookMs}ms
+            </span>
+          </div>
+
+          <ol className="space-y-2">
+            {result.hits.map((h, i) => (
+              <li key={h.chunkId} className="rounded-lg border border-border bg-surface-secondary/40 p-3">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span className="text-[11px] font-mono text-text-tertiary">#{i + 1}</span>
+                  <span className="text-[13px] font-medium text-text-primary truncate">{h.filename}</span>
+                  <Badge variant={strengthStyle(h.strength)}>{h.strength}</Badge>
+                  <span className="text-[11px] text-text-tertiary" title="Which half of the hybrid search found it">
+                    {h.foundBy === "both" ? "meaning + keyword" : h.foundBy === "semantic" ? "meaning" : "keyword"}
+                  </span>
+                  {h.similarity !== null && (
+                    <span className="text-[11px] font-mono text-text-tertiary">{h.similarity.toFixed(2)}</span>
+                  )}
+                  {h.isLowConfidence && (
+                    <span className="text-[11px] text-warning" title="This document had an unreliable text extraction">
+                      unreliable extraction
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap line-clamp-4">
+                  {h.content}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -432,20 +555,8 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
         </Card>
         </Reveal>
 
-        {/* Test Knowledge Base — Coming soon */}
         <Reveal>
-        <Card className="p-5 mt-5 opacity-60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-text-tertiary) 14%, transparent)" }}>
-              <Zap size={18} strokeWidth={1.5} className="text-text-tertiary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Test Knowledge Base</h2>
-              <p className="text-xs text-text-tertiary">Run a query to see what the AI would retrieve before sending it to your reps.</p>
-            </div>
-            <Badge variant="muted">Coming soon</Badge>
-          </div>
-        </Card>
+        <TestKnowledgeBase />
         </Reveal>
       </div>
 
