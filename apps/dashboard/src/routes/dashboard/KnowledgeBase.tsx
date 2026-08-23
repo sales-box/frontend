@@ -152,6 +152,11 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     }
     uploadingRef.current = false;
     qc.invalidateQueries({ queryKey: ["kb"] });
+    setUploads(prev => {
+      const hasFailed = prev.some(u => u.status === "failed");
+      if (!hasFailed) setTimeout(() => setUploads([]), 3000);
+      return prev;
+    });
   }, [qc, toast]);
 
   const dismissUploads = useCallback(() => {
