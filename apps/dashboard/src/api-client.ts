@@ -279,11 +279,118 @@ export interface PaginationMeta {
   next: number | null;
 }
 
+export interface RubricCriterion {
+  category: string;
+  /** The question the scorer asks of every document. */
+  asks: string;
+  /** A line that would satisfy it. */
+  example: string;
+  /** Points it is worth, out of 100. */
+  worth: number;
+}
+
+export interface QualityCriteria {
+  criteria: RubricCriterion[];
+  /** Score bands, published by the backend so the two cannot disagree. */
+  bands: { good: number; fair: number };
+}
+
+export interface QualityGap {
+  category: string;
+  asks: string;
+  example: string;
+  /** Points closing this gap would gain. */
+  worth: number;
+}
+
+/** What a file would score, computed without storing it. */
+export interface QualityPreview {
+  filename: string;
+  score: number;
+  chunks: number;
+  isLowConfidence: boolean;
+  qualityReason?: string;
+  covers: string[];
+  gaps: QualityGap[];
+  /**
+   * Always false. Repetition needs chunk embeddings, which need storage — so a
+   * preview genuinely cannot measure it, and says so rather than leaving the
+   * absence to read as a perfect result.
+   */
+  redundancyMeasured: boolean;
+}
+
+/** Which half of the hybrid search surfaced a passage. */
+export type KbFoundBy = "semantic" | "keyword" | "both";
+
+/**
+ * How well a passage really matches. Vector search always returns its top
+ * results, so a "weak" hit means it came back without answering anything.
+ */
+export type KbMatchStrength = "strong" | "moderate" | "weak";
+
+export interface KbSearchHit {
+  chunkId: string;
+  documentId: string;
+  filename: string;
+  chunkIndex: number | null;
+  content: string;
+  /** Null for keyword-only hits — that half has no comparable score. */
+  similarity: number | null;
+  strength: KbMatchStrength;
+  foundBy: KbFoundBy;
+  isLowConfidence: boolean;
+  /**
+   * Whether a real reply is actually given this passage. The preview returns
+   * more results than the pipeline forwards, so the near-misses are visible —
+   * but a passage below the cutoff is one the AI never reads.
+   */
+  reachesModel: boolean;
+}
+
+export interface KbSearchResult {
+  question: string;
+  outcome: "ok" | "weak_match" | "no_match" | "empty_knowledge_base";
+  tookMs: number;
+  candidates: { semantic: number; keyword: number };
+  /** How many passages a real reply gets. Comes from the reply pipeline. */
+  modelTopK: number;
+  hits: KbSearchHit[];
+}
+
 export const knowledgeBase = {
   list: (page = 1, limit = 50) =>
     request<{ data: KBDocument[]; meta: PaginationMeta }>(
       `/knowledge-base/documents?page=${page}&limit=${limit}`
     ),
+
+  /** What the quality score measures and what each part is worth. */
+  criteria: () =>
+    request<QualityCriteria>("/knowledge-base/quality/criteria"),
+
+  /**
+   * Score a file WITHOUT storing it. Safe to run on a file you may not keep —
+   * a real upload would already have replaced any existing document of the
+   * same name before returning a score.
+   */
+  previewQuality: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<QualityPreview>("/knowledge-base/quality/preview", {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  /**
+   * Ask the knowledge base a question and see what the AI would retrieve.
+   * Runs real retrieval and stops before the LLM — no reply is generated.
+   */
+  test: (question: string) =>
+    request<KbSearchResult>("/knowledge-base/test", {
+      method: "POST",
+      ...json({ question }),
+    }),
 
   upload: (file: File) => {
     const form = new FormData();

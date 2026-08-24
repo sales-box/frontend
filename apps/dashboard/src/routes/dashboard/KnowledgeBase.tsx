@@ -1,8 +1,8 @@
-import { useState, useCallback, useRef } from "react";
-import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2 } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
+import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown } from "lucide-react";
 import type { Screen } from "../../types";
-import { useDocuments, useDeleteDocument, useDeleteAllDocuments } from "../../hooks/queries";
-import { knowledgeBase, type QualityReport } from "../../api-client";
+import { useDocuments, useDeleteDocument, useDeleteAllDocuments, useQualityCriteria } from "../../hooks/queries";
+import { knowledgeBase, type QualityReport, type KbSearchResult, type KbMatchStrength, type QualityPreview } from "../../api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
@@ -49,6 +49,479 @@ function QualityScore({ score, report }: { score: number; report?: QualityReport
   );
 }
 
+/**
+ * What the quality score is actually looking for, shown BEFORE a file is
+ * picked rather than after it has been scored.
+ *
+ * The rubric only existed as a constant on the server. An admin could upload a
+ * document, get a number back, and have no way to find out what the number was
+ * measuring — so the only route to a good score was trial and error.
+ *
+ * The criteria come from the endpoint rather than being written out here, so
+ * they cannot drift from what the scorer does. That includes the score bands:
+ * they used to be hard-coded in two places on this screen and nowhere on the
+ * backend that produces the score.
+ */
+function QualityCriteriaPanel() {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, error } = useQualityCriteria();
+
+  if (isLoading || error || !data) return null;
+
+  return (
+    <Card className="mb-5 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className={`w-full flex items-center gap-2.5 px-5 py-4 text-left cursor-pointer hover:bg-surface-secondary/40 transition-colors ${focusRing}`}
+      >
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--color-accent-cool) 14%, transparent)" }}>
+          <BookOpen size={18} strokeWidth={1.5} className="text-accent-cool" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">
+            What makes a good document
+          </h2>
+          <p className="text-xs text-text-tertiary">
+            Every upload is scored against {data.criteria.length} checks. {data.bands.good}+ is healthy, under {data.bands.fair} is weak.
+          </p>
+        </div>
+        <ChevronDown
+          size={16}
+          strokeWidth={1.5}
+          className={`text-text-tertiary shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 pt-1">
+          <ul className="space-y-2.5">
+            {data.criteria.map(c => (
+              <li key={c.category} className="flex gap-3">
+                <span className="shrink-0 mt-0.5 inline-flex items-center justify-center min-w-[2.6rem] h-5 rounded-full bg-surface-secondary text-[11px] font-semibold text-text-secondary">
+                  +{c.worth}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] text-text-primary">{c.asks}</span>
+                  {/* The scoring is regex-based and fussier than the question
+                      sounds — "competitive pricing" is not a price. The example
+                      is what makes this list actionable instead of agreeable. */}
+                  <span className="block mt-0.5 font-mono text-[11px] text-text-tertiary break-words">
+                    {c.example}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * A distinct name per draft, because upload REPLACES any document with the same
+ * filename. A fixed "draft.txt" made every accepted draft silently delete the
+ * one before it — the exact destruction this panel exists to prevent,
+ * reintroduced by a constant.
+ */
+function draftFilename(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `draft-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.txt`;
+}
+
+/** Long enough to be worth scoring; below this the result is just noise. */
+const MIN_DRAFT_CHARS = 20;
+/** Scored on a pause, not a keystroke — every check is a real request. */
+const DRAFT_DEBOUNCE_MS = 900;
+
+/**
+ * Score before you commit — for a file, or for text as it is written.
+ *
+ * Uploading used to be the only way to find out what a document scored, and
+ * uploading is destructive: persist() deletes any existing document with the
+ * same filename before it writes. So "let me upload this and see" had already
+ * replaced the better version of Pricing.pdf by the time the number appeared.
+ *
+ * Nothing here is stored. Check, fix, check again, and accept when it is ready
+ * — accepting from this panel, not by hunting the file down again in the
+ * dropzone.
+ */
+function QualityPreviewPanel({
+  bands,
+  onAccept,
+}: {
+  bands: { good: number; fair: number };
+  onAccept: (files: File[]) => void;
+}) {
+  const [result, setResult] = useState<QualityPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [accepted, setAccepted] = useState(false);
+  // The exact file that produced the current result, so accepting uploads THAT
+  // — not whatever happens to be in the picker afterwards.
+  const checkedFile = useRef<File | null>(null);
+  const lastScored = useRef<string>("");
+  // Which input produced the result on screen. The extraction warning only
+  // makes sense for a file.
+  const [isDraft, setIsDraft] = useState(false);
+  // Monotonic request id. Previews are debounced and vary wildly in cost — a
+  // 20MB PDF against a one-line draft — so responses can and do arrive out of
+  // order. Without this the slower, older one wins and the panel shows a score
+  // for text the admin has already changed.
+  const requestSeq = useRef(0);
+
+  const check = useCallback(async (file?: File) => {
+    if (!file) return;
+    const seq = ++requestSeq.current;
+    setChecking(true);
+    setError(null);
+    setAccepted(false);
+    try {
+      const res = await knowledgeBase.previewQuality(file);
+      if (seq !== requestSeq.current) return; // superseded — drop it
+      checkedFile.current = file;
+      setResult(res);
+    } catch (err) {
+      if (seq !== requestSeq.current) return;
+      checkedFile.current = null;
+      // Let this text be retried. lastScored was set before the request, so
+      // leaving it in place after a failure means the identical draft can
+      // never be scored again — the admin retypes it and nothing happens.
+      lastScored.current = "";
+      setResult(null);
+      setError(err instanceof Error ? err.message : "Could not read that file");
+    } finally {
+      if (seq === requestSeq.current) setChecking(false);
+    }
+  }, []);
+
+  // Live scoring while the admin writes or pastes.
+  //
+  // It goes to the server rather than running the rubric in the browser. The
+  // patterns are deliberately not published — they are a recipe for text that
+  // matches and says nothing — and a second copy of the rules here would drift
+  // from the ones that actually score the upload. Debounced, and skipped when
+  // the text has not changed, so a pause costs one request rather than a burst.
+  useEffect(() => {
+    const text = draft.trim();
+    if (text.length < MIN_DRAFT_CHARS) {
+      if (lastScored.current || error) {
+        lastScored.current = "";
+        setResult(null);
+        setError(null); // otherwise a failure stays on screen over an empty box
+        checkedFile.current = null;
+      }
+      return;
+    }
+    if (text === lastScored.current) return;
+
+    const timer = setTimeout(() => {
+      lastScored.current = text;
+      // Wrapped as a .txt file so it goes through the identical path an
+      // uploaded document takes — same extraction, same chunking, same rubric.
+      //
+      // The name carries a timestamp because upload REPLACES any document with
+      // the same filename. A fixed "draft.txt" made every accepted draft
+      // silently delete the one before it — the exact destruction this panel
+      // exists to prevent, reintroduced by a constant.
+      setIsDraft(true);
+      void check(
+        new File([draft], draftFilename(), { type: "text/plain" }),
+      );
+    }, DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [draft, check, error]);
+
+  // True while the score on screen no longer describes what is in the box.
+  // During the 900ms debounce no request has started yet, so `checking` is
+  // false and the held file is still the PRE-EDIT draft — accepting there
+  // would store text the admin has already replaced.
+  const stale = checking || draft.trim() !== lastScored.current;
+
+  const accept = () => {
+    if (!checkedFile.current || stale) return;
+    onAccept([checkedFile.current]);
+    setAccepted(true);
+  };
+
+  const band = (score: number) =>
+    score >= bands.good ? "success" : score >= bands.fair ? "warning" : "danger";
+
+  return (
+    <Card className="p-5 mb-5">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--color-secondary) 14%, transparent)" }}>
+          <FileWarning size={18} strokeWidth={1.5} className="text-secondary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Check before you add it</h2>
+          <p className="text-xs text-text-tertiary">
+            Score a file, or write below and watch the score change. Nothing is saved until you accept.
+          </p>
+        </div>
+        <label className={`inline-flex items-center gap-2 font-body font-semibold rounded-lg px-3 py-1.5 text-[13px] border border-border bg-surface text-text-secondary hover:border-primary/50 hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-within:ring-2 focus-within:ring-primary/25 ${checking ? "opacity-60 pointer-events-none" : ""}`}>
+          <input
+            type="file"
+            className="sr-only"
+            accept=".pdf,.docx,.xlsx,.pptx,.ppt,.txt,.md"
+            aria-label="Choose a file to check"
+            disabled={checking}
+            onChange={e => { setDraft(""); lastScored.current = ""; setIsDraft(false); void check(e.target.files?.[0]); e.target.value = ""; }}
+          />
+          {checking ? "Checking…" : "Choose a file"}
+        </label>
+      </div>
+
+      <textarea
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        rows={4}
+        placeholder="…or paste / write the content here and the score updates as you go"
+        aria-label="Draft content to score"
+        className="w-full px-3.5 py-2.5 mb-3 text-sm font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors resize-y"
+      />
+
+      {error && <p className="text-[13px] text-danger">{error}</p>}
+
+      {result && (
+        <div className="rounded-lg border border-border bg-surface-secondary/40 p-4">
+          <div className="flex items-center gap-2.5 flex-wrap mb-3">
+            <span
+              className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+              style={{ background: `color-mix(in srgb, var(--color-${band(result.score)}) 14%, transparent)`, color: `var(--color-${band(result.score)})` }}
+            >
+              Would score {result.score} / 100
+            </span>
+            <span className="text-[13px] text-text-secondary truncate">{result.filename}</span>
+            <span className="text-[11px] text-text-tertiary font-mono">{result.chunks} passage{result.chunks === 1 ? "" : "s"}</span>
+            {checking && <span className="text-[11px] text-text-tertiary">updating…</span>}
+
+            {/* Accept, from here. Without this the admin has to find the file
+                again in the dropzone — the "يقبل" half of the task was a
+                second file-picker away. */}
+            <span className="ml-auto shrink-0">
+              {accepted ? (
+                // "Queued", not "Added": onAccept hands the file to the upload
+                // queue and returns. The queue below reports the real outcome,
+                // and claiming success here would stay green through a failure.
+                <span className="inline-flex items-center gap-1.5 text-[13px] text-success">
+                  <CheckCircle2 size={14} strokeWidth={1.5} /> Queued for upload
+                </span>
+              ) : (
+                <Btn variant="primary" size="sm" disabled={stale} onClick={accept}>
+                  Add to knowledge base
+                </Btn>
+              )}
+            </span>
+          </div>
+
+          {/* Only for FILES. The flag means "we could not read this document
+              properly" — a scanned PDF, a corrupt file. Applied to text the
+              admin just typed it says "very little extractable text" about
+              words they can see on screen, which reads as a bug. A short draft
+              is short, not unreadable; the score already says the rest. */}
+          {result.isLowConfidence && !isDraft && (
+            <div className="flex items-start gap-2 bg-warning-light border border-warning/20 rounded-lg px-3 py-2 mb-3">
+              <AlertTriangle size={14} strokeWidth={1.5} className="text-warning mt-0.5 shrink-0" />
+              <p className="text-[12px] text-warning leading-snug">
+                {result.qualityReason ?? "The text extraction looks unreliable."}
+              </p>
+            </div>
+          )}
+
+          {result.covers.length > 0 && (
+            <p className="text-[12px] text-text-tertiary mb-2">
+              Already covers: <span className="text-success">{result.covers.map(prettyCategory).join(", ")}</span>
+            </p>
+          )}
+
+          {result.gaps.length > 0 ? (
+            <>
+              <p className="text-xs font-semibold text-text-secondary mb-2">Add any of these before uploading:</p>
+              <ol className="space-y-2">
+                {result.gaps.map(g => (
+                  <li key={g.category} className="flex gap-2.5 text-xs">
+                    <span className="shrink-0 inline-flex items-center justify-center min-w-[2.4rem] h-5 rounded-full bg-surface text-[11px] font-semibold text-success">
+                      +{g.worth}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="text-text-secondary">{g.asks}</span>
+                      <span className="block mt-0.5 font-mono text-[11px] text-text-tertiary break-words">{g.example}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p className="text-[13px] text-success">Covers everything the score looks for.</p>
+          )}
+
+          {/* Stated, not omitted: an absent repetition score would read as a
+              perfect one. It genuinely cannot be measured before storage. */}
+          {!result.redundancyMeasured && (
+            <p className="text-[11px] text-text-tertiary mt-3">
+              Repetition isn't checked here — that needs the file to be indexed first.
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * "What would the AI find?" — the admin's own retrieval check.
+ *
+ * This card was a disabled placeholder while the retrieval stack underneath was
+ * fully working, so the only way to discover a gap in the knowledge base was to
+ * wait for a real client email to need it.
+ *
+ * It deliberately shows what retrieval ACTUALLY returned rather than a tidied
+ * version: vector search always hands back its top results, so a question the
+ * knowledge base does not cover still produces passages. They are labelled
+ * instead of hidden — the point of the screen is to be able to trust it.
+ */
+function TestKnowledgeBase() {
+  const [question, setQuestion] = useState("");
+  const [result, setResult] = useState<KbSearchResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const ask = async () => {
+    const q = question.trim();
+    if (q.length < 3 || running) return;
+    setRunning(true);
+    setError(null);
+    try {
+      setResult(await knowledgeBase.test(q));
+    } catch (err) {
+      setResult(null);
+      setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  // Every verdict is about the passages the AI is ACTUALLY given, never about
+  // the extra ones shown below the cutoff — claiming coverage from a passage
+  // the model never receives is the one lie this screen exists to prevent.
+  const OUTCOME: Record<KbSearchResult["outcome"], { tone: string; text: string }> = {
+    ok: { tone: "text-success", text: "The AI has a real match to work from." },
+    weak_match: {
+      tone: "text-warning",
+      text: "Nothing the AI receives really answers this. These passages came back because search always returns its closest matches — not because they cover the question.",
+    },
+    no_match: { tone: "text-warning", text: "Nothing in your knowledge base matched." },
+    empty_knowledge_base: {
+      tone: "text-text-tertiary",
+      text: "Nothing is indexed yet. Upload a document first — a new upload takes a moment to become searchable.",
+    },
+  };
+
+  const strengthStyle = (s: KbMatchStrength) =>
+    s === "strong" ? "success" : s === "moderate" ? "warning" : "danger";
+
+  return (
+    <Card className="p-5 mt-5">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
+          <Zap size={18} strokeWidth={1.5} className="text-primary" />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Test Knowledge Base</h2>
+          <p className="text-xs text-text-tertiary">Ask what a client would ask, and see what the AI would find.</p>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={question}
+          onChange={e => setQuestion(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") void ask(); }}
+          placeholder="e.g. What is the lead time on the WP-120?"
+          aria-label="Question to test against the knowledge base"
+          className="flex-1 px-3.5 py-2.5 text-sm font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors"
+        />
+        <Btn variant="primary" loading={running} disabled={question.trim().length < 3} onClick={() => { void ask(); }}>
+          {running ? "Searching…" : "Test"}
+        </Btn>
+      </div>
+
+      {error && <p className="text-[13px] text-danger mt-3">{error}</p>}
+
+      {result && (
+        <div className="mt-4">
+          <div className="flex items-baseline gap-2 flex-wrap mb-3">
+            <span className={`text-[13px] font-medium ${OUTCOME[result.outcome].tone}`}>
+              {OUTCOME[result.outcome].text}
+            </span>
+            {/* The two halves are shown separately because they fail differently:
+                the keyword half is the one that catches an exact SKU the
+                embedding misses, and seeing it return 0 explains a lot. */}
+            <span className="text-[11px] text-text-tertiary font-mono">
+              {result.candidates.semantic} by meaning · {result.candidates.keyword} by keyword · {result.tookMs}ms
+            </span>
+          </div>
+
+          {/* The answer existing but ranking out of reach is invisible without
+              saying so: the verdict correctly reads "weak", the passage
+              correctly reads "strong", and nothing connects the two. */}
+          {result.outcome !== "ok" && result.hits.some(h => !h.reachesModel && h.strength === "strong") && (
+            <p className="text-[13px] text-warning mb-3">
+              A strong passage ranked just below the cutoff — the AI will not see it.
+              Cutting the noise above it, or splitting that document, would bring it into reach.
+            </p>
+          )}
+
+          <ol className="space-y-2">
+            {result.hits.map((h, i) => (
+              <Fragment key={h.chunkId}>
+                {/* Drawn from the pipeline's own TOP_K, not a number copied
+                    here — a preview that guessed its own cutoff would show a
+                    line in the wrong place, which is worse than no line. */}
+                {i === result.modelTopK && (
+                  <li aria-hidden className="flex items-center gap-2.5 pt-1 pb-0.5">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] text-text-tertiary shrink-0">
+                      the AI reads the {result.modelTopK} above · everything below is out of reach
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </li>
+                )}
+              <li className={`rounded-lg border border-border p-3 ${h.reachesModel ? "bg-surface-secondary/40" : "bg-transparent opacity-60"}`}>
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span className="text-[11px] font-mono text-text-tertiary">#{i + 1}</span>
+                  <span className="text-[13px] font-medium text-text-primary truncate">{h.filename}</span>
+                  <Badge variant={strengthStyle(h.strength)}>{h.strength}</Badge>
+                  <span className="text-[11px] text-text-tertiary" title="Which half of the hybrid search found it">
+                    {h.foundBy === "both" ? "meaning + keyword" : h.foundBy === "semantic" ? "meaning" : "keyword"}
+                  </span>
+                  {h.similarity !== null && (
+                    <span className="text-[11px] font-mono text-text-tertiary">{h.similarity.toFixed(2)}</span>
+                  )}
+                  {h.isLowConfidence && (
+                    <span className="text-[11px] text-warning" title="This document had an unreliable text extraction">
+                      unreliable extraction
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap line-clamp-4">
+                  {h.content}
+                </p>
+              </li>
+              </Fragment>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 type UploadEntry = {
   id: string;
   name: string;
@@ -70,6 +543,7 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
   const queueRef = useRef<{ file: File; id: string }[]>([]);
 
   const { data: docsRes, isLoading, error } = useDocuments();
+  const criteria = useQualityCriteria();
   const deleteDoc = useDeleteDocument();
   const deleteAll = useDeleteAllDocuments();
 
@@ -163,9 +637,9 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     setUploads(prev => prev.filter(u => u.status === "queued" || u.status === "uploading"));
   }, []);
 
-  const handleUpload = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const entries: { entry: UploadEntry; file: File }[] = Array.from(files).map((file, i) => ({
+  const uploadFiles = useCallback((files: File[]) => {
+    if (files.length === 0) return;
+    const entries: { entry: UploadEntry; file: File }[] = files.map((file, i) => ({
       file,
       entry: { id: `${Date.now()}-${i}`, name: file.name, status: "queued" as const, progress: 0 },
     }));
@@ -173,6 +647,11 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
     queueRef.current.push(...entries.map(e => ({ file: e.file, id: e.entry.id })));
     processQueue();
   }, [processQueue]);
+
+  const handleUpload = useCallback((files: FileList | null) => {
+    if (!files) return;
+    uploadFiles(Array.from(files));
+  }, [uploadFiles]);
 
 
   return (
@@ -262,6 +741,15 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
             </p>
           </div>
         )}
+
+        {/* Both sit directly above the dropzone: they are only useful while
+            the admin still has the chance to fix the file. */}
+        <Reveal>
+        <QualityCriteriaPanel />
+        </Reveal>
+        <Reveal>
+        <QualityPreviewPanel bands={criteria.data?.bands ?? { good: 80, fair: 50 }} onAccept={uploadFiles} />
+        </Reveal>
 
         {/* Accessible dropzone */}
         <Reveal>
@@ -432,20 +920,8 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
         </Card>
         </Reveal>
 
-        {/* Test Knowledge Base — Coming soon */}
         <Reveal>
-        <Card className="p-5 mt-5 opacity-60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-text-tertiary) 14%, transparent)" }}>
-              <Zap size={18} strokeWidth={1.5} className="text-text-tertiary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Test Knowledge Base</h2>
-              <p className="text-xs text-text-tertiary">Run a query to see what the AI would retrieve before sending it to your reps.</p>
-            </div>
-            <Badge variant="muted">Coming soon</Badge>
-          </div>
-        </Card>
+        <TestKnowledgeBase />
         </Reveal>
       </div>
 
