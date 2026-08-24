@@ -340,6 +340,12 @@ export interface KbSearchHit {
   strength: KbMatchStrength;
   foundBy: KbFoundBy;
   isLowConfidence: boolean;
+  /**
+   * Whether a real reply is actually given this passage. The preview returns
+   * more results than the pipeline forwards, so the near-misses are visible —
+   * but a passage below the cutoff is one the AI never reads.
+   */
+  reachesModel: boolean;
 }
 
 export interface KbSearchResult {
@@ -347,6 +353,8 @@ export interface KbSearchResult {
   outcome: "ok" | "weak_match" | "no_match" | "empty_knowledge_base";
   tookMs: number;
   candidates: { semantic: number; keyword: number };
+  /** How many passages a real reply gets. Comes from the reply pipeline. */
+  modelTopK: number;
   hits: KbSearchHit[];
 }
 

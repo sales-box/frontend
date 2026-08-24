@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown } from "lucide-react";
 import type { Screen } from "../../types";
 import { useDocuments, useDeleteDocument, useDeleteAllDocuments, useQualityCriteria } from "../../hooks/queries";
@@ -164,6 +164,9 @@ function QualityPreviewPanel({
   // — not whatever happens to be in the picker afterwards.
   const checkedFile = useRef<File | null>(null);
   const lastScored = useRef<string>("");
+  // Which input produced the result on screen. The extraction warning only
+  // makes sense for a file.
+  const [isDraft, setIsDraft] = useState(false);
   // Monotonic request id. Previews are debounced and vary wildly in cost — a
   // 20MB PDF against a one-line draft — so responses can and do arrive out of
   // order. Without this the slower, older one wins and the panel shows a score
@@ -224,6 +227,7 @@ function QualityPreviewPanel({
       // the same filename. A fixed "draft.txt" made every accepted draft
       // silently delete the one before it — the exact destruction this panel
       // exists to prevent, reintroduced by a constant.
+      setIsDraft(true);
       void check(
         new File([draft], draftFilename(), { type: "text/plain" }),
       );
@@ -265,7 +269,7 @@ function QualityPreviewPanel({
             accept=".pdf,.docx,.xlsx,.pptx,.ppt,.txt,.md"
             aria-label="Choose a file to check"
             disabled={checking}
-            onChange={e => { setDraft(""); lastScored.current = ""; void check(e.target.files?.[0]); e.target.value = ""; }}
+            onChange={e => { setDraft(""); lastScored.current = ""; setIsDraft(false); void check(e.target.files?.[0]); e.target.value = ""; }}
           />
           {checking ? "Checking…" : "Choose a file"}
         </label>
@@ -314,7 +318,12 @@ function QualityPreviewPanel({
             </span>
           </div>
 
-          {result.isLowConfidence && (
+          {/* Only for FILES. The flag means "we could not read this document
+              properly" — a scanned PDF, a corrupt file. Applied to text the
+              admin just typed it says "very little extractable text" about
+              words they can see on screen, which reads as a bug. A short draft
+              is short, not unreadable; the score already says the rest. */}
+          {result.isLowConfidence && !isDraft && (
             <div className="flex items-start gap-2 bg-warning-light border border-warning/20 rounded-lg px-3 py-2 mb-3">
               <AlertTriangle size={14} strokeWidth={1.5} className="text-warning mt-0.5 shrink-0" />
               <p className="text-[12px] text-warning leading-snug">
@@ -396,11 +405,14 @@ function TestKnowledgeBase() {
     }
   };
 
+  // Every verdict is about the passages the AI is ACTUALLY given, never about
+  // the extra ones shown below the cutoff — claiming coverage from a passage
+  // the model never receives is the one lie this screen exists to prevent.
   const OUTCOME: Record<KbSearchResult["outcome"], { tone: string; text: string }> = {
-    ok: { tone: "text-success", text: "The AI can answer this from your documents." },
+    ok: { tone: "text-success", text: "The AI has a real match to work from." },
     weak_match: {
       tone: "text-warning",
-      text: "Nothing here really answers this. These passages came back because search always returns its closest matches — not because they cover the question.",
+      text: "Nothing the AI receives really answers this. These passages came back because search always returns its closest matches — not because they cover the question.",
     },
     no_match: { tone: "text-warning", text: "Nothing in your knowledge base matched." },
     empty_knowledge_base: {
@@ -455,9 +467,32 @@ function TestKnowledgeBase() {
             </span>
           </div>
 
+          {/* The answer existing but ranking out of reach is invisible without
+              saying so: the verdict correctly reads "weak", the passage
+              correctly reads "strong", and nothing connects the two. */}
+          {result.outcome !== "ok" && result.hits.some(h => !h.reachesModel && h.strength === "strong") && (
+            <p className="text-[13px] text-warning mb-3">
+              A strong passage ranked just below the cutoff — the AI will not see it.
+              Cutting the noise above it, or splitting that document, would bring it into reach.
+            </p>
+          )}
+
           <ol className="space-y-2">
             {result.hits.map((h, i) => (
-              <li key={h.chunkId} className="rounded-lg border border-border bg-surface-secondary/40 p-3">
+              <Fragment key={h.chunkId}>
+                {/* Drawn from the pipeline's own TOP_K, not a number copied
+                    here — a preview that guessed its own cutoff would show a
+                    line in the wrong place, which is worse than no line. */}
+                {i === result.modelTopK && (
+                  <li aria-hidden className="flex items-center gap-2.5 pt-1 pb-0.5">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] text-text-tertiary shrink-0">
+                      the AI reads the {result.modelTopK} above · everything below is out of reach
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </li>
+                )}
+              <li className={`rounded-lg border border-border p-3 ${h.reachesModel ? "bg-surface-secondary/40" : "bg-transparent opacity-60"}`}>
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
                   <span className="text-[11px] font-mono text-text-tertiary">#{i + 1}</span>
                   <span className="text-[13px] font-medium text-text-primary truncate">{h.filename}</span>
@@ -478,6 +513,7 @@ function TestKnowledgeBase() {
                   {h.content}
                 </p>
               </li>
+              </Fragment>
             ))}
           </ol>
         </div>
