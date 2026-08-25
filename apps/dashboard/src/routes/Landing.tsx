@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowRight, Check, BookOpen, TrendingUp, Activity, Menu, X, Mail, Link2 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import type { Screen } from "../types";
 import { Btn } from "../components/Btn";
 import { Reveal } from "../components/Reveal";
@@ -25,8 +25,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 
 export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);

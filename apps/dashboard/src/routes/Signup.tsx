@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Zap } from "lucide-react";
 import { MinimalHeader } from "../components/MinimalHeader";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants } from "../api-client";
 import { Btn } from "../components/Btn";
@@ -13,9 +13,10 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 
 export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const plan = params.get("plan") ?? "Growth";
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
+  const [company, setCompany] = useState(() => sessionStorage.getItem("signupCompany") ?? "");
+  const [email, setEmail] = useState(() => sessionStorage.getItem("signupEmail") ?? "");
   const [touched, setTouched] = useState({ company: false, email: false });
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -36,6 +37,8 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
         localStorage.setItem("pendingPlan", plan);
         sessionStorage.setItem("pendingEmail", email);
         sessionStorage.setItem("pendingCompanyName", company);
+        sessionStorage.removeItem("signupCompany");
+        sessionStorage.removeItem("signupEmail");
         onNav("verify");
       })
       .catch(err => {
@@ -61,7 +64,11 @@ export function Signup({ onNav }: { onNav: (s: Screen) => void }) {
             <span className="text-[13px] text-text-primary">
               Selected plan: <span className="font-semibold text-accent-cool">{plan}</span>
             </span>
-            <button onClick={() => onNav("landing")} className={`ml-auto text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer ${focusRing}`}>Change</button>
+            <button onClick={() => {
+              sessionStorage.setItem("signupCompany", company);
+              sessionStorage.setItem("signupEmail", email);
+              navigate({ pathname: "/", hash: "pricing" });
+            }} className={`ml-auto text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer ${focusRing}`}>Change</button>
           </div>
 
           <form
