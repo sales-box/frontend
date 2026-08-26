@@ -37,9 +37,12 @@ const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "Offboarded", value: "offboarded" },
 ];
 
-/** An unavailable metric must not read as a real zero. */
-function metric(value: number | undefined, failed: boolean): string {
-  if (failed) return "—";
+/**
+ * An unavailable metric must not read as a real zero — neither while the
+ * request is still in flight nor after it has failed.
+ */
+function metric(value: number | undefined, unavailable: boolean): string {
+  if (unavailable) return "—";
   return String(value ?? 0);
 }
 
@@ -57,6 +60,9 @@ export function PlatformTenants() {
 
   const stats = usePlatformStats();
   const tenants = usePlatformTenants(page, { search, status });
+  // Pending counts as unavailable: `stats.data` is undefined on first load, and
+  // falling back to 0 would show an empty platform for a moment.
+  const statsUnavailable = stats.isError || stats.isPending;
 
   const rows = tenants.data?.data ?? [];
   const meta = tenants.data?.meta;
@@ -70,28 +76,28 @@ export function PlatformTenants() {
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total tenants"
-          value={metric(stats.data?.total, stats.isError)}
+          value={metric(stats.data?.total, statsUnavailable)}
           icon={<Building2 size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
         />
         <StatCard
           label="Active"
-          value={metric(stats.data?.byStatus.active, stats.isError)}
+          value={metric(stats.data?.byStatus.active, statsUnavailable)}
           icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
           tone="green"
           size="sm"
         />
         <StatCard
           label="Suspended"
-          value={metric(stats.data?.byStatus.suspended, stats.isError)}
+          value={metric(stats.data?.byStatus.suspended, statsUnavailable)}
           icon={<PauseCircle size={16} strokeWidth={1.5} />}
           tone="amber"
           size="sm"
         />
         <StatCard
           label="New this week"
-          value={metric(stats.data?.newThisWeek, stats.isError)}
+          value={metric(stats.data?.newThisWeek, statsUnavailable)}
           icon={<Sparkles size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
