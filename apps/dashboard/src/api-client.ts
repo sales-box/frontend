@@ -127,6 +127,18 @@ function getMockDataForUrl(url: string): any {
   return {};
 }
 
+// Routes where a 401 means "those credentials are wrong", not "your session
+// expired". Sending the caller back to /signin here is both wrong and
+// destructive: on the sign-in page itself it replaces the document before the
+// form can render its error, so a mistyped password produces a blank screen
+// with no message at all.
+const CREDENTIAL_ROUTES = [
+  "/auth/admin/login",
+  "/auth/admin/set-password",
+  "/auth/se/login",
+  "/platform/auth/login",
+];
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     const res = await fetch(`${BASE}${url}`, {
@@ -134,7 +146,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       headers: { ...authHeaders(), ...init?.headers },
     });
     if (!res.ok) {
-      if (res.status === 401) {
+      const isCredentialCheck = CREDENTIAL_ROUTES.some(r => url.startsWith(r));
+      if (res.status === 401 && !isCredentialCheck) {
         clearSession();
         window.location.replace("/signin");
         throw new Error("Session expired");
@@ -703,10 +716,13 @@ export interface PaymentIntent {
 }
 
 export const payments = {
-  createIntent: (amount: number, tier?: number) =>
+  /** Names the plan; the server decides what it costs. Sending an `amount`
+   *  used to let the buyer set their own price, so the field is gone and the
+   *  API rejects it outright. */
+  createIntent: (tier: number) =>
     request<PaymentIntent>("/payments/create-payment-intent", {
       method: "POST",
-      ...json({ amount, ...(tier != null && { tier }) }),
+      ...json({ tier }),
     }),
 
   get: (id: string) =>

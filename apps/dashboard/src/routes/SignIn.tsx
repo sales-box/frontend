@@ -38,12 +38,17 @@ export function SignIn({ onNav }: { onNav: (s: Screen) => void }) {
       login(res.token);
       onNav("overview");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Login failed";
-      if (msg.includes("401")) {
-        setServerError("Invalid email or password.");
-      } else {
-        setServerError("Something went wrong. Please try again.");
-      }
+      // The API answers a bad password with { message: "Invalid credentials" },
+      // so keying off the string "401" never matched and the user got the
+      // generic fallback. Show what the server actually said, and keep the
+      // fallback for a transport failure that carries no message.
+      const msg = err instanceof Error ? err.message.trim() : "";
+      const isCredentials = /invalid credentials|unauthorized|401/i.test(msg);
+      setServerError(
+        isCredentials
+          ? "Invalid email or password."
+          : msg || "Something went wrong. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
