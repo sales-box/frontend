@@ -3,7 +3,6 @@ import { Mail, CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { tenants, auth } from "../api-client";
-import { Btn } from "../components/Btn";
 import { Card } from "../components/Card";
 import { MinimalHeader } from "../components/MinimalHeader";
 
@@ -116,9 +115,12 @@ export function VerifyEmail({ onNav }: { onNav: (s: Screen) => void }) {
           {error && (
             <p className="text-sm text-danger mt-2" role="alert">{error}</p>
           )}
-          <div className="mt-8">
-            <Btn variant="ghost" size="sm" onClick={() => onNav("overview")}>Skip for now (demo) →</Btn>
-          </div>
+          {/* The resend error for an already-verified address says "sign in
+              instead", which was unactionable: this page offered no way there. */}
+          <p className="text-sm text-text-secondary mt-6">
+            Already verified?{" "}
+            <button onClick={() => onNav("signin")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
+          </p>
         </div>
       </div>
     </div>
