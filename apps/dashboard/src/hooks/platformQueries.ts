@@ -83,3 +83,14 @@ export function useDebounced<T>(value: T, ms = 300): T {
   }, [value, ms]);
   return debounced;
 }
+
+export function useDeleteTenant() {
+  const invalidate = useInvalidatePlatform();
+  return useMutation({
+    // Marked inside the mutationFn, not via onError: query-core awaits
+    // MutationCache.config.onError BEFORE options.onError, so an onError
+    // marker runs after the global toast has already fired.
+    mutationFn: (id: string) => handledLocally(platformApi.deleteTenant(id)),
+    onSuccess: invalidate,
+  });
+}
