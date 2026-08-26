@@ -19,3 +19,27 @@ export class PlatformApiError extends Error {
     this.name = "PlatformApiError";
   }
 }
+
+const HANDLED = Symbol.for("salesbox.errorHandledLocally");
+
+/**
+ * Marks an error as already reported to the user by the code that caught it.
+ *
+ * `main.tsx` installs global QueryCache/MutationCache onError handlers that
+ * toast `error.message` verbatim. The operator console reports its own errors
+ * through `friendlyError`, so without this marker every failure toasts twice —
+ * once readable, once raw.
+ */
+export function markHandled(e: unknown): void {
+  if (typeof e === "object" && e !== null) {
+    (e as Record<symbol, boolean>)[HANDLED] = true;
+  }
+}
+
+export function isHandled(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    (e as Record<symbol, boolean>)[HANDLED] === true
+  );
+}

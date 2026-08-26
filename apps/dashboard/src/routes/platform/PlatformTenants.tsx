@@ -37,6 +37,12 @@ const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "Offboarded", value: "offboarded" },
 ];
 
+/** An unavailable metric must not read as a real zero. */
+function metric(value: number | undefined, failed: boolean): string {
+  if (failed) return "—";
+  return String(value ?? 0);
+}
+
 export function PlatformTenants() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -64,28 +70,28 @@ export function PlatformTenants() {
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total tenants"
-          value={String(stats.data?.total ?? 0)}
+          value={metric(stats.data?.total, stats.isError)}
           icon={<Building2 size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
         />
         <StatCard
           label="Active"
-          value={String(stats.data?.byStatus.active ?? 0)}
+          value={metric(stats.data?.byStatus.active, stats.isError)}
           icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
           tone="green"
           size="sm"
         />
         <StatCard
           label="Suspended"
-          value={String(stats.data?.byStatus.suspended ?? 0)}
+          value={metric(stats.data?.byStatus.suspended, stats.isError)}
           icon={<PauseCircle size={16} strokeWidth={1.5} />}
           tone="amber"
           size="sm"
         />
         <StatCard
           label="New this week"
-          value={String(stats.data?.newThisWeek ?? 0)}
+          value={metric(stats.data?.newThisWeek, stats.isError)}
           icon={<Sparkles size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"

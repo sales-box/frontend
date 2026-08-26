@@ -5,20 +5,29 @@ import {
   type StatusAction,
   type TenantFilters,
 } from "../platform-client";
+import { markHandled } from "../lib/platformError";
+
+/** Marks a rejection as locally handled, then rethrows it unchanged. */
+function handledLocally<T>(p: Promise<T>): Promise<T> {
+  return p.catch((e: unknown) => {
+    markHandled(e);
+    throw e;
+  });
+}
 
 // ─── Queries ─────────────────────────────────────────────────
 
 export function usePlatformStats() {
   return useQuery({
     queryKey: ["platform", "stats"],
-    queryFn: () => platformApi.getStats(),
+    queryFn: () => handledLocally(platformApi.getStats()),
   });
 }
 
 export function usePlatformTenants(page: number, filters: TenantFilters) {
   return useQuery({
     queryKey: ["platform", "tenants", page, filters.search, filters.status],
-    queryFn: () => platformApi.listTenants(page, 20, filters),
+    queryFn: () => handledLocally(platformApi.listTenants(page, 20, filters)),
     // Keep the previous page on screen while the next one loads, so typing in
     // the search box does not blank the table on every keystroke.
     placeholderData: (prev) => prev,
@@ -28,7 +37,7 @@ export function usePlatformTenants(page: number, filters: TenantFilters) {
 export function usePlatformTenant(id: string | undefined) {
   return useQuery({
     queryKey: ["platform", "tenant", id],
-    queryFn: () => platformApi.getTenant(id!),
+    queryFn: () => handledLocally(platformApi.getTenant(id!)),
     enabled: !!id,
   });
 }
@@ -47,6 +56,8 @@ export function useChangeTenantStatus() {
     mutationFn: ({ id, action }: { id: string; action: StatusAction }) =>
       platformApi.changeStatus(id, action),
     onSuccess: invalidate,
+    // The route reports this through friendlyError; suppress the global toast.
+    onError: markHandled,
   });
 }
 
@@ -56,6 +67,7 @@ export function useChangeTenantTier() {
     mutationFn: ({ id, tier }: { id: string; tier: number }) =>
       platformApi.changeTier(id, tier),
     onSuccess: invalidate,
+    onError: markHandled,
   });
 }
 

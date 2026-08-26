@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PlatformApiError } from "./platformError";
+import { PlatformApiError, markHandled, isHandled } from "./platformError";
 import {
   tierLabel,
   statusLabel,
@@ -96,5 +96,23 @@ describe("friendlyError", () => {
   it("never returns an empty string for an unknown throw", () => {
     expect(friendlyError({ weird: true }).length).toBeGreaterThan(0);
     expect(friendlyError(undefined).length).toBeGreaterThan(0);
+  });
+});
+
+describe("handled-error marker", () => {
+  it("reports an unmarked error as unhandled", () => {
+    expect(isHandled(new PlatformApiError(500, "boom"))).toBe(false);
+  });
+
+  it("reports a marked error as handled", () => {
+    const e = new PlatformApiError(500, "boom");
+    markHandled(e);
+    expect(isHandled(e)).toBe(true);
+  });
+
+  it("tolerates non-error values", () => {
+    expect(isHandled(undefined)).toBe(false);
+    expect(isHandled({})).toBe(false);
+    expect(() => markHandled(undefined)).not.toThrow();
   });
 });
