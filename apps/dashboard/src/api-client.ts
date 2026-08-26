@@ -472,18 +472,38 @@ export interface SEMember {
   revokedAt: string | null;
 }
 
+/** Per-row result of a bulk allowlist grant. Mirrors the server's BulkGrantResult. */
+export type BulkGrantOutcome =
+  | "added"
+  | "reactivated"
+  | "duplicate"
+  | "invalid"
+  | "over_limit";
+
+export interface BulkGrantResult {
+  results: { email: string; outcome: BulkGrantOutcome }[];
+  summary: Record<BulkGrantOutcome, number>;
+  seats: { used: number; limit: number };
+}
+
 export const allowlist = {
   list: (id?: string) =>
     request<SEMember[]>(`/tenants/${id ?? tenantId()}/allowlist`),
 
   grant: (email: string, id?: string) =>
-    request<void>(`/tenants/${id ?? tenantId()}/allowlist`, {
+    request<{ outcome: "added" | "reactivated" | "duplicate" }>(`/tenants/${id ?? tenantId()}/allowlist`, {
       method: "POST",
       ...json({ email }),
     }),
 
+  grantBulk: (emails: string[], id?: string) =>
+    request<BulkGrantResult>(`/tenants/${id ?? tenantId()}/allowlist/bulk`, {
+      method: "POST",
+      ...json({ emails }),
+    }),
+
   revoke: (email: string, id?: string) =>
-    request<void>(
+    request<{ outcome: "revoked" | "already_revoked" | "not_found" }>(
       `/tenants/${id ?? tenantId()}/allowlist/${encodeURIComponent(email)}`,
       { method: "DELETE" }
     ),
