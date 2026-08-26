@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Building2, LogOut, ShieldAlert } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePlatformAuthStore } from "../../store/platformAuth";
 import { Btn } from "../Btn";
 import { ThemeToggle } from "../ThemeToggle";
@@ -19,6 +20,7 @@ export function OperatorShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const logout = usePlatformAuthStore((s) => s.logout);
+  const queryClient = useQueryClient();
 
   const onTenants =
     pathname === "/admin" || pathname.startsWith("/admin/tenants");
@@ -47,6 +49,10 @@ export function OperatorShell({ children }: { children: ReactNode }) {
             size="sm"
             onClick={() => {
               logout();
+              // The QueryClient is shared app-wide and staleTime is 30s, so
+              // without this the next operator to sign in on this tab is served
+              // the previous operator's cached tenant data.
+              queryClient.clear();
               navigate("/admin/login");
             }}
           >
