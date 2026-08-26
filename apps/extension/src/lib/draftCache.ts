@@ -8,6 +8,10 @@ export async function getCachedDraft(messageId: string): Promise<PipelineRespons
   const raw = (await chrome.storage.local.get(k))[k] as PipelineResponse | undefined
   if (!raw) return null
   if (raw.alreadyReplied) return null
+  // Discard legacy/stale empty fallback cache entries that lack notSalesbox or confidence
+  if (!raw.notSalesbox && !raw.confidence && !raw.classification && !raw.draft) {
+    return null
+  }
   return raw
 }
 
