@@ -1,136 +1,310 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { platformApi, type PaginatedTenants } from "../../platform-client";
-import { usePlatformAuthStore } from "../../store/platformAuth";
+import { Link } from "react-router-dom";
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  ChevronRight,
+  PauseCircle,
+  Search,
+  Sparkles,
+} from "lucide-react";
+import type { TenantStatus } from "../../platform-client";
+import {
+  usePlatformStats,
+  usePlatformTenants,
+  useDebounced,
+} from "../../hooks/platformQueries";
+import {
+  relativeTime,
+  tierLabel,
+  friendlyError,
+} from "../../lib/platformFormat";
+import { OperatorShell } from "../../components/platform/OperatorShell";
+import { TenantStatusBadge } from "../../components/platform/TenantStatusBadge";
+import { Card } from "../../components/Card";
+import { Btn } from "../../components/Btn";
+import { EmptyState } from "../../components/EmptyState";
+import { FormInput } from "../../components/FormInput";
+import { PageHeader } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
 
-const STATUS_TONE: Record<string, string> = {
-  active: "bg-emerald-500/15 text-emerald-300",
-  suspended: "bg-amber-500/15 text-amber-300",
-  offboarded: "bg-red-500/15 text-red-300",
-  pending: "bg-slate-500/15 text-slate-300",
-  abandoned: "bg-slate-500/15 text-slate-400",
-};
+const FILTERS: { label: string; value: TenantStatus | "" }[] = [
+  { label: "All", value: "" },
+  { label: "Active", value: "active" },
+  { label: "Suspended", value: "suspended" },
+  { label: "Pending", value: "pending" },
+  { label: "Offboarded", value: "offboarded" },
+  { label: "Abandoned", value: "abandoned" },
+];
+
+/**
+ * An unavailable metric must not read as a real zero — neither while the
+ * request is still in flight nor after it has failed.
+ */
+function metric(value: number | undefined, unavailable: boolean): string {
+  if (unavailable) return "—";
+  return String(value ?? 0);
+}
 
 export function PlatformTenants() {
-  const navigate = useNavigate();
-  const logout = usePlatformAuthStore((s) => s.logout);
   const [page, setPage] = useState(1);
-  const [result, setResult] = useState<PaginatedTenants | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
+  const [status, setStatus] = useState<TenantStatus | "">("");
+  const search = useDebounced(searchInput);
 
+  // A filter change makes the current page number meaningless — page 4 of the
+  // unfiltered list is very unlikely to exist in the filtered one.
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    platformApi
-      .listTenants(page, 20)
-      .then((r) => {
-        if (active) {
-          setResult(r);
-          setError(null);
-        }
-      })
-      .catch((e) => {
-        if (active) setError(String(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [page]);
+    setPage(1);
+  }, [search, status]);
+
+  const stats = usePlatformStats();
+  const tenants = usePlatformTenants(page, { search, status });
+  // Pending counts as unavailable: `stats.data` is undefined on first load, and
+  // falling back to 0 would show an empty platform for a moment.
+  const statsUnavailable = stats.isError || stats.isPending;
+
+  const rows = tenants.data?.data ?? [];
+  const meta = tenants.data?.meta;
+  const filtering = search !== "" || status !== "";
 
   return (
-    <div className="min-h-dvh bg-slate-950 text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-        <h1 className="text-base font-semibold">Platform · Tenants</h1>
-        <button
-          onClick={() => {
-            logout();
-            navigate("/admin/login");
-          }}
-          className="text-sm text-slate-400 hover:text-slate-100"
+    <OperatorShell>
+      <PageHeader title="Tenants" subtitle="Every workspace on the platform" />
+
+      {/* ── Overview ─────────────────────────────────────────── */}
+      {stats.isError && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger"
         >
-          Sign out
-        </button>
-      </header>
+          <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0" />
+          <span>Couldn&apos;t load platform totals — {friendlyError(stats.error)}</span>
+        </div>
+      )}
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Total tenants"
+          value={metric(stats.data?.total, statsUnavailable)}
+          icon={<Building2 size={16} strokeWidth={1.5} />}
+          tone="blue"
+          size="sm"
+        />
+        <StatCard
+          label="Active"
+          value={metric(stats.data?.byStatus.active, statsUnavailable)}
+          icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
+          tone="green"
+          size="sm"
+        />
+        <StatCard
+          label="Suspended"
+          value={metric(stats.data?.byStatus.suspended, statsUnavailable)}
+          icon={<PauseCircle size={16} strokeWidth={1.5} />}
+          tone="amber"
+          size="sm"
+        />
+        <StatCard
+          label="New this week"
+          value={metric(stats.data?.newThisWeek, statsUnavailable)}
+          icon={<Sparkles size={16} strokeWidth={1.5} />}
+          tone="blue"
+          size="sm"
+        />
+      </div>
 
-      <main className="p-6">
-        {loading && <p className="text-sm text-slate-400">Loading…</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+      {/* ── Toolbar ──────────────────────────────────────────── */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full sm:max-w-xs">
+          <FormInput
+            placeholder="Search by company name"
+            value={searchInput}
+            onChange={setSearchInput}
+            trailing={
+              <Search
+                size={15}
+                strokeWidth={1.5}
+                className="text-text-tertiary"
+              />
+            }
+          />
+        </div>
 
-        {result && (
-          <>
-            <table className="w-full text-sm">
-              <thead className="text-left text-slate-400">
-                <tr>
-                  <th className="py-2 font-medium">Company</th>
-                  <th className="font-medium">Status</th>
-                  <th className="font-medium">Tier</th>
-                  <th className="font-medium">SEs</th>
+        <div
+          role="group"
+          aria-label="Filter by status"
+          className="flex flex-wrap gap-1.5"
+        >
+          {FILTERS.map((f) => {
+            const on = status === f.value;
+            return (
+              <button
+                key={f.label}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setStatus(f.value)}
+                className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
+                  on
+                    ? "border-primary bg-primary text-text-on-primary shadow-1"
+                    : "border-border bg-surface text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Table ────────────────────────────────────────────── */}
+      <Card className="overflow-hidden">
+        {tenants.isError ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 px-5 py-6 text-[13px] text-danger"
+          >
+            <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5" />
+            <span>{friendlyError(tenants.error)}</span>
+          </div>
+        ) : tenants.isPending ? (
+          <SkeletonTable />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title={
+              filtering ? "No tenants match those filters" : "No tenants yet"
+            }
+            description={
+              filtering
+                ? "Try a different company name, or clear the status filter."
+                : "Workspaces will appear here as companies sign up."
+            }
+            action={
+              filtering ? (
+                <Btn
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSearchInput("");
+                    setStatus("");
+                  }}
+                >
+                  Clear filters
+                </Btn>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[42rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-eyebrow px-5 py-3 font-semibold">
+                    Company
+                  </th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">
+                    Status
+                  </th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">Plan</th>
+                  <th className="text-eyebrow px-3 py-3 text-right font-semibold">
+                    Seats
+                  </th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">
+                    Joined
+                  </th>
+                  <th className="w-10 px-3 py-3">
+                    <span className="sr-only">Open</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {result.data.map((t) => (
+                {rows.map((t) => (
                   <tr
                     key={t.id}
-                    className="border-t border-slate-800 hover:bg-slate-900"
+                    className="group relative border-b border-border/60 last:border-0 transition-colors hover:bg-surface-secondary"
                   >
-                    <td className="py-2">
+                    <td className="px-5 py-3.5">
                       <Link
                         to={`/admin/tenants/${t.id}`}
-                        className="text-slate-100 hover:underline"
+                        className="rounded-sm font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                       >
+                        {/* Stretches the link across the row so the whole row
+                            is clickable without nesting interactive elements. */}
+                        <span className="absolute inset-0" aria-hidden="true" />
                         {t.companyName}
                       </Link>
                     </td>
-                    <td>
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${STATUS_TONE[t.status] ?? ""}`}
-                      >
-                        {t.status}
-                      </span>
+                    <td className="px-3 py-3.5">
+                      <TenantStatusBadge status={t.status} />
                     </td>
-                    <td>{t.tier}</td>
-                    <td>{t.seCount}</td>
+                    <td className="px-3 py-3.5 text-text-secondary">
+                      {tierLabel(t.tier)}
+                    </td>
+                    <td className="px-3 py-3.5 text-right tabular-nums text-text-secondary">
+                      {t.seCount}
+                    </td>
+                    <td className="px-3 py-3.5 text-text-tertiary">
+                      {relativeTime(t.createdAt)}
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <ChevronRight
+                        size={16}
+                        strokeWidth={1.5}
+                        className="text-text-tertiary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary"
+                      />
+                    </td>
                   </tr>
                 ))}
-                {result.data.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="py-6 text-center text-slate-500"
-                    >
-                      No tenants yet.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
-
-            <div className="mt-4 flex items-center gap-3 text-sm">
-              <button
-                disabled={!result.meta.prev}
-                onClick={() => setPage((p) => p - 1)}
-                className="rounded border border-slate-700 px-2 py-1 disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="text-slate-400">
-                Page {result.meta.currentPage} / {result.meta.lastPage || 1}
-              </span>
-              <button
-                disabled={!result.meta.next}
-                onClick={() => setPage((p) => p + 1)}
-                className="rounded border border-slate-700 px-2 py-1 disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </>
+          </div>
         )}
-      </main>
+      </Card>
+
+      {/* ── Pagination ───────────────────────────────────────── */}
+      {meta && meta.lastPage > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-caption text-text-tertiary">
+            {meta.total} tenant{meta.total === 1 ? "" : "s"} · page{" "}
+            {meta.currentPage} of {meta.lastPage}
+          </p>
+          <div className="flex gap-2">
+            <Btn
+              variant="secondary"
+              size="sm"
+              disabled={!meta.prev}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Btn>
+            <Btn
+              variant="secondary"
+              size="sm"
+              disabled={!meta.next}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Btn>
+          </div>
+        </div>
+      )}
+    </OperatorShell>
+  );
+}
+
+/** Placeholder rows so the layout does not jump when real data lands. */
+function SkeletonTable() {
+  return (
+    <div className="divide-y divide-border/60" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-4">
+          <div className="h-4 flex-1 animate-pulse rounded bg-surface-tertiary" />
+          <div className="h-5 w-20 animate-pulse rounded-full bg-surface-tertiary" />
+          <div className="h-4 w-16 animate-pulse rounded bg-surface-tertiary" />
+          <div className="h-4 w-8 animate-pulse rounded bg-surface-tertiary" />
+          <div className="h-4 w-24 animate-pulse rounded bg-surface-tertiary" />
+        </div>
+      ))}
     </div>
   );
 }

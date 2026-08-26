@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
 import { globalToast } from './components/Toast'
+import { isHandled } from './lib/platformError'
 import './index.css'
 import App from './App.tsx'
 
@@ -24,10 +25,16 @@ const queryClient = new QueryClient({
     },
   },
   queryCache: new QueryCache({
-    onError: (error) => globalToast(extractMessage(error), "error"),
+    onError: (error) => {
+      if (isHandled(error)) return;
+      globalToast(extractMessage(error), "error");
+    },
   }),
   mutationCache: new MutationCache({
-    onError: (error) => globalToast(extractMessage(error), "error"),
+    onError: (error) => {
+      if (isHandled(error)) return;
+      globalToast(extractMessage(error), "error");
+    },
   }),
 })
 
