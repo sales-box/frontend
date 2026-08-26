@@ -166,6 +166,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       } catch {
         // Not JSON — fall through to the status line.
       }
+      if (res.status === 403 && apiMessage === "This account is not active") {
+        clearSession();
+        window.location.replace("/signin");
+        throw new Error("Account deactivated");
+      }
       throw new Error(
         apiMessage || `${res.status} ${res.statusText}: ${body}`,
       );
