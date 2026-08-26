@@ -35,6 +35,7 @@ const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "Suspended", value: "suspended" },
   { label: "Pending", value: "pending" },
   { label: "Offboarded", value: "offboarded" },
+  { label: "Abandoned", value: "abandoned" },
 ];
 
 /**
@@ -73,6 +74,15 @@ export function PlatformTenants() {
       <PageHeader title="Tenants" subtitle="Every workspace on the platform" />
 
       {/* ── Overview ─────────────────────────────────────────── */}
+      {stats.isError && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger"
+        >
+          <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0" />
+          <span>Couldn&apos;t load platform totals — {friendlyError(stats.error)}</span>
+        </div>
+      )}
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total tenants"
