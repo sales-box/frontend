@@ -29,6 +29,7 @@ import { PlatformLogin } from "./routes/platform/PlatformLogin";
 import { PlatformTenants } from "./routes/platform/PlatformTenants";
 import { PlatformTenantDetail } from "./routes/platform/PlatformTenantDetail";
 import { usePlatformAuthStore } from "./store/platformAuth";
+import { useTenant } from "./hooks/queries";
 
 const Checkout = lazy(() => import("./routes/Checkout").then(m => ({ default: m.Checkout })));
 
@@ -50,25 +51,35 @@ const PATHS: Record<Screen, string> = {
   "client-record": "/dashboard/clients/:id",
   "activity-feed": "/dashboard/activity",
   settings: "/dashboard/settings",
-  // Public route — no auth required. Must stay top-level (not /dashboard/*).
   "extension-download": "/extension-download",
 };
 
+function PaywallGate({ children }: { children: ReactNode }) {
+  const { data: tenant, isLoading } = useTenant();
+  if (isLoading) return null;
+  if (tenant && tenant.subscriptionStatus !== "active") {
+    return <Navigate to="/dashboard/plans" replace />;
+  }
+  return <>{children}</>;
+}
+
 function ProtectedRoute({ children }: { children: ReactNode }) {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  return <PaywallGate>{children}</PaywallGate>;
+}
+
+function ProtectedRouteNoPaywall({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/signin" replace />;
   return <>{children}</>;
 }
 
-// Separate gate for the platform-operator console — its own session (platformJwt),
-// never the tenant-admin one.
 function PlatformProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = usePlatformAuthStore(s => s.isAuthenticated);
   if (!isAuthenticated) return <Navigate to="/admin/login" replace />;
   return <>{children}</>;
 }
-
-
 
 export default function App() {
   const navigate = useNavigate();
@@ -87,6 +98,7 @@ export default function App() {
         <Route path="/callback" element={<AuthCallback onNav={onNav} />} />
         <Route path="/set-password" element={<SetPassword onNav={onNav} />} />
         <Route path="/checkout" element={<Suspense fallback={<div className="min-h-dvh flex items-center justify-center text-sm text-text-tertiary">Loading…</div>}><Checkout onNav={onNav} /></Suspense>} />
+        <Route path="/checkout/success" element={<Suspense fallback={<div className="min-h-dvh flex items-center justify-center text-sm text-text-tertiary">Loading…</div>}><Checkout onNav={onNav} /></Suspense>} />
         {/* Public extension download page — NO ProtectedRoute, intentionally.
             SEs reach this from their invite email. They have no dashboard login.
             DO NOT nest inside /dashboard or wrap in <ProtectedRoute>. */}
@@ -103,8 +115,11 @@ export default function App() {
         <Route path="/dashboard/clients" element={<ProtectedRoute><Clients onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/clients/:id" element={<ProtectedRoute><ClientRecord onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
         <Route path="/dashboard/activity" element={<ProtectedRoute><ActivityFeed onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
-        <Route path="/dashboard/settings" element={<ProtectedRoute><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
-        <Route path="/dashboard/plans" element={<ProtectedRoute><Plans onNav={onNav} onLogout={onLogout} /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRouteNoPaywall><Settings onNav={onNav} onLogout={onLogout} /></ProtectedRouteNoPaywall>} />
+        {/* Plans is outside the paywall: an unpaid tenant must be able to pick a plan. */}
+        <Route path="/dashboard/plans" element={
+          <ProtectedRouteNoPaywall><Plans onNav={onNav} onLogout={onLogout} /></ProtectedRouteNoPaywall>
+        } />
         {/* Platform-operator console — separate identity + session (platformJwt). */}
         <Route path="/admin/login" element={<PlatformLogin />} />
         <Route path="/admin" element={<PlatformProtectedRoute><PlatformTenants /></PlatformProtectedRoute>} />
