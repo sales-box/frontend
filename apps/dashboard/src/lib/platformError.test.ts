@@ -1,27 +1,88 @@
 import { describe, it, expect, vi } from "vitest";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { PlatformApiError, markHandled, isHandled } from "./platformError";
 
-/**
- * Reproduces the double-toast defect: main.tsx's global cache handler toasts
- * error.message verbatim unless the error is marked handled.
- */
-function globalHandlerSimulation(error: unknown, toast: (m: string) => void) {
-  if (isHandled(error)) return;
-  toast(error instanceof Error ? error.message : "Something went wrong");
+/** Marks a rejection as locally handled, then rethrows it unchanged. */
+function handledLocally<T>(p: Promise<T>): Promise<T> {
+  return p.catch((e: unknown) => {
+    markHandled(e);
+    throw e;
+  });
 }
 
-describe("global error handler suppression", () => {
-  it("toasts a raw message for an UNMARKED error (the old behaviour)", () => {
-    const toast = vi.fn();
-    globalHandlerSimulation(new PlatformApiError(500, '{"stack":"leak"}'), toast);
-    expect(toast).toHaveBeenCalledWith('{"stack":"leak"}');
+/**
+ * Builds the same client wiring as main.tsx: global cache handlers that toast
+ * the raw message unless the error was already reported locally.
+ */
+function makeClient() {
+  const toast = vi.fn<(m: string) => void>();
+  const onError = (error: unknown) => {
+    if (isHandled(error)) return;
+    toast(error instanceof Error ? error.message : "Something went wrong");
+  };
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+    queryCache: new QueryCache({ onError }),
+    mutationCache: new MutationCache({ onError }),
+  });
+  return { client, toast };
+}
+
+const RAW = '{"stack":"at Object.<anonymous>"}';
+
+describe("global toast suppression — real react-query wiring", () => {
+  it("toasts the raw message when an error is NOT marked", async () => {
+    const { client, toast } = makeClient();
+    await client
+      .fetchQuery({
+        queryKey: ["unmarked"],
+        queryFn: () => Promise.reject(new PlatformApiError(500, RAW)),
+      })
+      .catch(() => {});
+    expect(toast).toHaveBeenCalledWith(RAW);
   });
 
-  it("stays silent for a MARKED error, leaving one friendly toast", () => {
-    const toast = vi.fn();
-    const e = new PlatformApiError(500, '{"stack":"leak"}');
-    markHandled(e);
-    globalHandlerSimulation(e, toast);
+  it("stays silent for a query that marks its own error", async () => {
+    const { client, toast } = makeClient();
+    await client
+      .fetchQuery({
+        queryKey: ["marked"],
+        queryFn: () =>
+          handledLocally(Promise.reject(new PlatformApiError(500, RAW))),
+      })
+      .catch(() => {});
     expect(toast).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Regression guard. query-core awaits MutationCache.config.onError BEFORE
+   * options.onError, so marking via `onError: markHandled` runs too late and
+   * the raw toast fires anyway. Marking must happen inside the mutationFn.
+   */
+  it("stays silent for a mutation that marks inside its mutationFn", async () => {
+    const { client, toast } = makeClient();
+    await client
+      .getMutationCache()
+      .build(client, {
+        mutationFn: () =>
+          handledLocally(Promise.reject(new PlatformApiError(500, RAW))),
+      })
+      .execute(undefined)
+      .catch(() => {});
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("DOES toast when a mutation marks via onError (the broken form)", async () => {
+    const { client, toast } = makeClient();
+    await client
+      .getMutationCache()
+      .build(client, {
+        mutationFn: () => Promise.reject(new PlatformApiError(500, RAW)),
+        onError: markHandled,
+      })
+      .execute(undefined)
+      .catch(() => {});
+    // Proves the ordering hazard is real, not theoretical.
+    expect(toast).toHaveBeenCalledWith(RAW);
   });
 });

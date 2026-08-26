@@ -53,11 +53,13 @@ function useInvalidatePlatform() {
 export function useChangeTenantStatus() {
   const invalidate = useInvalidatePlatform();
   return useMutation({
+    // Marked INSIDE the mutationFn, not via onError: query-core awaits
+    // MutationCache.config.onError BEFORE options.onError (mutation.js:148 vs
+    // :159), so an onError marker would run after the global toast had already
+    // fired. The route reports this through friendlyError instead.
     mutationFn: ({ id, action }: { id: string; action: StatusAction }) =>
-      platformApi.changeStatus(id, action),
+      handledLocally(platformApi.changeStatus(id, action)),
     onSuccess: invalidate,
-    // The route reports this through friendlyError; suppress the global toast.
-    onError: markHandled,
   });
 }
 
@@ -65,9 +67,8 @@ export function useChangeTenantTier() {
   const invalidate = useInvalidatePlatform();
   return useMutation({
     mutationFn: ({ id, tier }: { id: string; tier: number }) =>
-      platformApi.changeTier(id, tier),
+      handledLocally(platformApi.changeTier(id, tier)),
     onSuccess: invalidate,
-    onError: markHandled,
   });
 }
 
