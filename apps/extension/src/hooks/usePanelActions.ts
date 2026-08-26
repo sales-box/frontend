@@ -143,7 +143,8 @@ export function usePanelActions(deps: {
       graphThreadIdRef.current = raw.graphThreadId ?? null
 
       const derived = derivePipelineScreen(raw)
-      if (derived.kind === 'replied') dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
+      if (derived.kind === 'not-salesbox') dispatch({ type: 'SHOW_NOT_SALESBOX' })
+      else if (derived.kind === 'replied') dispatch({ type: 'SHOW_REPLIED', summary: derived.summary })
       else if (derived.kind === 'briefing') dispatch({ type: 'SHOW_BRIEFING', data: derived.data })
       else dispatch({ type: 'SHOW_LOW_CONFIDENCE', data: derived.data })
 

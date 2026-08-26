@@ -113,6 +113,25 @@ export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, c
         />
       )
 
+    case 'not-salesbox':
+      return (
+        <div className="flex flex-col h-full bg-[var(--color-surface)] p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Salesbox Copilot</h2>
+            <button onClick={handlers.onClose} className="text-gray-400 hover:text-white cursor-pointer">✕</button>
+          </div>
+          <div className="flex-1 flex flex-col justify-center items-center text-center p-4 border border-[var(--color-border-subtle)] rounded-xl bg-[var(--color-surface-hover)]">
+            <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mb-4 text-xl">🏷️</div>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-2">Not Related to 'salesbox'</h3>
+            <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              This email is not related to <span className="font-mono text-blue-400 font-bold">'salesbox'</span>.
+              <br /><br />
+              AI classification and copilot features are disabled for emails without the 'salesbox' label.
+            </p>
+          </div>
+        </div>
+      )
+
     case 'replied':
       return <RepliedScreen summary={panel.summary ?? null} onClose={handlers.onClose} />
 

@@ -11,6 +11,7 @@ import {
 
 export interface PipelineResponse {
   alreadyReplied?: boolean
+  notSalesbox?: boolean
   summary?: RepliedSummary | null
   draft?: { draftText?: string }
   confidence?: {
@@ -36,11 +37,15 @@ export interface PipelineResponse {
 }
 
 export type DerivedScreen =
+  | { kind: 'not-salesbox' }
   | { kind: 'replied'; summary: RepliedSummary | null }
   | { kind: 'briefing'; data: BriefingData }
   | { kind: 'low-confidence'; data: LowConfidenceData }
 
 export function derivePipelineScreen(raw: PipelineResponse): DerivedScreen {
+  if (raw.notSalesbox) {
+    return { kind: 'not-salesbox' }
+  }
   if (raw.alreadyReplied) {
     return { kind: 'replied', summary: raw.summary ?? null }
   }
