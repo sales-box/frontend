@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -8,12 +8,14 @@ import {
   Mail,
   PauseCircle,
   PlayCircle,
+  Trash2,
   Users,
 } from "lucide-react";
 import {
   usePlatformTenant,
   useChangeTenantStatus,
   useChangeTenantTier,
+  useDeleteTenant,
 } from "../../hooks/platformQueries";
 import {
   TIER_NAMES,
@@ -34,20 +36,27 @@ import { useToast } from "../../components/Toast";
 const TIERS = [1, 2, 3];
 
 /** Which confirmation, if any, is currently open. */
-type Pending = null | { kind: "tier"; tier: number } | { kind: "offboard" };
+type Pending =
+  | null
+  | { kind: "tier"; tier: number }
+  | { kind: "offboard" }
+  | { kind: "delete" };
 
 export function PlatformTenantDetail() {
   const { id = "" } = useParams();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const { data: tenant, isPending, isError, error } = usePlatformTenant(id);
   const changeStatus = useChangeTenantStatus();
   const changeTier = useChangeTenantTier();
+  const deleteTenant = useDeleteTenant();
 
   const [pending, setPending] = useState<Pending>(null);
   const [confirmName, setConfirmName] = useState("");
 
-  const busy = changeStatus.isPending || changeTier.isPending;
+  const busy =
+    changeStatus.isPending || changeTier.isPending || deleteTenant.isPending;
 
   function closeModal() {
     setPending(null);
@@ -268,7 +277,29 @@ export function PlatformTenantDetail() {
           </div>
         )}
 
-        {!canOffboard && (
+        {isTerminal && (
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-body text-text-secondary">
+              <span className="font-semibold text-text-primary">
+                Delete permanently
+              </span>{" "}
+              destroys this workspace and everything belonging to it — clients,
+              documents, analysed emails and connected mailboxes — and revokes
+              each mailbox&apos;s Google access. There is no recovery. It also
+              frees the admin email address for re-registration.
+            </p>
+            <Btn
+              variant="danger"
+              disabled={busy}
+              onClick={() => setPending({ kind: "delete" })}
+            >
+              <Trash2 size={15} strokeWidth={1.5} />
+              Delete permanently
+            </Btn>
+          </div>
+        )}
+
+        {!canOffboard && !isTerminal && (
           <p className="text-body mt-2 text-text-tertiary">
             Nothing to do here for a {tenant.status} workspace.
           </p>
@@ -307,6 +338,52 @@ export function PlatformTenantDetail() {
           </b>
           . Seat and document limits change immediately. No payment is taken.
         </p>
+      </Modal>
+
+      <Modal
+        open={pending?.kind === "delete"}
+        onClose={closeModal}
+        title="Delete this workspace permanently?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <CancelButton onClick={closeModal} disabled={busy} />
+            <Btn
+              variant="danger"
+              loading={busy}
+              disabled={!nameMatches}
+              onClick={() =>
+                void run(
+                  () => deleteTenant.mutateAsync(id),
+                  `${tenant.companyName} has been permanently deleted.`,
+                  () => navigate("/admin"),
+                )
+              }
+            >
+              <Trash2 size={15} strokeWidth={1.5} />
+              Delete forever
+            </Btn>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger">
+            <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0" />
+            <span>This cannot be undone. There is no backup and no restore.</span>
+          </div>
+          <p className="text-body text-text-secondary">
+            Deleting {tenant.companyName} destroys {tenant.seCount} sales
+            engineer account{tenant.seCount === 1 ? "" : "s"}, {tenant.docCount}{" "}
+            document{tenant.docCount === 1 ? "" : "s"} and {tenant.emailCount}{" "}
+            analysed email{tenant.emailCount === 1 ? "" : "s"}, and revokes each
+            mailbox&apos;s Google access.
+          </p>
+          <FormInput
+            label={`Type "${tenant.companyName}" to confirm`}
+            value={confirmName}
+            onChange={setConfirmName}
+            placeholder={tenant.companyName}
+          />
+        </div>
       </Modal>
 
       <Modal
