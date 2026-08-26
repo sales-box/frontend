@@ -203,7 +203,7 @@ export function PlatformTenantDetail() {
                 Reactivate
               </Btn>
             )}
-            {!isActive && !isSuspended && (
+            {!canOffboard && (
               <p className="text-caption text-text-tertiary">
                 No access changes are available for a{" "}
                 {tenant.status === "pending" ? "pending" : "closed"} workspace.
@@ -282,9 +282,7 @@ export function PlatformTenantDetail() {
         title="Change this workspace's plan?"
         footer={
           <div className="flex justify-end gap-2">
-            <Btn variant="secondary" onClick={closeModal} disabled={busy}>
-              Cancel
-            </Btn>
+            <CancelButton onClick={closeModal} disabled={busy} />
             <Btn
               loading={busy}
               onClick={() => {
@@ -317,9 +315,7 @@ export function PlatformTenantDetail() {
         title="Offboard this workspace?"
         footer={
           <div className="flex justify-end gap-2">
-            <Btn variant="secondary" onClick={closeModal} disabled={busy}>
-              Cancel
-            </Btn>
+            <CancelButton onClick={closeModal} disabled={busy} />
             <Btn
               variant="danger"
               loading={busy}
@@ -351,6 +347,20 @@ export function PlatformTenantDetail() {
       </Modal>
 
     </OperatorShell>
+  );
+}
+
+function CancelButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <Btn variant="secondary" onClick={onClick} disabled={disabled}>
+      Cancel
+    </Btn>
   );
 }
 
