@@ -267,11 +267,17 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                 {/* Connector into the NEXT step. A gradient rail that fades
                     toward the arrowhead reads as direction of travel, which a
                     flat 1px line does not. Hidden on mobile, where the steps
-                    stack and the reading order already implies sequence. */}
+                    stack and the reading order already implies sequence.
+
+                    Geometry: the token is w-14 (3.5rem), so the rail starts at
+                    left-16 (4rem) — just clear of it — and `-right-8` pulls the
+                    end 2rem past this column, which is exactly the grid gap, so
+                    the chevron lands at the next token's edge and never crosses
+                    it. top-7 is half the token height, centring the rail on it. */}
                 {i < 3 && (
                   <div
                     aria-hidden
-                    className="hidden md:flex absolute top-7 left-[calc(100%-2.5rem)] w-[calc(100%-1rem)] items-center z-0"
+                    className="hidden md:flex absolute top-7 left-16 -right-8 items-center z-0"
                   >
                     <div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-primary/10" />
                     <ChevronRight
