@@ -164,8 +164,4 @@ export const platformApi = {
       method: "PATCH",
       ...json({ tier }),
     }),
-
-  /** Irreversible. Only permitted for an offboarded or abandoned tenant. */
-  deleteTenant: (id: string) =>
-    request<void>(`/platform/tenants/${id}`, { method: "DELETE" }),
 };

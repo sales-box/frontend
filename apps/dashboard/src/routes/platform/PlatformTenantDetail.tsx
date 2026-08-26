@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -8,14 +8,12 @@ import {
   Mail,
   PauseCircle,
   PlayCircle,
-  Trash2,
   Users,
 } from "lucide-react";
 import {
   usePlatformTenant,
   useChangeTenantStatus,
   useChangeTenantTier,
-  useDeleteTenant,
 } from "../../hooks/platformQueries";
 import {
   TIER_NAMES,
@@ -36,27 +34,20 @@ import { useToast } from "../../components/Toast";
 const TIERS = [1, 2, 3];
 
 /** Which confirmation, if any, is currently open. */
-type Pending =
-  | null
-  | { kind: "tier"; tier: number }
-  | { kind: "offboard" }
-  | { kind: "delete" };
+type Pending = null | { kind: "tier"; tier: number } | { kind: "offboard" };
 
 export function PlatformTenantDetail() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
 
   const { data: tenant, isPending, isError, error } = usePlatformTenant(id);
   const changeStatus = useChangeTenantStatus();
   const changeTier = useChangeTenantTier();
-  const deleteTenant = useDeleteTenant();
 
   const [pending, setPending] = useState<Pending>(null);
   const [confirmName, setConfirmName] = useState("");
 
-  const busy =
-    changeStatus.isPending || changeTier.isPending || deleteTenant.isPending;
+  const busy = changeStatus.isPending || changeTier.isPending;
 
   function closeModal() {
     setPending(null);
@@ -118,8 +109,8 @@ export function PlatformTenantDetail() {
   const isActive = tenant.status === "active";
   const isSuspended = tenant.status === "suspended";
   const canOffboard = isActive || isSuspended;
-  // Mirrors the backend gate: only a terminal tenant may be destroyed.
-  const canDelete =
+  // A closed workspace's plan is not editable — there is nothing left to bill.
+  const isTerminal =
     tenant.status === "offboarded" || tenant.status === "abandoned";
   const nameMatches = confirmName === tenant.companyName;
 
@@ -238,7 +229,7 @@ export function PlatformTenantDetail() {
             <select
               id="tier-select"
               value={tenant.tier}
-              disabled={busy || canDelete}
+              disabled={busy || isTerminal}
               onChange={(e) => {
                 const next = Number(e.target.value);
                 if (next !== tenant.tier)
@@ -277,28 +268,7 @@ export function PlatformTenantDetail() {
           </div>
         )}
 
-        {canDelete && (
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-body text-text-secondary">
-              <span className="font-semibold text-text-primary">
-                Delete permanently
-              </span>{" "}
-              destroys this workspace and every record belonging to it —
-              clients, documents, analysed emails, and connected accounts. There
-              is no recovery.
-            </p>
-            <Btn
-              variant="danger"
-              disabled={busy}
-              onClick={() => setPending({ kind: "delete" })}
-            >
-              <Trash2 size={15} strokeWidth={1.5} />
-              Delete permanently
-            </Btn>
-          </div>
-        )}
-
-        {!canOffboard && !canDelete && (
+        {!canOffboard && (
           <p className="text-body mt-2 text-text-tertiary">
             Nothing to do here for a {tenant.status} workspace.
           </p>
@@ -369,8 +339,7 @@ export function PlatformTenantDetail() {
         <div className="flex flex-col gap-3">
           <p className="text-body text-text-secondary">
             Every account in {tenant.companyName} loses access immediately and
-            this cannot be reversed. The workspace&apos;s data is kept, so it
-            can still be deleted permanently afterwards.
+            this cannot be reversed. The workspace&apos;s data is retained.
           </p>
           <FormInput
             label={`Type "${tenant.companyName}" to confirm`}
@@ -381,59 +350,6 @@ export function PlatformTenantDetail() {
         </div>
       </Modal>
 
-      <Modal
-        open={pending?.kind === "delete"}
-        onClose={closeModal}
-        title="Delete this workspace permanently?"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Btn variant="secondary" onClick={closeModal} disabled={busy}>
-              Cancel
-            </Btn>
-            <Btn
-              variant="danger"
-              loading={busy}
-              disabled={!nameMatches}
-              onClick={() =>
-                void run(
-                  () => deleteTenant.mutateAsync(id),
-                  `${tenant.companyName} has been permanently deleted.`,
-                  () => navigate("/admin"),
-                )
-              }
-            >
-              <Trash2 size={15} strokeWidth={1.5} />
-              Delete forever
-            </Btn>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger">
-            <AlertCircle
-              size={15}
-              strokeWidth={1.5}
-              className="mt-0.5 flex-shrink-0"
-            />
-            <span>
-              This cannot be undone. There is no backup and no restore.
-            </span>
-          </div>
-          <p className="text-body text-text-secondary">
-            Deleting {tenant.companyName} destroys {tenant.seCount} sales
-            engineer account{tenant.seCount === 1 ? "" : "s"}, {tenant.docCount}{" "}
-            document{tenant.docCount === 1 ? "" : "s"}, and {tenant.emailCount}{" "}
-            analysed email{tenant.emailCount === 1 ? "" : "s"}, along with every
-            client record and connected mailbox.
-          </p>
-          <FormInput
-            label={`Type "${tenant.companyName}" to confirm`}
-            value={confirmName}
-            onChange={setConfirmName}
-            placeholder={tenant.companyName}
-          />
-        </div>
-      </Modal>
     </OperatorShell>
   );
 }

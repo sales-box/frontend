@@ -59,14 +59,6 @@ export function useChangeTenantTier() {
   });
 }
 
-export function useDeleteTenant() {
-  const invalidate = useInvalidatePlatform();
-  return useMutation({
-    mutationFn: (id: string) => platformApi.deleteTenant(id),
-    onSuccess: invalidate,
-  });
-}
-
 // ─── Utilities ───────────────────────────────────────────────
 
 /** Delays a fast-changing value so search does not fire a request per keystroke. */
