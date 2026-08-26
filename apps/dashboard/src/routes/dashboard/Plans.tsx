@@ -12,20 +12,21 @@ import { PRICING_TIERS } from "../../data/pricingTiers";
 export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const navigate = useNavigate();
   const { data: tenant } = useTenant();
-  const currentTier = tenant?.tier ?? 0;
+  const hasPaidSub = tenant?.subscriptionStatus === "active";
+  const currentTier = hasPaidSub ? (tenant?.tier ?? 0) : 0;
 
   return (
     <Shell active="settings" onNav={onNav} onLogout={onLogout}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 py-10">
         <PageHeader
-          title="Change plan"
-          subtitle="Choose the plan that fits your team."
+          title={hasPaidSub ? "Change plan" : "Choose a plan"}
+          subtitle={hasPaidSub ? "Choose the plan that fits your team." : "Pick a plan to get started with Inbox Copilot."}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-2">
           {PRICING_TIERS.map((tier, i) => {
             const isFeatured = tier.highlight;
-            const isCurrent = currentTier === tier.tier;
+            const isCurrent = hasPaidSub && currentTier === tier.tier;
 
             return (
               <Reveal key={tier.name} delay={i * 120} className="h-full">
@@ -118,7 +119,7 @@ export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogou
                             }
                           }}
                         >
-                          {tier.name === "Enterprise" ? "Talk to us" : "Upgrade"}
+                          {tier.name === "Enterprise" ? "Talk to us" : hasPaidSub ? "Upgrade" : "Subscribe"}
                         </Btn>
                       )}
                     </div>
