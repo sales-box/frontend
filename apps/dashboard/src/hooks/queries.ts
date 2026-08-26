@@ -105,6 +105,22 @@ export function useGrantAccess() {
   });
 }
 
+/**
+ * Bulk grant. Unlike useGrantAccess this resolves with a per-row report rather
+ * than throwing on partial failure — a paste where three of fifty addresses are
+ * bad is a normal outcome to display, not an error to swallow.
+ */
+export function useGrantAccessBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (emails: string[]) => allowlist.grantBulk(emails),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+    },
+  });
+}
+
 export function useRevokeAccess() {
   const qc = useQueryClient();
   return useMutation({
