@@ -716,10 +716,13 @@ export interface PaymentIntent {
 }
 
 export const payments = {
-  createIntent: (amount: number, tier?: number) =>
+  /** Names the plan; the server decides what it costs. Sending an `amount`
+   *  used to let the buyer set their own price, so the field is gone and the
+   *  API rejects it outright. */
+  createIntent: (tier: number) =>
     request<PaymentIntent>("/payments/create-payment-intent", {
       method: "POST",
-      ...json({ amount, ...(tier != null && { tier }) }),
+      ...json({ tier }),
     }),
 
   get: (id: string) =>

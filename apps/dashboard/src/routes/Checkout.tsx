@@ -51,9 +51,19 @@ function CheckoutForm({ plan, onNav }: { plan: PricingTier; onNav: (s: Screen) =
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    payments.createIntent(plan.priceCents ?? 0, plan.tier)
+    // Enterprise is quoted per customer — there is no self-serve price, and the
+    // old code sent amount 0 for it, which Stripe could never accept.
+    if (plan.priceCents == null) {
+      setError("This plan is quoted per customer. Please contact sales.");
+      setLoading(false);
+      return;
+    }
+    payments.createIntent(plan.tier)
       .then(pi => { setClientSecret(pi.client_secret); setLoading(false); })
-      .catch(() => { setError("Could not initialize payment. Please try again."); setLoading(false); });
+      .catch((err: unknown) => {
+        setError(err instanceof Error && err.message ? err.message : "Could not initialize payment. Please try again.");
+        setLoading(false);
+      });
   }, [plan.priceCents, plan.tier]);
 
   async function handleSubmit(e: React.FormEvent) {
