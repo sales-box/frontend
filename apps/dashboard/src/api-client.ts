@@ -226,11 +226,14 @@ export interface ResendVerificationPayload {
   companyName?: string;
 }
 
+export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled";
+
 export interface Tenant {
   id: string;
   companyName: string;
   tier: number;
   status: string;
+  subscriptionStatus: SubscriptionStatus;
 }
 
 export const tenants = {
@@ -708,25 +711,20 @@ export const analytics = {
 
 // ─── Payments ───────────────────────────────────────────────
 
-export interface PaymentIntent {
-  id: string;
-  client_secret: string;
-  amount: number;
-  status: string;
+export interface CheckoutSession {
+  sessionId: string;
+  url: string;
 }
 
 export const payments = {
-  /** Names the plan; the server decides what it costs. Sending an `amount`
-   *  used to let the buyer set their own price, so the field is gone and the
-   *  API rejects it outright. */
-  createIntent: (tier: number) =>
-    request<PaymentIntent>("/payments/create-payment-intent", {
+  createCheckoutSession: (tier: number) =>
+    request<CheckoutSession>("/payments/create-checkout-session", {
       method: "POST",
       ...json({ tier }),
     }),
 
-  get: (id: string) =>
-    request<PaymentIntent>(`/payments/${id}`),
+  getSession: (sessionId: string) =>
+    request<{ id: string; metadata: Record<string, string> }>(`/payments/session/${sessionId}`),
 };
 
 // ─── Session helpers ─────────────────────────────────────────
