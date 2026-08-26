@@ -1,18 +1,16 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, Check, BookOpen, TrendingUp, Activity, Menu, X, Mail, Link2 } from "lucide-react";
+import { ArrowRight, ChevronRight, Check, BookOpen, TrendingUp, Activity, Menu, X, Mail, Link2 } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import type { Screen } from "../types";
 import { Btn } from "../components/Btn";
 import { Reveal } from "../components/Reveal";
 import { CountUp } from "../components/CountUp";
-import { Marquee } from "../components/Marquee";
 import { AccordionItem } from "../components/Accordion";
 import { ThemeToggle } from "../components/ThemeToggle";
 import heroMascot from "../assets/hero-mascot-composition.png";
 import mascotIconSilhouette from "../assets/mascot-icon-silhouette.svg";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-sm";
-const GRAIN = "data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -43,19 +41,27 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Real inbox on our own domain. Mirrored in routes/dashboard/Plans.tsx —
+  // change both together.
+  const ENTERPRISE_CONTACT = "admin-sales@salesbox.dev";
+
   const tiers = [
     { name: "Starter", price: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
       features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"], highlight: false },
     { name: "Growth", price: "$149", period: "/mo", seats: "Up to 10 Sales Engineers", docs: "200 documents",
       features: ["Everything in Starter", "CRM integration", "Advanced analytics", "Priority support"], highlight: true },
-    { name: "Enterprise", price: "Custom", period: "", seats: "Unlimited seats", docs: "Unlimited documents",
-      features: ["Everything in Growth", "SSO / SAML", "Dedicated CSM", "SLA guarantee"], highlight: false },
+    // Seats match the cap the app actually enforces (SEAT_CAP in Team.tsx).
+    // SSO/SAML, a dedicated CSM and an SLA are not built and are not promised.
+    { name: "Enterprise", price: "Custom", period: "", seats: "Up to 50 Sales Engineers", docs: "Unlimited documents",
+      features: ["Everything in Growth", "Volume pricing", "Onboarding support"], highlight: false },
   ];
 
+  // Product facts, not social proof. Every number here is something the
+  // product actually does and a demo can show on screen.
   const stats = [
-    { v: "200+", l: "B2B companies onboard" },
-    { v: "67%", l: "replies sent as-is" },
-    { v: "4.8", l: "average G2 rating" },
+    { v: "0", l: "replies sent without a human" },
+    { v: "2", l: "confidence scores per draft" },
+    { v: "100%", l: "of claims cited to your docs" },
   ];
 
   return (
@@ -72,10 +78,10 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
           </div>
           <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-text-secondary">
             {[
-              { id: "features", label: "Features" },
+              // Order must match the order the sections appear in the page.
               { id: "how-it-works", label: "How it works" },
+              { id: "features", label: "Features" },
               { id: "integrations", label: "Integrations" },
-              { id: "testimonials", label: "Testimonials" },
               { id: "pricing", label: "Pricing" },
               { id: "faq", label: "FAQ" }
             ].map((item) => (
@@ -114,10 +120,10 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-surface/95 dark:bg-surface-secondary/95 backdrop-blur-md border border-border rounded-2xl shadow-md p-4 flex flex-col gap-1.5 z-50 md:hidden animate-in fade-in slide-in-from-top-2 duration-200">
             {[
-              { id: "features", label: "Features" },
+              // Order must match the order the sections appear in the page.
               { id: "how-it-works", label: "How it works" },
+              { id: "features", label: "Features" },
               { id: "integrations", label: "Integrations" },
-              { id: "testimonials", label: "Testimonials" },
               { id: "pricing", label: "Pricing" },
               { id: "faq", label: "FAQ" }
             ].map((item) => (
@@ -184,7 +190,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
               </Reveal>
               <Reveal delay={360}>
                 <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-text-tertiary">
-                  {["Trusted by 200+ B2B companies", "4.8 / 5 on G2"].map((t, i) => (
+                  {["Nothing sends without review", "Every claim cited to your docs"].map((t, i) => (
                     <div key={t} className="flex items-center gap-6">
                       {i > 0 && <span className="h-3 w-px bg-border hidden sm:block" />}
                       <span className="flex items-center gap-1.5"><Check size={13} strokeWidth={2} className="text-accent-cool" /> {t}</span>
@@ -207,44 +213,23 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
       </section>
 
       {/* LOGO CLOUD (Marquee) */}
-      <section id="proof" className="w-full py-10 border-t border-border bg-surface-secondary/30 dark:bg-surface-secondary/10">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 text-center">
-          <p className="text-eyebrow text-text-tertiary mb-6 text-center">Trusted by 200+ B2B sales teams</p>
-          <Marquee>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Northwind Robotics</span>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Brightwave Technologies</span>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Cyberdyne Systems</span>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Globex Industrial</span>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Initech Cloud</span>
-            <span className="text-xl font-display font-semibold text-text-tertiary/60 whitespace-nowrap">Acme Manufacturing</span>
-          </Marquee>
-        </div>
-      </section>
-
-      {/* INK BAND */}
-      <section className="relative bg-surface dark:bg-surface-secondary text-text-primary overflow-hidden border-t border-border">
-        <div aria-hidden className="absolute -top-1/2 left-1/4 w-[600px] h-[600px] rounded-full bg-primary/25 dark:bg-primary/35 blur-[120px] pointer-events-none" />
-        <div aria-hidden className="absolute inset-0 opacity-[0.06] pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url("${GRAIN}")` }} />
-        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
-          <Reveal><div className="text-eyebrow text-text-tertiary mb-7">Why teams switch</div></Reveal>
-          <Reveal delay={100}>
-            <p className="font-display text-[1.75rem] sm:text-[2.5rem] lg:text-[2.9rem] leading-[1.15] tracking-[-0.01em] max-w-[46rem] text-text-primary">
-              Every reply, grounded in your <em className="not-italic underline decoration-2 underline-offset-4 decoration-[color:var(--color-secondary)]">own product truth</em> — no hallucinations, no guesswork, no cold-start.
-            </p>
-          </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-6 mt-14 pt-10 border-t border-border">
-            {stats.map((s, i) => {
-              const colors = ["text-primary", "text-accent-cool", "text-accent-warm", "text-secondary"];
-              return (
-                <Reveal key={s.l} delay={i * 110}>
-                  <div className={`font-display text-[2.25rem] sm:text-[2.75rem] leading-none ${colors[i]}`}>
-                    <CountUp value={s.v} />
-                  </div>
-                  <div className="text-[13px] text-text-secondary mt-2 leading-snug">{s.l}</div>
-                </Reveal>
-              );
-            })}
-          </div>
+      {/* PRODUCT FACTS
+          Replaces a logo cloud of invented customers and a fabricated G2
+          rating. Every number here is something the product does and a demo
+          can show on screen, so none of it can be contradicted by a visitor. */}
+      <section className="w-full py-12 border-t border-border bg-surface-secondary/30 dark:bg-surface-secondary/10">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+          {stats.map((s, i) => {
+            const colors = ["text-primary", "text-accent-cool", "text-accent-warm"];
+            return (
+              <Reveal key={s.l} delay={i * 110}>
+                <div className={`font-display text-[2.25rem] sm:text-[2.75rem] leading-none ${colors[i]}`}>
+                  <CountUp value={s.v} />
+                </div>
+                <div className="text-[13px] text-text-secondary mt-2 leading-snug">{s.l}</div>
+              </Reveal>
+            );
+          })}
         </div>
       </section>
 
@@ -281,14 +266,40 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                 key={step.num}
                 delay={i * 120}
                 variant={i % 2 === 0 ? "left" : "right"}
-                className="relative flex flex-col items-start"
+                className="group relative flex flex-col items-start"
               >
+                {/* Connector into the NEXT step. A gradient rail that fades
+                    toward the arrowhead reads as direction of travel, which a
+                    flat 1px line does not. Hidden on mobile, where the steps
+                    stack and the reading order already implies sequence.
+
+                    Geometry: the token is w-14 (3.5rem), so the rail starts at
+                    left-16 (4rem) — just clear of it — and `-right-8` pulls the
+                    end 2rem past this column, which is exactly the grid gap, so
+                    the chevron lands at the next token's edge and never crosses
+                    it. top-7 is half the token height, centring the rail on it. */}
                 {i < 3 && (
-                  <div className="hidden md:block absolute top-5 left-[calc(100%-1rem)] w-[calc(100%-2rem)] h-px bg-border z-0" />
+                  <div
+                    aria-hidden
+                    className="hidden md:flex absolute top-7 left-16 -right-8 items-center z-0"
+                  >
+                    <div className="h-px flex-1 bg-gradient-to-r from-primary/40 to-primary/10" />
+                    <ChevronRight
+                      size={14}
+                      strokeWidth={2.5}
+                      className="text-primary/40 -ml-1 flex-shrink-0"
+                    />
+                  </div>
                 )}
-                <div className="font-display text-[2.5rem] font-bold text-primary/30 dark:text-primary/40 leading-none mb-3 z-10">
-                  {step.num}
+
+                {/* The number sits in a ringed token so it reads as a station
+                    on the rail rather than as decorative typography. */}
+                <div className="relative z-10 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/25 bg-surface shadow-1 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-2">
+                  <span className="font-display text-xl font-bold text-primary">
+                    {step.num}
+                  </span>
                 </div>
+
                 <h3 className="text-base font-bold text-text-primary mb-2 z-10">{step.title}</h3>
                 <p className="text-[13px] text-text-secondary leading-relaxed z-10">{step.desc}</p>
               </Reveal>
@@ -318,9 +329,12 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                       Upload product docs once. Every AI reply cites your actual materials — never a hallucination, so your reps always write with absolute confidence.
                     </p>
                   </div>
-                  <div className="mt-6 flex items-center gap-2 text-xs font-semibold text-accent-cool group-hover:text-primary transition-colors">
+                  <a
+                    href="#faq"
+                    className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-accent-cool group-hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  >
                     Learn about groundings <ArrowRight size={13} />
-                  </div>
+                  </a>
                 </div>
                 
                 {/* Visual Chat Mockup */}
@@ -429,9 +443,12 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                       Runs as a native sidebar directly inside Gmail. Draft, customize, and save replies to your CRM with zero context switching.
                     </p>
                   </div>
-                  <div className="mt-6 flex items-center gap-2 text-xs font-semibold text-accent-warm group-hover:text-primary transition-colors">
+                  <a
+                    href="#how-it-works"
+                    className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-accent-warm group-hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  >
                     See extension walkthrough <ArrowRight size={13} />
-                  </div>
+                  </a>
                 </div>
                 
                 {/* Visual Chrome Extension Panel Mockup */}
@@ -492,7 +509,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
               {
                 name: "Zoho",
                 desc: "Two-way CRM sync",
-                status: "Planned",
+                status: "Available",
                 icon: Link2,
                 color: "bg-accent-warm/10 text-accent-warm dark:bg-accent-warm/20"
               }
@@ -527,56 +544,6 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
         </div>
       </section>
 
-      {/* PLACEHOLDER TESTIMONIALS — replace with real customer quotes before this section ships to production. Content/marketing owns this copy. */}
-      {/* TESTIMONIALS */}
-      <section id="testimonials" className="relative w-full overflow-hidden border-t border-border">
-        <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-accent-warm/10 via-primary/5 to-transparent blur-[100px] pointer-events-none" />
-        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-24 md:py-32">
-          <Reveal><Eyebrow>Testimonials</Eyebrow></Reveal>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                quote: "Before Inbox Sales Copilot, our sales engineering team spent hours drafting security and technical replies. Now, they're drafted instantly with accurate citations.",
-                author: "S. Chen",
-                role: "Sales Engineering Lead",
-                company: "Tech Corp (Placeholder)"
-              },
-              {
-                quote: "The dual confidence scores are a game changer. We can instantly tell if a reply is grounded in our latest docs or needs manual eyes. Highly recommend it.",
-                author: "M. Patel",
-                role: "Director of Technical Sales",
-                company: "Software Systems (Placeholder)"
-              },
-              {
-                quote: "Onboarding was incredibly simple. We connected Gmail, uploaded our product manuals, and our team was drafting responses in under an hour. Best tool we've added this year.",
-                author: "A. Reyes",
-                role: "Lead Sales Engineer",
-                company: "Global Logistics (Placeholder)"
-              }
-            ].map((test, i) => (
-              <Reveal
-                key={test.author}
-                delay={i * 120}
-                variant="scale"
-                className="h-full"
-              >
-                <div className="group relative h-full bg-surface-secondary/40 dark:bg-surface-secondary/20 border border-border hover:border-secondary/40 rounded-2xl p-7 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-secondary/5">
-                  <p className="text-[14px] italic text-text-secondary leading-relaxed mb-6">
-                    "{test.quote}"
-                  </p>
-                  <div>
-                    <div className="font-semibold text-text-primary text-[14px]">{test.author}</div>
-                    <div className="text-[12px] text-text-tertiary">{test.role}, {test.company}</div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING */}
       <section id="pricing" className="relative w-full overflow-hidden border-t border-border">
         <div aria-hidden className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-accent-warm/10 via-primary/5 to-transparent blur-[100px] pointer-events-none" />
         <div aria-hidden className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-secondary/10 via-accent-cool/5 to-transparent blur-[100px] pointer-events-none" />
@@ -663,9 +630,21 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           variant={isFeatured ? "gradient" : "secondary"}
                           size="lg"
                           className="w-full justify-center focus-visible:ring-2"
-                          onClick={() => navigate(`/signup?plan=${encodeURIComponent(tier.name)}`)}
+                          onClick={() => {
+                            // Enterprise is not self-serve: the backend's
+                            // SELF_SERVE_TIERS is [1, 2], so sending someone
+                            // to signup for it walks them into a refusal at
+                            // checkout. It opens a mail draft instead, to the
+                            // address the product already sends all its mail
+                            // from. Kept identical to dashboard/Plans.tsx.
+                            if (tier.name === "Enterprise") {
+                              window.location.href = `mailto:${ENTERPRISE_CONTACT}?subject=Enterprise%20plan%20enquiry`;
+                              return;
+                            }
+                            navigate(`/signup?plan=${encodeURIComponent(tier.name)}`);
+                          }}
                         >
-                          {tier.name === "Enterprise" ? "Contact sales" : "Get started"}
+                          {tier.name === "Enterprise" ? "Talk to us" : "Get started"}
                         </Btn>
                       </div>
                     </div>
@@ -691,7 +670,7 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
               Every claim in a draft is checked against your uploaded knowledge base. Anything that isn't backed by a real source is automatically removed before the SE ever sees the draft.
             </AccordionItem>
             <AccordionItem question="Which CRMs do you support?">
-              HubSpot is supported today, with Zoho integration planned next.
+              HubSpot and Zoho are both supported today. The actions agent can search leads and contacts and create records in either.
             </AccordionItem>
             <AccordionItem question="How long does onboarding take?">
               Most teams are drafting their first AI-assisted reply within a day — connect Gmail, upload a handful of product documents, and the extension is live.
