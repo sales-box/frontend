@@ -41,6 +41,10 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Real inbox on our own domain. Mirrored in routes/dashboard/Plans.tsx —
+  // change both together.
+  const ENTERPRISE_CONTACT = "admin-sales@salesbox.dev";
+
   const tiers = [
     { name: "Starter", price: "$49", period: "/mo", seats: "Up to 3 Sales Engineers", docs: "25 documents",
       features: ["AI reply suggestions", "Knowledge Base upload", "Basic analytics"], highlight: false },
@@ -626,9 +630,21 @@ export function Landing({ onNav }: { onNav: (s: Screen) => void }) {
                           variant={isFeatured ? "gradient" : "secondary"}
                           size="lg"
                           className="w-full justify-center focus-visible:ring-2"
-                          onClick={() => navigate(`/signup?plan=${encodeURIComponent(tier.name)}`)}
+                          onClick={() => {
+                            // Enterprise is not self-serve: the backend's
+                            // SELF_SERVE_TIERS is [1, 2], so sending someone
+                            // to signup for it walks them into a refusal at
+                            // checkout. It opens a mail draft instead, to the
+                            // address the product already sends all its mail
+                            // from. Kept identical to dashboard/Plans.tsx.
+                            if (tier.name === "Enterprise") {
+                              window.location.href = `mailto:${ENTERPRISE_CONTACT}?subject=Enterprise%20plan%20enquiry`;
+                              return;
+                            }
+                            navigate(`/signup?plan=${encodeURIComponent(tier.name)}`);
+                          }}
                         >
-                          {tier.name === "Enterprise" ? "Contact sales" : "Get started"}
+                          {tier.name === "Enterprise" ? "Talk to us" : "Get started"}
                         </Btn>
                       </div>
                     </div>

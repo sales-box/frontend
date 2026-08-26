@@ -107,15 +107,18 @@ export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogou
                           className="w-full justify-center"
                           onClick={() => {
                             if (tier.name === "Enterprise") {
-                              /* FLAG FOR PRODUCT: check if sales@inboxsalescopilot.com is the correct email
-                                 for contacting sales for the Enterprise tier. */
-                              window.location.href = "mailto:sales@inboxsalescopilot.com";
+                              // Real inbox on our own domain. The previous
+                              // address pointed at inboxsalescopilot.com, which
+                              // appears nowhere else in this project.
+                              // Mirrored in Landing.tsx.
+                              window.location.href =
+                                "mailto:admin-sales@salesbox.dev?subject=Enterprise%20plan%20enquiry";
                             } else {
                               navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`);
                             }
                           }}
                         >
-                          {tier.name === "Enterprise" ? "Contact sales" : "Upgrade"}
+                          {tier.name === "Enterprise" ? "Talk to us" : "Upgrade"}
                         </Btn>
                       )}
                     </div>
