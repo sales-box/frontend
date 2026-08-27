@@ -215,10 +215,13 @@ export function useTeamStats() {
   });
 }
 
-export function useKnowledgeGaps(threshold = 3) {
+export function useKnowledgeGaps(threshold = 3, includeResolved = false) {
   return useQuery({
-    queryKey: ["gaps", threshold],
-    queryFn: () => analytics.gaps(threshold),
+    // includeResolved is part of the key: the Analytics page asks for resolved
+    // rows too so it can show "N of M resolved", and that must not share a
+    // cache entry with a caller that only wants outstanding gaps.
+    queryKey: ["gaps", threshold, includeResolved],
+    queryFn: () => analytics.gaps(threshold, includeResolved),
   });
 }
 
