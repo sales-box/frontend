@@ -120,12 +120,50 @@ export interface TenantDetail {
   lastActivityAt: string | null;
 }
 
+export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled";
+
+/** One UTC day of the platform trend chart. */
+export interface TrendPoint {
+  /** YYYY-MM-DD. */
+  date: string;
+  signups: number;
+  emailsAnalysed: number;
+}
+
 /** Every bucket key is always present — the backend defaults them to 0. */
 export interface PlatformStats {
   total: number;
   byStatus: Record<TenantStatus, number>;
   byTier: Record<number, number>;
   newThisWeek: number;
+  usage: { seats: number; documents: number; emailsAnalysed: number };
+  /**
+   * Who is actually paying. Not the same question as `byTier` — an unpaid
+   * tenant carries a tier number too.
+   */
+  billing: Record<SubscriptionStatus, number>;
+  /** Always 30 consecutive days, quiet ones included. */
+  trend: TrendPoint[];
+}
+
+/** One person in a workspace: their seat, their mailbox, or both. */
+export interface TenantMember {
+  email: string;
+  role: "admin" | "se";
+  /** granted | verified | revoked, or null when there is no seat. */
+  seatStatus: string | null;
+  /** connected | revoked, or null when no mailbox was ever connected. */
+  accountStatus: string | null;
+  connected: boolean;
+  addedAt: string | null;
+  lastLoginAt: string | null;
+}
+
+export interface RemoveMemberResult {
+  email: string;
+  removedSeat: boolean;
+  removedAccount: boolean;
+  wasAdmin: boolean;
 }
 
 export interface TenantFilters {
@@ -162,6 +200,22 @@ export const platformApi = {
   /** Irreversible. Only permitted for an offboarded or abandoned tenant. */
   deleteTenant: (id: string) =>
     request<void>(`/platform/tenants/${id}`, { method: "DELETE" }),
+
+  listMembers: (id: string) =>
+    request<TenantMember[]>(`/platform/tenants/${id}/members`),
+
+  /**
+   * Irreversible. Deletes the seat and the mailbox, which frees the address
+   * for re-use — a revoke would leave it taken by this tenant forever.
+   *
+   * The address is encoded: it is a path segment, and `+` tagging is legal in
+   * an email but means a space in a URL.
+   */
+  removeMember: (id: string, email: string) =>
+    request<RemoveMemberResult>(
+      `/platform/tenants/${id}/members/${encodeURIComponent(email)}`,
+      { method: "DELETE" },
+    ),
 
   changeTier: (id: string, tier: number) =>
     request<{ id: string; tier: number }>(`/platform/tenants/${id}/tier`, {

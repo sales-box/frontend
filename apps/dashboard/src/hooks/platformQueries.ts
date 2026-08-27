@@ -42,6 +42,14 @@ export function usePlatformTenant(id: string | undefined) {
   });
 }
 
+export function usePlatformMembers(id: string | undefined) {
+  return useQuery({
+    queryKey: ["platform", "tenant", id, "members"],
+    queryFn: () => handledLocally(platformApi.listMembers(id!)),
+    enabled: !!id,
+  });
+}
+
 // ─── Mutations ───────────────────────────────────────────────
 
 /** Every operator mutation invalidates the whole `platform` tree. */
@@ -91,6 +99,18 @@ export function useDeleteTenant() {
     // MutationCache.config.onError BEFORE options.onError, so an onError
     // marker runs after the global toast has already fired.
     mutationFn: (id: string) => handledLocally(platformApi.deleteTenant(id)),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoveMember() {
+  const invalidate = useInvalidatePlatform();
+  return useMutation({
+    // Marked inside the mutationFn, not via onError: query-core awaits
+    // MutationCache.config.onError BEFORE options.onError, so an onError
+    // marker runs after the global toast has already fired.
+    mutationFn: ({ id, email }: { id: string; email: string }) =>
+      handledLocally(platformApi.removeMember(id, email)),
     onSuccess: invalidate,
   });
 }

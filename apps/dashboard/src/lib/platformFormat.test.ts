@@ -93,6 +93,20 @@ describe("friendlyError", () => {
     );
   });
 
+  it("uses the caller's own 404 sentence when it is given one", () => {
+    // A missing MEMBER must not be reported as a missing workspace — the
+    // operator would go looking for a tenant that is still right there.
+    const e = new PlatformApiError(404, "Not found");
+    expect(friendlyError(e, "se@acme.com is no longer a member.")).toBe(
+      "se@acme.com is no longer a member.",
+    );
+  });
+
+  it("still reports a missing tenant when no override is given", () => {
+    const e = new PlatformApiError(404, "Not found");
+    expect(friendlyError(e)).toContain("no longer exists");
+  });
+
   it("never returns an empty string for an unknown throw", () => {
     expect(friendlyError({ weird: true }).length).toBeGreaterThan(0);
     expect(friendlyError(undefined).length).toBeGreaterThan(0);
