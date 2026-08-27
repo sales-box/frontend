@@ -10,7 +10,6 @@ import { memberAccess, type AccessTone } from "../../lib/memberAccess";
 import { Card } from "../Card";
 import { Btn } from "../Btn";
 import { Modal } from "../Modal";
-import { FormInput } from "../FormInput";
 import { EmptyState } from "../EmptyState";
 import { useToast } from "../Toast";
 
@@ -32,17 +31,16 @@ export function TenantMembers({
   const removeMember = useRemoveMember();
 
   const [pending, setPending] = useState<TenantMember | null>(null);
-  const [confirmEmail, setConfirmEmail] = useState("");
 
   function close() {
     setPending(null);
-    setConfirmEmail("");
   }
 
-  // Removing the admin leaves nobody who can sign in and manage the
-  // workspace, so that one alone asks the operator to type the address.
-  const needsTyping = pending?.role === "admin";
-  const canRemove = !needsTyping || confirmEmail.trim().toLowerCase() === pending?.email;
+  // Removing the admin leaves nobody who can sign in and manage the workspace,
+  // so that case still gets a warning. The operator is not asked to retype the
+  // address: this console is reachable only by platform staff, and the dialog
+  // already names exactly who is about to be removed.
+  const isAdmin = pending?.role === "admin";
 
   async function confirmRemove() {
     if (!pending) return;
@@ -198,7 +196,6 @@ export function TenantMembers({
             <Btn
               variant="danger"
               loading={removeMember.isPending}
-              disabled={!canRemove}
               onClick={() => void confirmRemove()}
             >
               <Trash2 size={15} strokeWidth={1.5} />
@@ -208,7 +205,7 @@ export function TenantMembers({
         }
       >
         <div className="flex flex-col gap-3">
-          {needsTyping && (
+          {isAdmin && (
             <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger">
               <AlertCircle
                 size={15}
@@ -233,14 +230,6 @@ export function TenantMembers({
             The address becomes free, so it can be added here again or used to
             register elsewhere.
           </p>
-          {needsTyping && (
-            <FormInput
-              label={`Type "${pending?.email}" to confirm`}
-              value={confirmEmail}
-              onChange={setConfirmEmail}
-              placeholder={pending?.email}
-            />
-          )}
         </div>
       </Modal>
     </>

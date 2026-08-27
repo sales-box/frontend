@@ -29,7 +29,6 @@ import { TenantMembers } from "../../components/platform/TenantMembers";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
 import { Modal } from "../../components/Modal";
-import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCard } from "../../components/StatCard";
 import { useToast } from "../../components/Toast";
@@ -54,14 +53,12 @@ export function PlatformTenantDetail() {
   const deleteTenant = useDeleteTenant();
 
   const [pending, setPending] = useState<Pending>(null);
-  const [confirmName, setConfirmName] = useState("");
 
   const busy =
     changeStatus.isPending || changeTier.isPending || deleteTenant.isPending;
 
   function closeModal() {
     setPending(null);
-    setConfirmName("");
   }
 
   /** Runs a mutation, reports it, and closes whatever confirmation opened it. */
@@ -100,6 +97,12 @@ export function PlatformTenantDetail() {
   }
 
   if (isError || !tenant) {
+    // A delete that is in flight — or has just landed — makes this query 404 by
+    // design, and the route is about to navigate away. Reporting that as a
+    // failure would contradict the success message shown in the same moment.
+    if (deleteTenant.isPending || deleteTenant.isSuccess) {
+      return <OperatorShell>{null}</OperatorShell>;
+    }
     return (
       <OperatorShell>
         <BackLink />
@@ -122,7 +125,6 @@ export function PlatformTenantDetail() {
   // A closed workspace's plan is not editable — there is nothing left to bill.
   const isTerminal =
     tenant.status === "offboarded" || tenant.status === "abandoned";
-  const nameMatches = confirmName === tenant.companyName;
 
   return (
     <OperatorShell>
@@ -353,7 +355,6 @@ export function PlatformTenantDetail() {
             <Btn
               variant="danger"
               loading={busy}
-              disabled={!nameMatches}
               onClick={() =>
                 void run(
                   () => deleteTenant.mutateAsync(id),
@@ -380,12 +381,6 @@ export function PlatformTenantDetail() {
             analysed email{tenant.emailCount === 1 ? "" : "s"}, and revokes each
             mailbox&apos;s Google access.
           </p>
-          <FormInput
-            label={`Type "${tenant.companyName}" to confirm`}
-            value={confirmName}
-            onChange={setConfirmName}
-            placeholder={tenant.companyName}
-          />
         </div>
       </Modal>
 
@@ -399,7 +394,6 @@ export function PlatformTenantDetail() {
             <Btn
               variant="danger"
               loading={busy}
-              disabled={!nameMatches}
               onClick={() =>
                 void run(
                   () => changeStatus.mutateAsync({ id, action: "offboard" }),
@@ -417,12 +411,6 @@ export function PlatformTenantDetail() {
             Every account in {tenant.companyName} loses access immediately and
             this cannot be reversed. The workspace&apos;s data is retained.
           </p>
-          <FormInput
-            label={`Type "${tenant.companyName}" to confirm`}
-            value={confirmName}
-            onChange={setConfirmName}
-            placeholder={tenant.companyName}
-          />
         </div>
       </Modal>
 
