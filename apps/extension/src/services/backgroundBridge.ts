@@ -19,6 +19,8 @@ export type BgResponse<T> =
   | { ok: true; data: T; kind?: never }
   | { ok: false; kind: 'unauthorized' }
   | { ok: false; kind: 'revoked' }
+  /** The request never reached `host` — a transport failure, not a rejection. */
+  | { ok: false; kind: 'unreachable'; host: string }
   | { ok: false; kind: 'error'; message: string; status?: number }
 
 export async function sendToBackground<T>(req: BgRequest): Promise<BgResponse<T>> {
@@ -28,6 +30,12 @@ export async function sendToBackground<T>(req: BgRequest): Promise<BgResponse<T>
   }
   if (typeof raw === 'object' && 'error' in raw) {
     const status = (raw as { status?: number }).status
+    // Checked before the status codes: the background flags this when fetch
+    // rejected without a response, and there is no status to read from a
+    // server that never answered.
+    if ((raw as { unreachable?: boolean }).unreachable) {
+      return { ok: false, kind: 'unreachable', host: String((raw as { host?: unknown }).host ?? '') }
+    }
     if (status === 401) return { ok: false, kind: 'unauthorized' }
     if (status === 403) return { ok: false, kind: 'revoked' }
     // Carry the status through. Callers map it to a message an SE can act on;

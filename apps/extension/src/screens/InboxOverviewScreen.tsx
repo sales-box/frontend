@@ -7,7 +7,15 @@ export interface InboxOverviewData {
   syncedAt: string
   urgentCount?: number
   intentBreakdown?: { label: string; count: number; key: string }[]
+  /**
+   * Threads a reply has already gone out for, split by the label the AI gave
+   * its draft. Both this and `notYetReviewedCount` key off the backend's
+   * `reviewedAt`, which the classifier stamps only when a reply for the thread
+   * turns up in the mailbox's SENT folder. Nothing here tracks whether a thread
+   * was ever opened, so the copy below must not claim it does.
+   */
   reviewedBreakdown?: { ready: number; needsReview: number; manual: number }
+  /** Threads with no reply sent yet. */
   notYetReviewedCount?: number
 }
 
@@ -111,9 +119,9 @@ export function InboxOverviewScreen({ data, onClose, onSelectCategory }: InboxOv
           </div>
         </div>
 
-        {/* 4. Reviewed */}
+        {/* 4. Replied */}
         <div className="flex flex-col gap-2">
-          <h3 className="text-eyebrow text-[var(--color-text-secondary)]">REVIEW STATUS</h3>
+          <h3 className="text-eyebrow text-[var(--color-text-secondary)]">REPLIED — AI CONFIDENCE</h3>
           <div className="flex gap-2">
             <button
               className="flex-1 p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-tertiary)] hover:border-[var(--color-success)]/40 transition-colors cursor-pointer text-center"
@@ -173,7 +181,7 @@ export function InboxOverviewScreen({ data, onClose, onSelectCategory }: InboxOv
               className="text-small text-[var(--color-text-tertiary)] cursor-pointer hover:underline"
               onClick={() => onSelectCategory('not-reviewed')}
             >
-              {data.notYetReviewedCount} not opened yet — no confidence computed
+              {data.notYetReviewedCount} with no reply sent yet
             </button>
           </div>
         )}

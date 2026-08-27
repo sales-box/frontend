@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import type React from 'react'
 import type { PanelAction } from '../state/panelMachine'
 import type { InboxOverviewData } from '../screens/InboxOverviewScreen'
-import { sendToBackground } from '../services/backgroundBridge'
+import { sendToBackground, type BgResponse } from '../services/backgroundBridge'
 import { setSession } from '../state/session'
 
 export interface AuthFlowHooks {
@@ -10,14 +10,24 @@ export interface AuthFlowHooks {
   signIn: () => Promise<void>
 }
 
+/**
+ * Every step of the chain below lands on the same "invalid" screen, so a
+ * backend that never answered used to be reported to the SE as an account that
+ * was turned away. `unreachableHost` sends the screen to the connectivity copy
+ * instead, and names the host so a mismatched API base is visible on sight.
+ */
+function authFailed(res: Extract<BgResponse<unknown>, { ok: false }>, step: string): PanelAction {
+  if (res.kind === 'unreachable') return { type: 'AUTH_FAILED', unreachableHost: res.host }
+  return { type: 'AUTH_FAILED', errorMsg: `${step}: ${res.kind === 'error' ? res.message : res.kind}` }
+}
+
 export function useAuthFlow(dispatch: React.Dispatch<PanelAction>): AuthFlowHooks {
   const signIn = useCallback(async () => {
     try {
       const codeRes = await sendToBackground<{ code: string; redirectUri: string }>({ type: 'GET_SE_AUTH_CODE' })
       if (!codeRes.ok) {
-        const msg = codeRes.kind === 'error' ? codeRes.message : codeRes.kind
-        console.error('[Copilot] Failed to get auth code:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `OAuth Error: ${msg}` })
+        console.error('[Copilot] Failed to get auth code:', codeRes)
+        dispatch(authFailed(codeRes, 'OAuth Error'))
         return
       }
 
@@ -28,9 +38,8 @@ export function useAuthFlow(dispatch: React.Dispatch<PanelAction>): AuthFlowHook
       })
 
       if (!resultRes.ok) {
-        const msg = resultRes.kind === 'error' ? resultRes.message : resultRes.kind
-        console.error('[Copilot] Backend login failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Backend Login: ${msg}` })
+        console.error('[Copilot] Backend login failed:', resultRes)
+        dispatch(authFailed(resultRes, 'Backend Login'))
         return
       }
 
@@ -42,9 +51,8 @@ export function useAuthFlow(dispatch: React.Dispatch<PanelAction>): AuthFlowHook
       })
 
       if (!authMeRes.ok) {
-        const msg = authMeRes.kind === 'error' ? authMeRes.message : authMeRes.kind
-        console.error('[Copilot] getAuthMe failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Auth Me: ${msg}` })
+        console.error('[Copilot] getAuthMe failed:', authMeRes)
+        dispatch(authFailed(authMeRes, 'Auth Me'))
         return
       }
 
@@ -54,9 +62,8 @@ export function useAuthFlow(dispatch: React.Dispatch<PanelAction>): AuthFlowHook
 
       const statsRes = await sendToBackground<InboxOverviewData>({ type: 'GET_INBOX_STATS' })
       if (!statsRes.ok) {
-        const msg = statsRes.kind === 'error' ? statsRes.message : statsRes.kind
-        console.error('[Copilot] Inbox stats failed:', msg)
-        dispatch({ type: 'AUTH_FAILED', errorMsg: `Inbox Stats: ${msg}` })
+        console.error('[Copilot] Inbox stats failed:', statsRes)
+        dispatch(authFailed(statsRes, 'Inbox Stats'))
         return
       }
 

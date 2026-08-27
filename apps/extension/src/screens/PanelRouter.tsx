@@ -48,6 +48,7 @@ export function PanelRouter({ panel, crmSuggestions, crmLoading, crmSubmitted, c
       return (
         <InvalidScreen
           email={panel.email}
+          unreachableHost={panel.unreachableHost}
           errorMsg={panel.errorMsg}
           onClose={handlers.onClose}
           onSwitchAccount={handlers.onSwitchAccount}

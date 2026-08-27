@@ -24,6 +24,14 @@ describe('sendToBackground — response shape mapping', () => {
     expect(res).toEqual({ ok: false, kind: 'revoked' })
   })
 
+  it('response flagged unreachable → ok:false, kind:unreachable, host passthrough', async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({
+      error: 'Failed to fetch', unreachable: true, host: 'http://localhost:3000',
+    })
+    const res = await sendToBackground({ type: 'SE_LOGIN', code: 'c', redirectUri: 'r' })
+    expect(res).toEqual({ ok: false, kind: 'unreachable', host: 'http://localhost:3000' })
+  })
+
   it('response with only error → ok:false, kind:error, message passthrough', async () => {
     vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({ error: 'boom' })
     const res = await sendToBackground({ type: 'GET_INBOX_STATS' })
@@ -67,6 +75,15 @@ describe('handleAuthErr', () => {
   it('generic error → returns false, no dispatch', async () => {
     const dispatch = vi.fn()
     const handled = await handleAuthErr({ ok: false, kind: 'error', message: 'boom' }, dispatch)
+    expect(handled).toBe(false)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  // A host that never answered says nothing about the session, so signing the
+  // SE out over it would lose a working login to a passing outage.
+  it('unreachable → returns false, no dispatch', async () => {
+    const dispatch = vi.fn()
+    const handled = await handleAuthErr({ ok: false, kind: 'unreachable', host: 'http://localhost:3000' }, dispatch)
     expect(handled).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
   })
