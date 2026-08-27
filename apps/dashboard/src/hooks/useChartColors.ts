@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 // (and re-read when dark mode toggles the <html class>).
 const TOKENS = [
   "--color-primary",
-  "--color-accent",
+  "--color-secondary",
   "--color-border",
   "--color-text-tertiary",
   "--color-surface",
@@ -14,7 +14,8 @@ const TOKENS = [
 
 export interface ChartColors {
   primary: string;
-  accent: string;
+  /** The second brand colour, for a series that must read apart from primary. */
+  secondary: string;
   border: string;
   /** Axis tick colour — --color-text-tertiary. */
   tick: string;
@@ -31,10 +32,16 @@ export interface ChartColors {
 export function useChartColors(): ChartColors {
   const read = (): ChartColors => {
     const cs = getComputedStyle(document.documentElement);
-    const [primary, accent, border, tick, surface, text] = TOKENS.map(
-      (t) => cs.getPropertyValue(t).trim() || "#000",
+    // Falls back to `currentColor`, NOT to a literal colour. A token that does
+    // not exist used to resolve to "#000", which painted solid black marks that
+    // looked deliberate in dark mode and merely ugly in light mode — the chart
+    // never looked broken, so nobody noticed the token was missing. Inheriting
+    // the text colour stays legible in both themes and still looks wrong enough
+    // to investigate.
+    const [primary, secondary, border, tick, surface, text] = TOKENS.map(
+      (t) => cs.getPropertyValue(t).trim() || "currentColor",
     );
-    return { primary, accent, border, tick, surface, text };
+    return { primary, secondary, border, tick, surface, text };
   };
   const [colors, setColors] = useState(read);
   useEffect(() => {

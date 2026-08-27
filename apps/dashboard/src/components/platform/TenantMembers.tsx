@@ -119,7 +119,12 @@ export function TenantMembers({
                   <th className="text-eyebrow px-3 py-3 font-semibold">
                     Last sign-in
                   </th>
-                  <th className="w-24 px-3 py-3">
+                  {/* `relative` so the sr-only label — which is
+                      position:absolute — is contained by this cell. Without a
+                      positioned ancestor its containing block is the viewport,
+                      so it sits at the full table width and scrolls the whole
+                      PAGE sideways on a narrow screen. */}
+                  <th className="relative w-24 px-3 py-3">
                     <span className="sr-only">Remove</span>
                   </th>
                 </tr>
