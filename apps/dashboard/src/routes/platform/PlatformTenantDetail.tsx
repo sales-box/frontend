@@ -25,6 +25,7 @@ import {
 } from "../../lib/platformFormat";
 import { OperatorShell } from "../../components/platform/OperatorShell";
 import { TenantStatusBadge } from "../../components/platform/TenantStatusBadge";
+import { TenantMembers } from "../../components/platform/TenantMembers";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
 import { Modal } from "../../components/Modal";
@@ -255,6 +256,8 @@ export function PlatformTenantDetail() {
           </div>
         </Card>
       </div>
+
+      <TenantMembers tenantId={id} companyName={tenant.companyName} />
 
       {/* ── Danger zone ──────────────────────────────────────── */}
       <Card className="mt-4 border-danger/30 p-5">

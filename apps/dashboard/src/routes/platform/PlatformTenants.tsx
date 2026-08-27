@@ -2,16 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
-  Building2,
-  CheckCircle2,
   ChevronRight,
-  PauseCircle,
   Search,
-  Sparkles,
 } from "lucide-react";
 import type { TenantStatus } from "../../platform-client";
 import {
-  usePlatformStats,
   usePlatformTenants,
   useDebounced,
 } from "../../hooks/platformQueries";
@@ -21,13 +16,13 @@ import {
   friendlyError,
 } from "../../lib/platformFormat";
 import { OperatorShell } from "../../components/platform/OperatorShell";
+import { PlatformOverview } from "../../components/platform/PlatformOverview";
 import { TenantStatusBadge } from "../../components/platform/TenantStatusBadge";
 import { Card } from "../../components/Card";
 import { Btn } from "../../components/Btn";
 import { EmptyState } from "../../components/EmptyState";
 import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
 
 const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "All", value: "" },
@@ -37,15 +32,6 @@ const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "Offboarded", value: "offboarded" },
   { label: "Abandoned", value: "abandoned" },
 ];
-
-/**
- * An unavailable metric must not read as a real zero — neither while the
- * request is still in flight nor after it has failed.
- */
-function metric(value: number | undefined, unavailable: boolean): string {
-  if (unavailable) return "—";
-  return String(value ?? 0);
-}
 
 export function PlatformTenants() {
   const [page, setPage] = useState(1);
@@ -59,11 +45,7 @@ export function PlatformTenants() {
     setPage(1);
   }, [search, status]);
 
-  const stats = usePlatformStats();
   const tenants = usePlatformTenants(page, { search, status });
-  // Pending counts as unavailable: `stats.data` is undefined on first load, and
-  // falling back to 0 would show an empty platform for a moment.
-  const statsUnavailable = stats.isError || stats.isPending;
 
   const rows = tenants.data?.data ?? [];
   const meta = tenants.data?.meta;
@@ -73,46 +55,7 @@ export function PlatformTenants() {
     <OperatorShell>
       <PageHeader title="Tenants" subtitle="Every workspace on the platform" />
 
-      {/* ── Overview ─────────────────────────────────────────── */}
-      {stats.isError && (
-        <div
-          role="alert"
-          className="mb-4 flex items-start gap-2 rounded-md border border-danger/30 bg-danger-light px-3 py-2.5 text-[13px] text-danger"
-        >
-          <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5 flex-shrink-0" />
-          <span>Couldn&apos;t load platform totals — {friendlyError(stats.error)}</span>
-        </div>
-      )}
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Total tenants"
-          value={metric(stats.data?.total, statsUnavailable)}
-          icon={<Building2 size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Active"
-          value={metric(stats.data?.byStatus.active, statsUnavailable)}
-          icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
-          tone="green"
-          size="sm"
-        />
-        <StatCard
-          label="Suspended"
-          value={metric(stats.data?.byStatus.suspended, statsUnavailable)}
-          icon={<PauseCircle size={16} strokeWidth={1.5} />}
-          tone="amber"
-          size="sm"
-        />
-        <StatCard
-          label="New this week"
-          value={metric(stats.data?.newThisWeek, statsUnavailable)}
-          icon={<Sparkles size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-      </div>
+      <PlatformOverview />
 
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

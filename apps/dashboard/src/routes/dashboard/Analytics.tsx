@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
 import { CheckCircle2, Mail, Send, Users, Gauge, Tag, AlertTriangle, HelpCircle, Wifi } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useChartColors } from "../../hooks/useChartColors";
 import type { ReactNode } from "react";
 import type { Screen } from "../../types";
 import { useAnalyticsSummary, useKnowledgeGaps, useResolveGap, useTeamStats, useTenant } from "../../hooks/queries";
@@ -24,25 +24,6 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 
 type EmailChartPoint = { date: string; emails: number };
 type RepChartPoint = { name: string; sent: number };
-
-// recharts renders stroke/fill as SVG presentation attributes, where CSS
-// var() does NOT resolve — so read the token values from computed styles
-// (and re-read when dark mode toggles the <html class>).
-const TOKENS = ["--color-primary", "--color-accent", "--color-border", "--color-text-tertiary", "--color-surface", "--color-text-primary"] as const;
-function useChartColors() {
-  const read = () => {
-    const cs = getComputedStyle(document.documentElement);
-    const [primary, accent, border, tick, surface, text] = TOKENS.map(t => cs.getPropertyValue(t).trim() || "#000");
-    return { primary, accent, border, tick, surface, text };
-  };
-  const [colors, setColors] = useState(read);
-  useEffect(() => {
-    const mo = new MutationObserver(() => setColors(read()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => mo.disconnect();
-  }, []);
-  return colors;
-}
 
 type GapEvidence = {
   subject: string;
