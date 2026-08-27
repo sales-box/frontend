@@ -132,7 +132,18 @@ graphify-out/
 WALKTHROUGH-AR.md
 apps/extension/WALKTHROUGH-AR.md
 
+# Pitch deck, presenter scripts, and everything that builds them.
 presentation/
+
+# Demo / seed corpus: fictional tenants, KB documents, .eml fixtures and the
+# binary attachments generated from them. Regenerable, ~30 MB, and none of it
+# is application code.
+demo-data/
+
+# Planning and pitch documents that live at the workspace root, plus the
+# scripts that render them to PDF.
+EXPERT-LOOP-*
+business-to-pdf.js
 
 # Personal analysis / defense notes (local only, never committed)
 CONTRIBUTIONS.md
