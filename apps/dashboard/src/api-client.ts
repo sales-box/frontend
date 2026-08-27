@@ -688,13 +688,19 @@ export const crm = {
     request<ZohoMcpStatus>(`/tenants/${id ?? tenantId()}/crm/mcp-status`),
 
   connectMcp: (mcpServerUrl: string, id?: string) =>
-    request<{ message: string; connected: boolean; mcpServerUrl: string }>(
+    request<{
+      message: string;
+      connected: boolean;
+      mcpServerUrl: string;
+      /** Zoho imports contacts now, same as HubSpot. */
+      importedCount: number;
+    }>(
       `/tenants/${id ?? tenantId()}/crm/connect-mcp`,
       { method: "POST", ...json({ mcpServerUrl }) }
     ),
 
   disconnectMcp: (id?: string) =>
-    request<{ message: string; connected: boolean }>(
+    request<{ message: string; connected: boolean; removedClients: number }>(
       `/tenants/${id ?? tenantId()}/crm/disconnect-mcp`,
       { method: "DELETE" }
     ),

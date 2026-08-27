@@ -38,17 +38,24 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const connectMcp = useConnectZohoMcp();
   const disconnectMcp = useDisconnectZohoMcp();
 
-  const connected = status?.connected ?? false;
+  // Zoho writes a crm_connections row too now, so `connected` alone would
+  // light up the HubSpot card on a Zoho workspace. Both cards check provider.
+  const anyCrmConnected = status?.connected ?? false;
+  const connected = anyCrmConnected && status?.provider === "hubspot";
   const connecting = connectCrm.isPending;
   const disconnecting = disconnectCrm.isPending;
   // Prefer the count the server just counted; fall back to the one this session
   // saw when it connected, so the number does not blink on the mutation's race.
-  const syncInfo = connected
+  const syncInfo = anyCrmConnected
     ? {
         lastSync: status?.lastSync ?? "just now",
         importedCount: status?.importedCount ?? importedCount ?? 0,
       }
     : null;
+
+  // Zoho imports contacts now too, so the panel is no longer HubSpot's alone.
+  const syncTitle =
+    status?.provider === "zoho" ? "Zoho Sync Status" : "HubSpot Sync Status";
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
 
@@ -180,10 +187,10 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
 
         </div>
 
-        {/* HubSpot Sync Status — real data, shown when connected */}
-        {connected && (
+        {/* Sync status — real data, shown for whichever CRM is connected */}
+        {anyCrmConnected && (
           <Card className="p-5 flex flex-col gap-2.5">
-            <h3 className="text-base font-semibold text-text-primary">HubSpot Sync Status</h3>
+            <h3 className="text-base font-semibold text-text-primary">{syncTitle}</h3>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[14px] text-text-tertiary">Contacts synced</span>
               <span className="text-[14px] font-semibold text-secondary">{syncInfo?.importedCount ?? 0}</span>
