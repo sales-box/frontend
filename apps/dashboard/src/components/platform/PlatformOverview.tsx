@@ -168,18 +168,18 @@ export function PlatformOverview() {
       </div>
 
       <div className="mb-8 grid gap-4 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+        <Card className="flex flex-col p-5 lg:col-span-2">
           <h2 className="text-subheading text-text-primary">Last 30 days</h2>
           <p className="text-body mt-1 text-text-secondary">
             Signups and analysed email volume across every workspace, by day.
           </p>
           {stats.isPending ? (
             <div
-              className="mt-4 h-40 animate-pulse rounded-lg bg-surface-tertiary"
+              className="mt-4 min-h-[170px] flex-1 animate-pulse rounded-lg bg-surface-tertiary"
               aria-hidden="true"
             />
           ) : v.trend ? (
-            <div className="mt-4 grid gap-6 md:grid-cols-2">
+            <div className="mt-4 grid min-h-[170px] flex-1 gap-6 md:grid-cols-2">
               <TrendPanel
                 title="Signups"
                 total={v.trend.reduce((n, p) => n + p.signups, 0)}
@@ -233,7 +233,7 @@ function TrendPanel({
   name: string;
 }) {
   const c = useChartColors();
-  const stroke = kind === "bar" ? c.accent : c.primary;
+  const stroke = kind === "bar" ? c.secondary : c.primary;
   const axisTick = { fill: c.tick, fontSize: 11 };
   const tooltipStyle = {
     background: c.surface,
@@ -244,17 +244,17 @@ function TrendPanel({
   };
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-col">
       <div className="flex items-baseline justify-between">
         <h3 className="text-[13px] font-medium text-text-primary">{title}</h3>
         <span className="text-caption text-text-tertiary">
           {total.toLocaleString()} total
         </span>
       </div>
-      <div className="mt-2">
-        <ResponsiveContainer width="100%" height={140}>
+      <div className="mt-2 min-h-[140px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
           {kind === "bar" ? (
-            <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+            <BarChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 0 }}>
               <XAxis
                 dataKey="date"
                 tick={axisTick}
@@ -285,7 +285,7 @@ function TrendPanel({
               />
             </BarChart>
           ) : (
-            <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+            <AreaChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={stroke} stopOpacity={0.28} />

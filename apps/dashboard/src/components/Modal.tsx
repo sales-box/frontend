@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 function getScrollParent(node: HTMLElement | null): HTMLElement {
@@ -57,7 +58,14 @@ export function Modal({ open, onClose, title, children, footer }: {
 
   if (!open) return null;
 
-  return (
+  // Rendered into <body>, never in place. `position: fixed` is relative to the
+  // viewport only while no ancestor has a transform, filter or perspective —
+  // any of those makes that ancestor the containing block instead. Card carries
+  // `hover:-translate-y-0.5`, so a modal opened from inside a hovered Card sized
+  // its backdrop to the card and got clipped by the card's `overflow-hidden`.
+  // A portal takes the dialog out of that subtree entirely, so no ancestor's
+  // transform, overflow or stacking context can reach it.
+  return createPortal(
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center px-4"
       style={{ backgroundColor: "var(--color-overlay)" }}
@@ -84,6 +92,7 @@ export function Modal({ open, onClose, title, children, footer }: {
         {children}
         {footer && <div className="flex justify-end gap-2 mt-5">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
