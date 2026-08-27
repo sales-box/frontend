@@ -18,6 +18,8 @@ export interface LowConfidenceData extends ClassificationInfo {
   emailTimestamp: string
   productConfidence: number
   clientHistoryConfidence: number
+  /** Supervisor's note on what the knowledge base could not answer. */
+  knowledgeGapSuggestion?: string | null
   missingContext: {
     hasProductDocs: boolean
     hasPreviousEmails: boolean
@@ -108,6 +110,11 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
     </p>
   ) : (
     <div className="flex flex-col items-center gap-1">
+        {data.knowledgeGapSuggestion && (
+          <p className="text-small text-[var(--color-text-tertiary)] text-center px-2">
+            {data.knowledgeGapSuggestion}
+          </p>
+        )}
       <button
         id="ext-report-gap-btn"
         onClick={handleReportGap}

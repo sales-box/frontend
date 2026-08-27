@@ -11,6 +11,7 @@ import {
 
 export interface PipelineResponse {
   alreadyReplied?: boolean
+  notSalesbox?: boolean
   summary?: RepliedSummary | null
   draft?: { draftText?: string }
   confidence?: {
@@ -20,6 +21,8 @@ export interface PipelineResponse {
     label?: SupervisorLabel
     /** Which rule produced that label, so the screen can say why. */
     labelReason?: LabelReason
+    /** The Supervisor's note on what the KB could not answer. Null when covered. */
+    knowledgeGapSuggestion?: string | null
     hallucinationDetected?: boolean
   }
   /** The classifier row. Always on the wire; the panel just used to drop it. */
@@ -36,11 +39,15 @@ export interface PipelineResponse {
 }
 
 export type DerivedScreen =
+  | { kind: 'not-salesbox' }
   | { kind: 'replied'; summary: RepliedSummary | null }
   | { kind: 'briefing'; data: BriefingData }
   | { kind: 'low-confidence'; data: LowConfidenceData }
 
 export function derivePipelineScreen(raw: PipelineResponse): DerivedScreen {
+  if (raw.notSalesbox) {
+    return { kind: 'not-salesbox' }
+  }
   if (raw.alreadyReplied) {
     return { kind: 'replied', summary: raw.summary ?? null }
   }
@@ -68,6 +75,10 @@ export function derivePipelineScreen(raw: PipelineResponse): DerivedScreen {
     intent: raw.classification?.intent ?? null,
     isUrgent: raw.classification?.isUrgent ?? false,
     labelReason: conf.labelReason ?? null,
+      // The backend computes this on every low-match response and, until
+      // now, nothing read it. Showing it beside "Report knowledge gap"
+      // tells the SE WHAT is missing instead of leaving them to guess.
+      knowledgeGapSuggestion: conf.knowledgeGapSuggestion ?? null,
   }
 
   if (routing === 'red') {

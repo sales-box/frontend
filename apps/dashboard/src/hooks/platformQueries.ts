@@ -42,6 +42,14 @@ export function usePlatformTenant(id: string | undefined) {
   });
 }
 
+export function usePlatformMembers(id: string | undefined) {
+  return useQuery({
+    queryKey: ["platform", "tenant", id, "members"],
+    queryFn: () => handledLocally(platformApi.listMembers(id!)),
+    enabled: !!id,
+  });
+}
+
 // ─── Mutations ───────────────────────────────────────────────
 
 /** Every operator mutation invalidates the whole `platform` tree. */
@@ -82,4 +90,39 @@ export function useDebounced<T>(value: T, ms = 300): T {
     return () => clearTimeout(t);
   }, [value, ms]);
   return debounced;
+}
+
+export function useDeleteTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    // Marked inside the mutationFn, not via onError: query-core awaits
+    // MutationCache.config.onError BEFORE options.onError, so an onError
+    // marker runs after the global toast has already fired.
+    mutationFn: (id: string) => handledLocally(platformApi.deleteTenant(id)),
+    onSuccess: (_result, id) => {
+      // This tenant is GONE. Invalidating the whole `platform` tree — which is
+      // what every other mutation here does — refetches its detail and its
+      // roster against an id the server no longer knows. Both 404, and the
+      // detail route renders that as "That tenant no longer exists", an error
+      // banner reporting the delete that had just succeeded.
+      //
+      // So drop those two queries instead of refreshing them, and refresh only
+      // the collections that still have something to say.
+      qc.removeQueries({ queryKey: ["platform", "tenant", id] });
+      void qc.invalidateQueries({ queryKey: ["platform", "tenants"] });
+      void qc.invalidateQueries({ queryKey: ["platform", "stats"] });
+    },
+  });
+}
+
+export function useRemoveMember() {
+  const invalidate = useInvalidatePlatform();
+  return useMutation({
+    // Marked inside the mutationFn, not via onError: query-core awaits
+    // MutationCache.config.onError BEFORE options.onError, so an onError
+    // marker runs after the global toast has already fired.
+    mutationFn: ({ id, email }: { id: string; email: string }) =>
+      handledLocally(platformApi.removeMember(id, email)),
+    onSuccess: invalidate,
+  });
 }

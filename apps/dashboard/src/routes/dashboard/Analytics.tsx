@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
 import { CheckCircle2, AlertTriangle, HelpCircle, Wifi } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useChartColors } from "../../hooks/useChartColors";
 import type { Screen } from "../../types";
 import { useAnalyticsSummary, useKnowledgeGaps, useResolveGap, useTeamStats, useTenant } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
@@ -39,25 +39,6 @@ const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 type EmailChartPoint = { date: string; emails: number };
 type RepChartPoint = { name: string; sent: number };
 
-// recharts renders stroke/fill as SVG presentation attributes, where CSS
-// var() does NOT resolve — so read the token values from computed styles
-// (and re-read when dark mode toggles the <html class>).
-const TOKENS = ["--color-primary", "--color-accent", "--color-border", "--color-text-tertiary", "--color-surface", "--color-text-primary"] as const;
-function useChartColors() {
-  const read = () => {
-    const cs = getComputedStyle(document.documentElement);
-    const [primary, accent, border, tick, surface, text] = TOKENS.map(t => cs.getPropertyValue(t).trim() || "#000");
-    return { primary, accent, border, tick, surface, text };
-  };
-  const [colors, setColors] = useState(read);
-  useEffect(() => {
-    const mo = new MutationObserver(() => setColors(read()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => mo.disconnect();
-  }, []);
-  return colors;
-}
-
 type GapEvidence = {
   subject: string;
   summary: string;
@@ -69,11 +50,15 @@ type GapEvidence = {
 type Gap = {
   id?: string;
   topic: string;
+  /** Times raised since this topic was last resolved, not a lifetime total. */
   occurrences: number;
   resolved: boolean;
+  resolvedAt?: string | null;
   tenantId?: string | null;
   createdAt: string;
   updatedAt?: string;
+  /** Examples that exist for the current episode; `evidence` is capped at 5. */
+  evidenceTotal?: number;
   evidence?: GapEvidence[];
 };
 
@@ -92,7 +77,9 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
   const summary = useAnalyticsSummary(WINDOW_DAYS);
   // Show the admin every real report immediately. Occurrence count still
   // communicates priority; hiding counts 1-2 made "Reported to admin" false.
-  const gapsQuery = useKnowledgeGaps(1);
+  // includeResolved: the progress bar below counts resolved gaps, and while
+  // the API filtered them out the numerator was always zero.
+  const gapsQuery = useKnowledgeGaps(1, true);
   const teamStatsQuery = useTeamStats();
   const resolveMutation = useResolveGap();
   const tenantQuery = useTenant();
@@ -143,8 +130,14 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     occurrences >= 12 ? "danger" as const : occurrences >= 8 ? "warning" as const : "muted" as const;
 
   const resolveGap = (gap: Gap) => {
-    if (gap.id) resolveMutation.mutate(gap.id);
-    toast(`Marked “${gap.topic}” resolved`);
+    // The toast used to fire outside both the id guard and onSuccess, so a
+    // failed PATCH produced "Marked X resolved" next to an error toast with the
+    // row still sitting there unresolved.
+    if (!gap.id) return;
+    resolveMutation.mutate(gap.id, {
+      onSuccess: () => toast(`Marked “${gap.topic}” resolved`),
+      onError: () => toast(`Could not resolve “${gap.topic}” — please try again`),
+    });
   };
 
   const planName = tenantQuery.data?.tier ? TIER_NAMES[tenantQuery.data.tier] : undefined;
@@ -258,6 +251,11 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
                   {(g.evidence?.length ?? 0) > 0 && (
                     <div className="ml-7 mt-2 space-y-2">
+                      {(g.evidenceTotal ?? 0) > (g.evidence?.length ?? 0) && (
+                        <div className="text-[11px] text-text-tertiary">
+                          Showing {g.evidence!.length} of {g.evidenceTotal} examples
+                        </div>
+                      )}
                       {g.evidence!.map((item, index) => (
                         <div key={`${item.emailDate}-${item.sender.email}-${index}`} className="border-l-2 border-border pl-3 py-1">
                           <div className="text-xs font-medium text-text-primary">{item.subject}</div>

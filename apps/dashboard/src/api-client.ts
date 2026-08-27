@@ -574,18 +574,38 @@ export interface SEMember {
   revokedAt: string | null;
 }
 
+/** Per-row result of a bulk allowlist grant. Mirrors the server's BulkGrantResult. */
+export type BulkGrantOutcome =
+  | "added"
+  | "reactivated"
+  | "duplicate"
+  | "invalid"
+  | "over_limit";
+
+export interface BulkGrantResult {
+  results: { email: string; outcome: BulkGrantOutcome }[];
+  summary: Record<BulkGrantOutcome, number>;
+  seats: { used: number; limit: number };
+}
+
 export const allowlist = {
   list: (id?: string) =>
     request<SEMember[]>(`/tenants/${id ?? tenantId()}/allowlist`),
 
   grant: (email: string, id?: string) =>
-    request<void>(`/tenants/${id ?? tenantId()}/allowlist`, {
+    request<{ outcome: "added" | "reactivated" | "duplicate" }>(`/tenants/${id ?? tenantId()}/allowlist`, {
       method: "POST",
       ...json({ email }),
     }),
 
+  grantBulk: (emails: string[], id?: string) =>
+    request<BulkGrantResult>(`/tenants/${id ?? tenantId()}/allowlist/bulk`, {
+      method: "POST",
+      ...json({ emails }),
+    }),
+
   revoke: (email: string, id?: string) =>
-    request<void>(
+    request<{ outcome: "revoked" | "already_revoked" | "not_found" }>(
       `/tenants/${id ?? tenantId()}/allowlist/${encodeURIComponent(email)}`,
       { method: "DELETE" }
     ),
@@ -691,11 +711,16 @@ export interface AnalyticsSummary {
 export interface KnowledgeGap {
   id: string;
   topic: string;
+  /** Times this topic was raised since it was last resolved, not a lifetime total. */
   occurrences: number;
   resolved: boolean;
+  /** When an admin last marked it documented; null if never. */
+  resolvedAt: string | null;
   tenantId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** How many examples exist for the current episode; `evidence` is capped at 5. */
+  evidenceTotal: number;
   evidence: Array<{
     reportedAt: string;
     subject: string;
@@ -774,8 +799,10 @@ export const analytics = {
   summary: (days = 30) =>
     request<AnalyticsSummary>(`/analytics/summary?days=${days}`),
 
-  gaps: (threshold = 3) =>
-    request<KnowledgeGap[]>(`/analytics/gaps/alerts?threshold=${threshold}`),
+  gaps: (threshold = 3, includeResolved = false) =>
+    request<KnowledgeGap[]>(
+      `/analytics/gaps/alerts?threshold=${threshold}&includeResolved=${includeResolved}`,
+    ),
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),

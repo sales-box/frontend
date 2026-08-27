@@ -27,6 +27,7 @@ export type PanelState =
   | { type: 'briefing'; data: BriefingData }
   | { type: 'low-confidence'; data: LowConfidenceData }
   | { type: 'replied'; summary?: RepliedSummary | null }
+  | { type: 'not-salesbox' }
   | { type: 'revoked' }
 
 export type PanelAction =
@@ -44,6 +45,7 @@ export type PanelAction =
   | { type: 'SHOW_BRIEFING'; data: BriefingData }
   | { type: 'SHOW_LOW_CONFIDENCE'; data: LowConfidenceData }
   | { type: 'SHOW_REPLIED'; summary?: RepliedSummary | null }
+  | { type: 'SHOW_NOT_SALESBOX' }
   | { type: 'RESET' }
 
 export const initialPanelState: PanelState = { type: 'collapsed' }
@@ -70,6 +72,7 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case 'SHOW_BRIEFING':       return { type: 'briefing', data: action.data }
     case 'SHOW_LOW_CONFIDENCE': return { type: 'low-confidence', data: action.data }
     case 'SHOW_REPLIED':        return { type: 'replied', summary: action.summary }
+    case 'SHOW_NOT_SALESBOX':   return { type: 'not-salesbox' }
     case 'RESET':               return { type: 'auth' }
     default:                    return state
   }

@@ -105,6 +105,22 @@ export function useGrantAccess() {
   });
 }
 
+/**
+ * Bulk grant. Unlike useGrantAccess this resolves with a per-row report rather
+ * than throwing on partial failure — a paste where three of fifty addresses are
+ * bad is a normal outcome to display, not an error to swallow.
+ */
+export function useGrantAccessBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (emails: string[]) => allowlist.grantBulk(emails),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["allowlist"] });
+      qc.invalidateQueries({ queryKey: ["team-stats"] });
+    },
+  });
+}
+
 export function useRevokeAccess() {
   const qc = useQueryClient();
   return useMutation({
@@ -199,10 +215,13 @@ export function useTeamStats() {
   });
 }
 
-export function useKnowledgeGaps(threshold = 3) {
+export function useKnowledgeGaps(threshold = 3, includeResolved = false) {
   return useQuery({
-    queryKey: ["gaps", threshold],
-    queryFn: () => analytics.gaps(threshold),
+    // includeResolved is part of the key: the Analytics page asks for resolved
+    // rows too so it can show "N of M resolved", and that must not share a
+    // cache entry with a caller that only wants outstanding gaps.
+    queryKey: ["gaps", threshold, includeResolved],
+    queryFn: () => analytics.gaps(threshold, includeResolved),
   });
 }
 

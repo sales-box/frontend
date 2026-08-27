@@ -70,8 +70,12 @@ export function relativeTime(
  * Turns anything thrown by the API layer into a sentence an operator can act
  * on. Nothing else may reach the DOM — a stringified exception is both
  * useless to the reader and a way to leak internals.
+ *
+ * @param notFound - Replaces the default 404 sentence. Pass one whenever the
+ *   request was not about a tenant's existence, so a missing member does not
+ *   report the whole workspace as gone.
  */
-export function friendlyError(e: unknown): string {
+export function friendlyError(e: unknown, notFound?: string): string {
   if (e instanceof PlatformApiError) {
     // 400/409 come from our own validators and transition guard, and are
     // already written for a human ("Cannot suspend a tenant that is …").
@@ -81,7 +85,11 @@ export function friendlyError(e: unknown): string {
     if (e.status === 401) return "Your operator session expired. Sign in again.";
     if (e.status === 403) return "Your operator account isn't allowed to do that.";
     if (e.status === 404) {
-      return "That tenant no longer exists — it may have just been removed.";
+      // The caller knows what it asked for; "that tenant is gone" is actively
+      // misleading when the request was about one member of a live tenant.
+      return (
+        notFound ?? "That tenant no longer exists — it may have just been removed."
+      );
     }
     if (e.status >= 500) {
       return "Something went wrong on our side. Try again in a moment.";
