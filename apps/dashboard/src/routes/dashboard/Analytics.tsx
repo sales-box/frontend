@@ -55,11 +55,15 @@ type GapEvidence = {
 type Gap = {
   id?: string;
   topic: string;
+  /** Times raised since this topic was last resolved, not a lifetime total. */
   occurrences: number;
   resolved: boolean;
+  resolvedAt?: string | null;
   tenantId?: string | null;
   createdAt: string;
   updatedAt?: string;
+  /** Examples that exist for the current episode; `evidence` is capped at 5. */
+  evidenceTotal?: number;
   evidence?: GapEvidence[];
 };
 
@@ -78,7 +82,9 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
   const summary = useAnalyticsSummary(WINDOW_DAYS);
   // Show the admin every real report immediately. Occurrence count still
   // communicates priority; hiding counts 1-2 made "Reported to admin" false.
-  const gapsQuery = useKnowledgeGaps(1);
+  // includeResolved: the progress bar below counts resolved gaps, and while
+  // the API filtered them out the numerator was always zero.
+  const gapsQuery = useKnowledgeGaps(1, true);
   const teamStatsQuery = useTeamStats();
   const resolveMutation = useResolveGap();
   const tenantQuery = useTenant();
@@ -130,8 +136,14 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     occurrences >= 12 ? "danger" as const : occurrences >= 8 ? "warning" as const : "muted" as const;
 
   const resolveGap = (gap: Gap) => {
-    if (gap.id) resolveMutation.mutate(gap.id);
-    toast(`Marked “${gap.topic}” resolved`);
+    // The toast used to fire outside both the id guard and onSuccess, so a
+    // failed PATCH produced "Marked X resolved" next to an error toast with the
+    // row still sitting there unresolved.
+    if (!gap.id) return;
+    resolveMutation.mutate(gap.id, {
+      onSuccess: () => toast(`Marked “${gap.topic}” resolved`),
+      onError: () => toast(`Could not resolve “${gap.topic}” — please try again`),
+    });
   };
 
   const planName = tenantQuery.data?.tier ? PLAN_NAMES[tenantQuery.data.tier] : undefined;
@@ -251,6 +263,11 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
                   {(g.evidence?.length ?? 0) > 0 && (
                     <div className="ml-7 mt-2 space-y-2">
+                      {(g.evidenceTotal ?? 0) > (g.evidence?.length ?? 0) && (
+                        <div className="text-[11px] text-text-tertiary">
+                          Showing {g.evidence!.length} of {g.evidenceTotal} examples
+                        </div>
+                      )}
                       {g.evidence!.map((item, index) => (
                         <div key={`${item.emailDate}-${item.sender.email}-${index}`} className="rounded-lg border border-border bg-surface-tertiary px-3 py-2">
                           <div className="text-xs font-medium text-text-primary">{item.subject}</div>

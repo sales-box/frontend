@@ -619,11 +619,16 @@ export interface AnalyticsSummary {
 export interface KnowledgeGap {
   id: string;
   topic: string;
+  /** Times this topic was raised since it was last resolved, not a lifetime total. */
   occurrences: number;
   resolved: boolean;
+  /** When an admin last marked it documented; null if never. */
+  resolvedAt: string | null;
   tenantId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** How many examples exist for the current episode; `evidence` is capped at 5. */
+  evidenceTotal: number;
   evidence: Array<{
     reportedAt: string;
     subject: string;
@@ -702,8 +707,10 @@ export const analytics = {
   summary: (days = 30) =>
     request<AnalyticsSummary>(`/analytics/summary?days=${days}`),
 
-  gaps: (threshold = 3) =>
-    request<KnowledgeGap[]>(`/analytics/gaps/alerts?threshold=${threshold}`),
+  gaps: (threshold = 3, includeResolved = false) =>
+    request<KnowledgeGap[]>(
+      `/analytics/gaps/alerts?threshold=${threshold}&includeResolved=${includeResolved}`,
+    ),
 
   reportGap: (messageId: string) =>
     request<KnowledgeGap & { reportAdded: boolean }>("/analytics/gaps", { method: "POST", ...json({ messageId }) }),
