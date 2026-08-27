@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type MouseEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ChevronRight,
@@ -33,6 +33,35 @@ const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "Abandoned", value: "abandoned" },
 ];
 
+/**
+ * Whole-row navigation without an absolutely positioned overlay.
+ *
+ * The overlay this replaces was a `position: absolute; inset: 0` span whose
+ * containing block was supposed to be its `position: relative` row — but a
+ * `<tr>` does not reliably establish one, so the span fell through to the
+ * viewport, sized itself to the full 42rem table, and scrolled the whole PAGE
+ * sideways by 176px on a narrow screen. The table's own `overflow-x-auto`
+ * could not clip it, because clipping only applies to descendants whose
+ * containing-block chain runs through the scroller.
+ *
+ * A click handler has no box, so there is nothing to escape. The real `<Link>`
+ * stays on the company name and remains the keyboard and open-in-new-tab path;
+ * this only adds the convenience of clicking the rest of the row.
+ */
+function useOpenRow() {
+  const navigate = useNavigate();
+  return (event: MouseEvent<HTMLTableRowElement>, id: string) => {
+    // Anything the link already handles, or that the browser should: a
+    // modified click must still open a new tab, and a drag that selected text
+    // must not navigate out from under the selection.
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if ((event.target as HTMLElement).closest("a")) return;
+    if (window.getSelection()?.toString()) return;
+    navigate(`/admin/tenants/${id}`);
+  };
+}
+
 export function PlatformTenants() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -46,6 +75,7 @@ export function PlatformTenants() {
   }, [search, status]);
 
   const tenants = usePlatformTenants(page, { search, status });
+  const openRow = useOpenRow();
 
   const rows = tenants.data?.data ?? [];
   const meta = tenants.data?.meta;
@@ -155,7 +185,7 @@ export function PlatformTenants() {
                   <th className="text-eyebrow px-3 py-3 font-semibold">
                     Joined
                   </th>
-                  <th className="w-10 px-3 py-3">
+                  <th className="relative w-10 px-3 py-3">
                     <span className="sr-only">Open</span>
                   </th>
                 </tr>
@@ -164,16 +194,14 @@ export function PlatformTenants() {
                 {rows.map((t) => (
                   <tr
                     key={t.id}
-                    className="group relative border-b border-border/60 last:border-0 transition-colors hover:bg-surface-secondary"
+                    onClick={(e) => openRow(e, t.id)}
+                    className="group cursor-pointer border-b border-border/60 last:border-0 transition-colors hover:bg-surface-secondary"
                   >
                     <td className="px-5 py-3.5">
                       <Link
                         to={`/admin/tenants/${t.id}`}
                         className="rounded-sm font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
                       >
-                        {/* Stretches the link across the row so the whole row
-                            is clickable without nesting interactive elements. */}
-                        <span className="absolute inset-0" aria-hidden="true" />
                         {t.companyName}
                       </Link>
                     </td>
