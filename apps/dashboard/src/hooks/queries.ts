@@ -176,6 +176,18 @@ export function useDisconnectCrm() {
   });
 }
 
+/** Manual re-import. Refreshes both the panel and the client list. */
+export function useSyncCrm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.sync(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
 export function useMcpStatus() {
   return useQuery({
     queryKey: ["mcp-status"],
@@ -187,7 +199,13 @@ export function useConnectZohoMcp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (mcpServerUrl: string) => crm.connectMcp(mcpServerUrl),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
+    // Zoho imports contacts now, so the client list and the credential status
+    // are both stale after this — not just the agent connection.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mcp-status"] });
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
 }
 
@@ -195,7 +213,11 @@ export function useDisconnectZohoMcp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => crm.disconnectMcp(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-status"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mcp-status"] });
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
 }
 
