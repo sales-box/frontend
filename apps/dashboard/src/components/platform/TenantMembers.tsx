@@ -85,7 +85,12 @@ export function TenantMembers({
           className="flex items-start gap-2 px-5 py-6 text-[13px] text-danger"
         >
           <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5" />
-          <span>Couldn&apos;t load the roster — {friendlyError(error)}</span>
+          <span>
+            Couldn&apos;t load the roster —{" "}
+            {/* A 404 here is a missing ENDPOINT, not a missing tenant — the
+                page around it is rendering that tenant's data right now. */}
+            {friendlyError(error, "The server doesn't offer a roster for this workspace.")}
+          </span>
         </div>
       ) : isPending ? (
         <div className="space-y-2 p-5" aria-hidden="true">

@@ -21,19 +21,11 @@ import {
 } from "lucide-react";
 import type { PlatformStats, SubscriptionStatus } from "../../platform-client";
 import { usePlatformStats } from "../../hooks/platformQueries";
+import { metric, statsView } from "../../lib/platformStats";
 import { useChartColors } from "../../hooks/useChartColors";
 import { friendlyError } from "../../lib/platformFormat";
 import { Card } from "../Card";
 import { StatCard } from "../StatCard";
-
-/**
- * An unavailable metric must not read as a real zero — neither while the
- * request is still in flight nor after it has failed.
- */
-function metric(value: number | undefined, unavailable: boolean): string {
-  if (unavailable) return "—";
-  return (value ?? 0).toLocaleString();
-}
 
 /**
  * Subscription state in the operator's words.
@@ -90,10 +82,10 @@ function dayLabel(iso: string): string {
 
 export function PlatformOverview() {
   const stats = usePlatformStats();
-  // Pending counts as unavailable: `stats.data` is undefined on first load, and
-  // falling back to 0 would show an empty platform for a moment.
-  const unavailable = stats.isError || stats.isPending;
-  const data = stats.data;
+  // Every section is optional at runtime: this page and the API deploy
+  // separately, so a build of it will sometimes run against an older server.
+  // statsView turns anything missing into null, which renders as "—".
+  const v = statsView(stats.isError ? undefined : stats.data);
 
   return (
     <>
@@ -116,28 +108,28 @@ export function PlatformOverview() {
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Total tenants"
-          value={metric(data?.total, unavailable)}
+          value={metric(v.total)}
           icon={<Building2 size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
         />
         <StatCard
           label="Active"
-          value={metric(data?.byStatus.active, unavailable)}
+          value={metric(v.active)}
           icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
           tone="green"
           size="sm"
         />
         <StatCard
           label="Suspended"
-          value={metric(data?.byStatus.suspended, unavailable)}
+          value={metric(v.suspended)}
           icon={<PauseCircle size={16} strokeWidth={1.5} />}
           tone="amber"
           size="sm"
         />
         <StatCard
           label="New this week"
-          value={metric(data?.newThisWeek, unavailable)}
+          value={metric(v.newThisWeek)}
           icon={<Sparkles size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
@@ -147,28 +139,28 @@ export function PlatformOverview() {
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Paying tenants"
-          value={metric(data?.billing.active, unavailable)}
+          value={metric(v.paying)}
           icon={<CreditCard size={16} strokeWidth={1.5} />}
           tone="green"
           size="sm"
         />
         <StatCard
           label="Sales engineers"
-          value={metric(data?.usage.seats, unavailable)}
+          value={metric(v.seats)}
           icon={<Users size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
         />
         <StatCard
           label="Documents"
-          value={metric(data?.usage.documents, unavailable)}
+          value={metric(v.documents)}
           icon={<BookOpen size={16} strokeWidth={1.5} />}
           tone="blue"
           size="sm"
         />
         <StatCard
           label="Emails analysed"
-          value={metric(data?.usage.emailsAnalysed, unavailable)}
+          value={metric(v.emailsAnalysed)}
           icon={<Mail size={16} strokeWidth={1.5} />}
           tone="amber"
           size="sm"
@@ -181,30 +173,32 @@ export function PlatformOverview() {
           <p className="text-body mt-1 text-text-secondary">
             Signups and analysed email volume across every workspace, by day.
           </p>
-          {unavailable || !data ? (
+          {stats.isPending ? (
             <div
               className="mt-4 h-40 animate-pulse rounded-lg bg-surface-tertiary"
               aria-hidden="true"
             />
-          ) : (
+          ) : v.trend ? (
             <div className="mt-4 grid gap-6 md:grid-cols-2">
               <TrendPanel
                 title="Signups"
-                total={data.trend.reduce((n, p) => n + p.signups, 0)}
-                data={data.trend}
+                total={v.trend.reduce((n, p) => n + p.signups, 0)}
+                data={v.trend}
                 dataKey="signups"
                 kind="bar"
                 name="Signups"
               />
               <TrendPanel
                 title="Emails analysed"
-                total={data.trend.reduce((n, p) => n + p.emailsAnalysed, 0)}
-                data={data.trend}
+                total={v.trend.reduce((n, p) => n + p.emailsAnalysed, 0)}
+                data={v.trend}
                 dataKey="emailsAnalysed"
                 kind="area"
                 name="Emails"
               />
             </div>
+          ) : (
+            <Unavailable what="Daily figures" />
           )}
         </Card>
 
@@ -213,7 +207,10 @@ export function PlatformOverview() {
           <p className="text-body mt-1 text-text-secondary">
             Who is actually paying — not the same as the plan tier they sit on.
           </p>
-          <BillingBreakdown billing={data?.billing} unavailable={unavailable} />
+          <BillingBreakdown
+            billing={v.billing}
+            loading={stats.isPending}
+          />
         </Card>
       </div>
     </>
@@ -332,14 +329,23 @@ function TrendPanel({
   );
 }
 
+/** Says a figure is missing without dressing it up as a zero. */
+function Unavailable({ what }: { what: string }) {
+  return (
+    <p className="text-body mt-4 text-text-tertiary">
+      {what} aren&apos;t available from the server right now.
+    </p>
+  );
+}
+
 function BillingBreakdown({
   billing,
-  unavailable,
+  loading,
 }: {
-  billing: PlatformStats["billing"] | undefined;
-  unavailable: boolean;
+  billing: PlatformStats["billing"] | null;
+  loading: boolean;
 }) {
-  if (unavailable || !billing) {
+  if (loading) {
     return (
       <div
         className="mt-4 h-40 animate-pulse rounded-lg bg-surface-tertiary"
@@ -347,6 +353,7 @@ function BillingBreakdown({
       />
     );
   }
+  if (!billing) return <Unavailable what="Subscription figures" />;
 
   const total = BILLING.reduce((n, b) => n + billing[b.key], 0);
 
