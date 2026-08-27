@@ -684,6 +684,15 @@ export const crm = {
       { method: "DELETE" }
     ),
 
+  /** Re-import with the credential already on file. Works for either provider. */
+  sync: (id?: string) =>
+    request<{
+      message: string;
+      importedCount: number;
+      provider: string;
+      lastSync: string;
+    }>(`/tenants/${id ?? tenantId()}/crm/sync`, { method: "POST" }),
+
   mcpStatus: (id?: string) =>
     request<ZohoMcpStatus>(`/tenants/${id ?? tenantId()}/crm/mcp-status`),
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Database, Link2 } from "lucide-react";
+import { Database, Link2, RefreshCw } from "lucide-react";
 import type { Screen } from "../../types";
 import {
   useCrmStatus,
@@ -7,6 +7,7 @@ import {
   useDisconnectCrm,
   useMcpStatus,
   useConnectZohoMcp,
+  useSyncCrm,
   useDisconnectZohoMcp,
 } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
@@ -34,6 +35,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const connectCrm = useConnectCrm();
   const disconnectCrm = useDisconnectCrm();
 
+  const syncCrm = useSyncCrm();
   const { data: mcpStatus } = useMcpStatus();
   const connectMcp = useConnectZohoMcp();
   const disconnectMcp = useDisconnectZohoMcp();
@@ -56,6 +58,15 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   // Zoho imports contacts now too, so the panel is no longer HubSpot's alone.
   const syncTitle =
     status?.provider === "zoho" ? "Zoho Sync Status" : "HubSpot Sync Status";
+
+  const runSync = async () => {
+    try {
+      const res = await syncCrm.mutateAsync();
+      toast(res.message);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Sync failed");
+    }
+  };
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
 
@@ -190,7 +201,15 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
         {/* Sync status — real data, shown for whichever CRM is connected */}
         {anyCrmConnected && (
           <Card className="p-5 flex flex-col gap-2.5">
-            <h3 className="text-base font-semibold text-text-primary">{syncTitle}</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-text-primary">{syncTitle}</h3>
+              {/* Contacts used to import only at connect time, so the only way
+                  to pick up a CRM change was to disconnect and reconnect — and
+                  that unlinks every client on the way through. */}
+              <Btn variant="secondary" size="sm" loading={syncCrm.isPending} onClick={runSync}>
+                <RefreshCw size={13} strokeWidth={1.5} /> Sync now
+              </Btn>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[14px] text-text-tertiary">Contacts synced</span>
               <span className="text-[14px] font-semibold text-secondary">{syncInfo?.importedCount ?? 0}</span>

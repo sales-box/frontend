@@ -176,6 +176,18 @@ export function useDisconnectCrm() {
   });
 }
 
+/** Manual re-import. Refreshes both the panel and the client list. */
+export function useSyncCrm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => crm.sync(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm-status"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
 export function useMcpStatus() {
   return useQuery({
     queryKey: ["mcp-status"],
