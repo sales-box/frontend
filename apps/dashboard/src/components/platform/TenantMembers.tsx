@@ -64,115 +64,118 @@ export function TenantMembers({
   }
 
   return (
-    <Card className="mt-4 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <div>
-          <h2 className="text-subheading text-text-primary">Members</h2>
-          <p className="text-body mt-1 text-text-secondary">
-            Everyone attached to {companyName} — seats and connected mailboxes.
-          </p>
+    <>
+      <Card className="mt-4 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-subheading text-text-primary">Members</h2>
+            <p className="text-body mt-1 text-text-secondary">
+              Everyone attached to {companyName} — seats and connected mailboxes.
+            </p>
+          </div>
+          {!!members?.length && (
+            <span className="text-caption whitespace-nowrap text-text-tertiary">
+              {members.length} {members.length === 1 ? "person" : "people"}
+            </span>
+          )}
         </div>
-        {!!members?.length && (
-          <span className="text-caption whitespace-nowrap text-text-tertiary">
-            {members.length} {members.length === 1 ? "person" : "people"}
-          </span>
-        )}
-      </div>
 
-      {isError ? (
-        <div
-          role="alert"
-          className="flex items-start gap-2 px-5 py-6 text-[13px] text-danger"
-        >
-          <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5" />
-          <span>
-            Couldn&apos;t load the roster —{" "}
-            {/* A 404 here is a missing ENDPOINT, not a missing tenant — the
-                page around it is rendering that tenant's data right now. */}
-            {friendlyError(error, "The server doesn't offer a roster for this workspace.")}
-          </span>
-        </div>
-      ) : isPending ? (
-        <div className="space-y-2 p-5" aria-hidden="true">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 animate-pulse rounded bg-surface-tertiary"
-            />
-          ))}
-        </div>
-      ) : members.length === 0 ? (
-        <EmptyState
-          icon={<UserX size={20} strokeWidth={1.5} />}
-          title="Nobody in this workspace"
-          description="No seats have been granted and no mailbox has been connected."
-        />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-eyebrow px-5 py-3 font-semibold">Person</th>
-                <th className="text-eyebrow px-3 py-3 font-semibold">Access</th>
-                <th className="text-eyebrow px-3 py-3 font-semibold">Added</th>
-                <th className="text-eyebrow px-3 py-3 font-semibold">
-                  Last sign-in
-                </th>
-                <th className="w-24 px-3 py-3">
-                  <span className="sr-only">Remove</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => {
-                const a = memberAccess(m);
-                return (
-                  <tr
-                    key={m.email}
-                    className="border-b border-border/60 last:border-0 transition-colors hover:bg-surface-secondary"
-                  >
-                    <td className="px-5 py-3.5">
-                      <span className="font-medium text-text-primary">
-                        {m.email}
-                      </span>
-                      {m.role === "admin" && (
-                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary align-middle">
-                          <ShieldCheck size={11} strokeWidth={1.75} />
-                          Admin
+        {isError ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 px-5 py-6 text-[13px] text-danger"
+          >
+            <AlertCircle size={15} strokeWidth={1.5} className="mt-0.5" />
+            <span>
+              Couldn&apos;t load the roster —{" "}
+              {/* A 404 here is a missing ENDPOINT, not a missing tenant — the
+                  page around it is rendering that tenant's data right now. */}
+              {friendlyError(error, "The server doesn't offer a roster for this workspace.")}
+            </span>
+          </div>
+        ) : isPending ? (
+          <div className="space-y-2 p-5" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-10 animate-pulse rounded bg-surface-tertiary"
+              />
+            ))}
+          </div>
+        ) : members.length === 0 ? (
+          <EmptyState
+            icon={<UserX size={20} strokeWidth={1.5} />}
+            title="Nobody in this workspace"
+            description="No seats have been granted and no mailbox has been connected."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-eyebrow px-5 py-3 font-semibold">Person</th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">Access</th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">Added</th>
+                  <th className="text-eyebrow px-3 py-3 font-semibold">
+                    Last sign-in
+                  </th>
+                  <th className="w-24 px-3 py-3">
+                    <span className="sr-only">Remove</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((m) => {
+                  const a = memberAccess(m);
+                  return (
+                    <tr
+                      key={m.email}
+                      className="border-b border-border/60 last:border-0 transition-colors hover:bg-surface-secondary"
+                    >
+                      <td className="px-5 py-3.5">
+                        <span className="font-medium text-text-primary">
+                          {m.email}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3.5">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE_CLASS[a.tone]}`}
-                      >
-                        {a.label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3.5 text-text-secondary">
-                      {relativeTime(m.addedAt)}
-                    </td>
-                    <td className="px-3 py-3.5 text-text-secondary">
-                      {relativeTime(m.lastLoginAt)}
-                    </td>
-                    <td className="px-3 py-3.5 text-right">
-                      <Btn
-                        variant="ghost"
-                        size="sm"
-                        disabled={removeMember.isPending}
-                        onClick={() => setPending(m)}
-                      >
-                        <Trash2 size={14} strokeWidth={1.5} />
-                        Remove
-                      </Btn>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                        {m.role === "admin" && (
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary align-middle">
+                            <ShieldCheck size={11} strokeWidth={1.75} />
+                            Admin
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${TONE_CLASS[a.tone]}`}
+                        >
+                          {a.label}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-text-secondary">
+                        {relativeTime(m.addedAt)}
+                      </td>
+                      <td className="px-3 py-3.5 text-text-secondary">
+                        {relativeTime(m.lastLoginAt)}
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          disabled={removeMember.isPending}
+                          onClick={() => setPending(m)}
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
+                          Remove
+                        </Btn>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </Card>
 
       <Modal
         open={!!pending}
@@ -235,6 +238,6 @@ export function TenantMembers({
           )}
         </div>
       </Modal>
-    </Card>
+    </>
   );
 }
