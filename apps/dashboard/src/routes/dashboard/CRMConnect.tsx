@@ -41,13 +41,21 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const connected = status?.connected ?? false;
   const connecting = connectCrm.isPending;
   const disconnecting = disconnectCrm.isPending;
+  // Prefer the count the server just counted; fall back to the one this session
+  // saw when it connected, so the number does not blink on the mutation's race.
   const syncInfo = connected
-    ? { lastSync: status?.lastSync ?? "just now", importedCount: importedCount ?? 0 }
+    ? {
+        lastSync: status?.lastSync ?? "just now",
+        importedCount: status?.importedCount ?? importedCount ?? 0,
+      }
     : null;
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
 
-  const mcpConnected = mcpStatus?.connected ?? false;
+  // Connecting HubSpot also writes an agent connection, so `connected` alone
+  // lit this card up for a Zoho that was never connected. The provider decides.
+  const mcpConnected =
+    (mcpStatus?.connected ?? false) && mcpStatus?.provider === "zoho";
   const mcpConnecting = connectMcp.isPending;
   const mcpDisconnecting = disconnectMcp.isPending;
   const mcpUrlError = !mcpUrl.trim()

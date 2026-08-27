@@ -656,10 +656,15 @@ export interface CRMStatus {
   status: string;
   provider?: string | null;
   lastSync?: string | null;
+  /** Clients carrying a CRM id. Survives a reload, unlike the connect response. */
+  importedCount?: number;
 }
 
 export interface ZohoMcpStatus {
   connected: boolean;
+  /** WHICH CRM the agent writes to. Connecting HubSpot also writes an agent
+   *  connection, so `connected` alone does not mean Zoho. */
+  provider?: string | null;
   updatedAt?: string;
 }
 
