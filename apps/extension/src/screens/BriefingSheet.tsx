@@ -264,7 +264,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
            enough to send unread. */}
       {data.routing === 'yellow' && (
         <div className="px-4 pt-3 flex-shrink-0">
-          <div className="rounded-[var(--radius-lg)] bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 px-3.5 py-2.5 flex gap-2.5">
+          <div className="border-l-2 border-[var(--color-warning)] pl-3 py-1 flex gap-2.5">
             <Eye size={14} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-subheading text-[var(--color-warning)] mb-0.5" style={{ fontFamily: 'var(--font-body)' }}>

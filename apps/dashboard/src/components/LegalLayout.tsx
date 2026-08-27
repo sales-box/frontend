@@ -25,7 +25,7 @@ export function LegalLayout({
       <header className="border-b border-border">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <Link to="/" className={`flex items-center gap-2.5 ${focusRing}`}>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
               <img src={mascotIconSilhouette} alt="" className="w-4.5 h-4.5 brightness-0 invert" aria-hidden="true" />
             </div>
             <span className="font-display text-[14px] font-semibold text-text-primary">Inbox Sales Copilot</span>

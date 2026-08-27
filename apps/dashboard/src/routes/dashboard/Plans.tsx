@@ -3,127 +3,146 @@ import { Check } from "lucide-react";
 import type { Screen } from "../../types";
 import { useTenant } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
-import { Btn } from "../../components/Btn";
-import { Badge } from "../../components/Badge";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
 import { PRICING_TIERS } from "../../data/pricingTiers";
+
+const ENTERPRISE_MAILTO =
+  "mailto:admin-sales@salesbox.dev?subject=Enterprise%20plan%20enquiry";
 
 export function Plans({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const navigate = useNavigate();
   const { data: tenant } = useTenant();
   const hasPaidSub = tenant?.subscriptionStatus === "active";
   const currentTier = hasPaidSub ? (tenant?.tier ?? 0) : 0;
+  const current = PRICING_TIERS.find(t => t.tier === currentTier);
 
   return (
     <Shell active="settings" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 py-10">
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader
-          title={hasPaidSub ? "Change plan" : "Choose a plan"}
-          subtitle={hasPaidSub ? "Choose the plan that fits your team." : "Pick a plan to get started with Inbox Copilot."}
+          title="Plans & Billing"
+          subtitle={hasPaidSub && current ? `You're on the ${current.name} plan` : "Pick a plan to get started with SalesBox"}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-2">
+        {/* Current plan banner — Dark Teal, shown when subscribed */}
+        {hasPaidSub && current && (
+          <Reveal>
+            <div
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl px-6 py-5 mb-6"
+              style={{ backgroundColor: "var(--brand-teal)" }}
+            >
+              <div>
+                <div className="text-lg font-semibold text-white">{current.name} Plan · {current.priceLabel}{current.period}</div>
+                <div className="text-[14px] mt-1" style={{ color: "var(--brand-aqua)" }}>{current.seats} · {current.docs}</div>
+              </div>
+              <button
+                onClick={() => navigate(`/checkout?plan=${encodeURIComponent(current.name)}`)}
+                className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold shrink-0 transition-opacity hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                style={{ backgroundColor: "var(--brand-orange)", color: "var(--on-warm)" }}
+              >
+                Manage Billing
+              </button>
+            </div>
+          </Reveal>
+        )}
+
+        {/* Pricing cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
           {PRICING_TIERS.map((tier, i) => {
-            const isFeatured = tier.highlight;
             const isCurrent = hasPaidSub && currentTier === tier.tier;
+            const isEnterprise = tier.name === "Enterprise";
+            const isLower = hasPaidSub && tier.tier < currentTier;
+
+            // Feature tick + text colours: light-on-dark for the current card,
+            // cyan-on-grey for the rest.
+            const tickColor = isCurrent ? "var(--brand-aqua)" : "var(--brand-cyan)";
 
             return (
-              <Reveal key={tier.name} delay={i * 120} className="h-full">
+              <Reveal key={tier.name} delay={i * 100} className="h-full">
                 <div
-                  className={`group relative h-full rounded-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col ${
-                    isFeatured
-                      ? "p-[1.5px] bg-gradient-to-br from-primary via-secondary to-accent-cool shadow-glow-primary scale-100 md:scale-105 z-10"
-                      : "p-[1px] bg-border hover:bg-gradient-to-br hover:from-primary/30 hover:to-secondary/30 shadow-1"
-                  }`}
+                  className={`h-full rounded-2xl p-7 sm:p-8 flex flex-col gap-5 ${isCurrent ? "border-2" : "bg-surface border border-border"}`}
+                  style={isCurrent ? { backgroundColor: "var(--on-warm)", borderColor: "var(--brand-orange)" } : undefined}
                 >
-                  <div
-                    className={`h-full rounded-[15px] p-8 flex flex-col justify-between relative overflow-hidden ${
-                      isFeatured
-                        ? "bg-surface dark:bg-surface-tertiary"
-                        : "bg-surface dark:bg-surface-secondary"
-                    }`}
-                  >
-                    {isFeatured && (
-                      <>
-                        <div className="absolute -right-12 -top-12 w-32 h-32 rounded-full bg-primary/10 dark:bg-primary/20 blur-2xl pointer-events-none" />
-                        <span className="absolute top-4 right-4 text-[10px] font-bold tracking-[0.08em] uppercase bg-gradient-to-r from-primary to-secondary text-white px-3 py-1 rounded-full shadow-sm">
-                          Most popular
-                        </span>
-                      </>
+                  {/* Name + current badge */}
+                  <div className="flex items-center gap-2.5">
+                    {isCurrent && (
+                      <span
+                        className="inline-flex items-center rounded px-2.5 py-1 text-[12px] font-semibold"
+                        style={{ backgroundColor: "var(--brand-orange)", color: "var(--on-warm)" }}
+                      >
+                        Current Plan
+                      </span>
                     )}
-
-                    <div className="flex-1 flex flex-col gap-6">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-display text-xs font-bold tracking-[0.08em] uppercase text-text-tertiary">
-                            {tier.name}
-                          </h3>
-                          {isCurrent && <Badge variant="success">Current</Badge>}
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="font-display text-[3.25rem] font-bold leading-none text-text-primary tracking-tight">
-                            {tier.priceLabel}
-                          </span>
-                          {tier.period && (
-                            <span className="text-sm font-medium text-text-tertiary">
-                              {tier.period}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-xs font-semibold leading-relaxed text-text-secondary border-y border-border py-4 flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                          {tier.seats}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                          {tier.docs}
-                        </div>
-                      </div>
-
-                      <ul className="space-y-3 pt-1 flex-1">
-                        {tier.features.map(f => (
-                          <li key={f} className="flex items-start gap-2.5 text-[13px] leading-snug text-text-secondary">
-                            <span className="flex-shrink-0 w-4 h-4 rounded-full bg-success/10 dark:bg-success/20 flex items-center justify-center text-success mt-0.5">
-                              <Check size={10} strokeWidth={3} />
-                            </span>
-                            <span>{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="mt-8 pt-2">
-                      {isCurrent ? (
-                        <Btn variant="secondary" size="lg" className="w-full justify-center" disabled>
-                          Current plan
-                        </Btn>
-                      ) : (
-                        <Btn
-                          variant={isFeatured ? "gradient" : "secondary"}
-                          size="lg"
-                          className="w-full justify-center"
-                          onClick={() => {
-                            if (tier.name === "Enterprise") {
-                              // Real inbox on our own domain. The previous
-                              // address pointed at inboxsalescopilot.com, which
-                              // appears nowhere else in this project.
-                              // Mirrored in Landing.tsx.
-                              window.location.href =
-                                "mailto:admin-sales@salesbox.dev?subject=Enterprise%20plan%20enquiry";
-                            } else {
-                              navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`);
-                            }
-                          }}
-                        >
-                          {tier.name === "Enterprise" ? "Talk to us" : hasPaidSub ? "Upgrade" : "Subscribe"}
-                        </Btn>
-                      )}
-                    </div>
+                    <span className={`text-xl font-semibold ${isCurrent ? "text-white" : "text-text-primary"}`}>{tier.name}</span>
                   </div>
+
+                  {/* Price */}
+                  <div className="flex items-end gap-1">
+                    <span
+                      className="text-[40px] font-bold leading-none tracking-tight"
+                      style={{ color: isCurrent ? "var(--brand-orange)" : undefined }}
+                    >
+                      <span className={isCurrent ? "" : "text-text-primary"}>{tier.priceLabel}</span>
+                    </span>
+                    {tier.period && (
+                      <span className={`text-base pb-1 ${isCurrent ? "" : "text-text-tertiary"}`} style={{ color: isCurrent ? "var(--brand-aqua)" : undefined }}>
+                        {tier.period}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Seats · docs */}
+                  <div className={`text-[14px] font-medium ${isCurrent ? "" : "text-text-tertiary"}`} style={{ color: isCurrent ? "var(--brand-aqua)" : undefined }}>
+                    {tier.seats} · {tier.docs}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px w-full" style={{ backgroundColor: isCurrent ? "var(--brand-teal)" : "var(--color-border)" }} />
+
+                  {/* Features */}
+                  <ul className="flex flex-col gap-3 flex-1">
+                    {tier.features.map(f => (
+                      <li key={f} className="flex items-center gap-2 text-[14px]">
+                        <Check size={14} strokeWidth={3} style={{ color: tickColor }} className="shrink-0" />
+                        <span className={isCurrent ? "" : "text-text-tertiary"} style={{ color: isCurrent ? "var(--brand-aqua)" : undefined }}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Action */}
+                  {isCurrent ? (
+                    <button
+                      disabled
+                      className="w-full rounded-lg py-3 text-[14px] font-semibold text-white cursor-default"
+                      style={{ backgroundColor: "var(--brand-cyan)" }}
+                    >
+                      Current Plan
+                    </button>
+                  ) : isEnterprise ? (
+                    <button
+                      onClick={() => { window.location.href = ENTERPRISE_MAILTO; }}
+                      className="w-full rounded-lg py-3 text-[14px] font-semibold transition-opacity hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      style={{ backgroundColor: "var(--brand-orange)", color: "var(--on-warm)" }}
+                    >
+                      Contact Sales
+                    </button>
+                  ) : isLower ? (
+                    <button
+                      onClick={() => navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`)}
+                      className="w-full rounded-lg py-3 text-[14px] font-semibold bg-surface-tertiary text-text-tertiary transition-colors hover:bg-border cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      Downgrade
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate(`/checkout?plan=${encodeURIComponent(tier.name)}`)}
+                      className="w-full rounded-lg py-3 text-[14px] font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      style={{ backgroundColor: "var(--brand-cyan)" }}
+                    >
+                      {hasPaidSub ? "Upgrade" : "Subscribe"}
+                    </button>
+                  )}
                 </div>
               </Reveal>
             );

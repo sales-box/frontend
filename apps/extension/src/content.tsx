@@ -180,8 +180,11 @@ function showFeedbackToast(message: string) {
     bottom: 24px;
     right: 24px;
     z-index: 10000;
-    background-color: #1e293b;
-    color: #f8fafc;
+    /* Injected into Gmail's own DOM, outside the panel's stylesheet, so the
+       token vars are not in scope — these are Carbon and Alabaster from the
+       palette written out literally. Keep them in step with theme tokens. */
+    background-color: #001219;
+    color: #E6E1D6;
     padding: 12px 18px;
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);

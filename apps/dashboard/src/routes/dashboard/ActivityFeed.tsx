@@ -1,4 +1,4 @@
-import { Activity, Calendar, Loader2, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Activity, Calendar, Loader2, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import type { Screen } from "../../types";
 import { Shell } from "../../components/Shell";
@@ -81,61 +81,53 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
 
   return (
     <Shell active="activity-feed" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[72rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader
-          title="Activity & Escalation Feed"
+          title="Activity Feed"
           subtitle="Monitor team emails, urgent flags, and sensitive client complaints."
           actions={
-            <div className="flex items-center gap-2">
+            <>
               <Calendar size={16} strokeWidth={1.5} className="text-text-tertiary" />
               <input
                 type="date"
                 value={date}
                 onChange={(e) => { setDate(e.target.value); setPage(1); setEscPage(1); }}
-                className={`text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 text-text-primary ${focusRing}`}
+                className={`text-[15px] bg-surface-secondary border border-border rounded-lg px-3 py-1.5 text-text-primary ${focusRing}`}
               />
               {date ? (
                 <button
                   onClick={() => { setDate(""); setPage(1); setEscPage(1); }}
-                  className="text-xs text-primary hover:underline px-2 py-1 rounded bg-primary/10"
+                  className="text-[13px] text-primary hover:underline px-2 py-1 rounded bg-primary/10"
                 >
                   All Dates
                 </button>
               ) : (
-                <span className="text-xs text-text-tertiary font-medium">All Dates</span>
+                <span className="text-[13px] text-text-tertiary font-medium">All Dates</span>
               )}
-            </div>
+            </>
           }
         />
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 mb-6 border-b border-border pb-3">
+        {/* Filter pills — Figma: active = cyan filled, inactive = grey text */}
+        <div className="flex items-center gap-2 mb-6">
           <button
             onClick={() => setTab("escalations")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-              tab === "escalations"
-                ? "bg-danger/10 text-danger border border-danger/30 font-semibold"
-                : "text-text-secondary hover:bg-surface-secondary"
-            }`}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-[15px] transition-colors cursor-pointer ${focusRing} ${tab === "escalations" ? "font-semibold text-white" : "font-medium hover:bg-surface-secondary"}`}
+            style={tab === "escalations" ? { backgroundColor: "var(--brand-cyan)" } : { color: "var(--color-text-tertiary)" }}
           >
             <ShieldAlert size={16} strokeWidth={1.5} />
-            <span>Escalations & Attention Feed</span>
+            <span>Needs attention</span>
             {(escMeta?.total ?? 0) > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-danger text-white font-bold">
-                {escMeta?.total}
-              </span>
+              <span className="ml-1 text-[13px] font-bold">{escMeta?.total}</span>
             )}
           </button>
           <button
             onClick={() => setTab("activity")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-              tab === "activity"
-                ? "bg-primary/10 text-primary border border-primary/30 font-semibold"
-                : "text-text-secondary hover:bg-surface-secondary"
-            }`}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-[15px] transition-colors cursor-pointer ${focusRing} ${tab === "activity" ? "font-semibold text-white" : "font-medium hover:bg-surface-secondary"}`}
+            style={tab === "activity" ? { backgroundColor: "var(--brand-cyan)" } : { color: "var(--color-text-tertiary)" }}
           >
             <Activity size={16} strokeWidth={1.5} />
-            <span>General Activity Feed</span>
+            <span>All activity</span>
           </button>
         </div>
 
@@ -143,14 +135,11 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
           <Reveal>
             <Card className="overflow-hidden">
               <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-danger/15 text-danger">
-                  <AlertTriangle size={18} strokeWidth={1.5} />
-                </div>
                 <div>
                   <h2 className="text-subheading text-text-primary">Admin Attention Required</h2>
-                  <p className="text-xs text-text-tertiary">Urgent messages, sensitive complaints, or high-risk emails flagged for oversight.</p>
+                  <p className="text-[13px] text-text-tertiary">Urgent messages, sensitive complaints, or high-risk emails flagged for oversight.</p>
                 </div>
-                {escMeta && <span className="text-xs text-text-tertiary ml-auto">{escMeta.total} pending</span>}
+                {escMeta && <span className="text-[13px] text-text-tertiary ml-auto">{escMeta.total} pending</span>}
               </div>
 
               {escLoading ? (
@@ -158,7 +147,7 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                   <Loader2 size={28} strokeWidth={1.5} className="animate-spin text-primary" />
                 </div>
               ) : escError ? (
-                <div className="px-5 py-10 text-center text-sm text-danger">Failed to load escalation items.</div>
+                <div className="px-5 py-10 text-center text-[15px] text-danger">Failed to load escalation items.</div>
               ) : escRows.length === 0 ? (
                 <EmptyState
                   title="No pending escalations"
@@ -166,55 +155,59 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                 />
               ) : (
                 <div className="divide-y divide-border">
-                  {escRows.map((item) => (
-                    <div key={item.id} className="p-5 flex flex-col md:flex-row items-start justify-between gap-4 hover:bg-surface-secondary/20 transition-colors">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant={item.severity === "high" ? "danger" : item.severity === "medium" ? "warning" : "muted"}>
-                            {item.severity.toUpperCase()} SEVERITY
-                          </Badge>
-                          {item.analysis?.intent && (
-                            <Badge variant="muted">{item.analysis.intent}</Badge>
-                          )}
-                          {item.analysis?.isUrgent && (
-                            <Badge variant="danger">URGENT</Badge>
-                          )}
-                          <span className="text-xs text-text-tertiary ml-auto md:ml-0">
-                            {formatDate(item.createdAt)}
-                          </span>
-                        </div>
+                  {escRows.map((item) => {
+                    // One colour cue per row: a severity stripe + the severity
+                    // word. Everything else stays neutral so the list reads
+                    // calmly instead of as a wall of coloured pills.
+                    const sevBar = item.severity === "high" ? "var(--color-danger)"
+                      : item.severity === "medium" ? "var(--color-warning)"
+                      : "var(--color-text-tertiary)";
+                    const sevText = item.severity === "high" ? "text-danger"
+                      : item.severity === "medium" ? "text-warning"
+                      : "text-text-tertiary";
+                    return (
+                      <div key={item.id} className="relative flex flex-col md:flex-row md:items-center justify-between gap-4 px-5 py-4 hover:bg-surface-secondary/20 transition-colors">
+                        <span className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" style={{ backgroundColor: sevBar }} />
+                        <div className="flex-1 min-w-0 pl-3">
+                          {/* Meta — all muted; only the severity word is tinted */}
+                          <div className="flex items-center gap-2 text-[13px] text-text-tertiary flex-wrap mb-1">
+                            <span className={`font-semibold uppercase tracking-wide ${sevText}`}>{item.severity}</span>
+                            {item.analysis?.intent && <><span aria-hidden>·</span><span>{item.analysis.intent}</span></>}
+                            {item.analysis?.isUrgent && <><span aria-hidden>·</span><span className="text-warning font-medium">Urgent</span></>}
+                            <span className="ml-auto">{formatDate(item.createdAt)}</span>
+                          </div>
 
-                        <div>
-                          <div className="text-sm font-semibold text-text-primary">
+                          <div className="text-[15px] font-semibold text-text-primary">
                             {item.subject ?? item.reason}
                           </div>
-                          <div className="text-xs text-text-secondary mt-0.5">
-                            Client: <span className="font-medium text-text-primary">{item.client?.name || item.client?.email || "Unknown"}</span> ({item.client?.company || "N/A"})
-                            <span className="mx-2">•</span>
-                            Received by SE: <span className="font-mono text-text-primary">{item.accountEmail}</span>
+
+                          {/* Client + SE on one muted line — no bold, no mono */}
+                          <div className="text-[13px] text-text-tertiary mt-0.5 truncate">
+                            {item.client?.name || item.client?.email || "Unknown"}
+                            {item.client?.company ? ` · ${item.client.company}` : ""}
+                            {` · ${item.accountEmail}`}
                           </div>
+
+                          {item.reason && (
+                            <div className="text-[13px] text-text-tertiary mt-1.5">
+                              <span className="text-text-secondary">Reason:</span> {item.reason}
+                            </div>
+                          )}
                         </div>
 
-                        {item.reason && (
-                          <div className="text-xs bg-surface-secondary/60 border border-border rounded p-2.5 text-text-secondary">
-                            <strong className="text-text-primary font-medium">AI Urgency / Reason: </strong>
-                            {item.reason}
-                          </div>
-                        )}
+                        <div className="shrink-0 self-end md:self-center">
+                          <Btn
+                            variant="secondary"
+                            size="sm"
+                            loading={resolveEscalation.isPending}
+                            onClick={() => handleResolve(item.id)}
+                          >
+                            <CheckCircle2 size={13} strokeWidth={1.5} /> Mark Reviewed
+                          </Btn>
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                        <Btn
-                          variant="secondary"
-                          size="sm"
-                          loading={resolveEscalation.isPending}
-                          onClick={() => handleResolve(item.id)}
-                        >
-                          <CheckCircle2 size={13} strokeWidth={1.5} /> Mark Reviewed
-                        </Btn>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -223,15 +216,15 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                   <button
                     onClick={() => setEscPage((p) => Math.max(1, p - 1))}
                     disabled={escPage <= 1}
-                    className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                    className={`text-[13px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
                   >
                     Previous
                   </button>
-                  <span className="text-xs text-text-tertiary">Page {escPage} of {escTotalPages}</span>
+                  <span className="text-[13px] text-text-tertiary">Page {escPage} of {escTotalPages}</span>
                   <button
                     onClick={() => setEscPage((p) => Math.min(escTotalPages, p + 1))}
                     disabled={escPage >= escTotalPages}
-                    className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                    className={`text-[13px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
                   >
                     Next
                   </button>
@@ -243,11 +236,9 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
           <Reveal>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-                <Activity size={18} strokeWidth={1.5} className="text-primary" />
-              </div>
+              <Activity size={18} strokeWidth={1.5} className="text-text-tertiary" />
               <h2 className="text-subheading text-text-primary">Activity</h2>
-              {meta && <span className="text-xs text-text-tertiary ml-auto">{meta.total} total</span>}
+              {meta && <span className="text-[13px] text-text-tertiary ml-auto">{meta.total} total</span>}
             </div>
 
             {isLoading ? (
@@ -255,7 +246,7 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                 <Loader2 size={28} strokeWidth={1.5} className="animate-spin text-primary" />
               </div>
             ) : isError ? (
-              <div className="px-5 py-10 text-center text-sm text-danger">Failed to load activity feed.</div>
+              <div className="px-5 py-10 text-center text-[15px] text-danger">Failed to load activity feed.</div>
             ) : rows.length === 0 ? (
               <EmptyState
                 title="No activity yet"
@@ -280,14 +271,14 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                         onClick={() => onNav("clients")}
                         className={`${COLS} px-5 py-3.5 items-center hover:bg-surface-secondary/30 transition-colors cursor-pointer ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}
                       >
-                        <span className="text-xs text-text-tertiary font-mono">{formatTime(row.time)}</span>
-                        <span className="text-[13px] font-medium text-text-primary truncate">{row.client}</span>
-                        <span className="text-[13px] text-text-secondary truncate">{row.company}</span>
+                        <span className="text-[13px] text-text-tertiary font-mono">{formatTime(row.time)}</span>
+                        <span className="text-[15px] font-medium text-text-primary truncate">{row.client}</span>
+                        <span className="text-[15px] text-text-secondary truncate">{row.company}</span>
                         <span>{row.classification && <Badge variant="muted">{row.classification}</Badge>}</span>
-                        <span className={`text-[13px] font-mono font-semibold ${conf != null ? confidenceColor(conf) : "text-text-tertiary"}`}>
+                        <span className={`text-[15px] font-mono font-semibold ${conf != null ? confidenceColor(conf) : "text-text-tertiary"}`}>
                           {conf != null ? `${conf}%` : "—"}
                         </span>
-                        <span className={`text-xs font-medium ${actionColor(row.action)}`}>{row.action ?? "—"}</span>
+                        <span className={`text-[13px] font-medium ${actionColor(row.action)}`}>{row.action ?? "—"}</span>
                       </div>
                     );
                   })}
@@ -300,15 +291,15 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                  className={`text-[13px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
                 >
                   Previous
                 </button>
-                <span className="text-xs text-text-tertiary">Page {page} of {totalPages}</span>
+                <span className="text-[13px] text-text-tertiary">Page {page} of {totalPages}</span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                  className={`text-[13px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
                 >
                   Next
                 </button>

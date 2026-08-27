@@ -46,7 +46,7 @@ export function PlatformLogin() {
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-[0.07]"
-        style={{ background: "var(--gradient-brand-cool)" }}
+        style={{ background: "var(--color-primary)" }}
       />
 
       <div className="absolute right-4 top-4 z-10">
@@ -86,7 +86,7 @@ export function PlatformLogin() {
               required
               value={email}
               onChange={setEmail}
-              placeholder="operator@salesbox.com"
+              placeholder="operator@salesbox.dev"
             />
             <FormInput
               label="Password"

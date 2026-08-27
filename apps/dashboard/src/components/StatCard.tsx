@@ -1,56 +1,46 @@
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-function useCountUp(target: number, active: boolean, ms = 1000) {
-  const [n, setN] = useState(active ? 0 : target);
-  useEffect(() => {
-    if (!active) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setN(target); return; }
-    let raf = 0;
-    const start = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / ms);
-      setN(target * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, active, ms]);
-  return n;
+/**
+ * A single figure in a StatRow. Deliberately not a card: no border of
+ * its own, no shadow, no tinted icon chip, no hover transform, no
+ * count-up. The row draws one border around the whole group and rules
+ * between the cells, so four figures read as one block of data rather
+ * than four competing boxes.
+ *
+ * There is no trend/delta slot. A "+12%" needs a baseline the product
+ * does not store, so it would be decoration presented as fact.
+ */
+export function StatCard({ label, value, sub }: {
+  label: string; value: string; sub?: string;
+}) {
+  return (
+    <div className="px-5 py-4">
+      <div className="text-eyebrow mb-2">{label}</div>
+      <div className="font-display text-[1.75rem] leading-none font-semibold text-text-primary tracking-tight tabular-nums">
+        {value}
+      </div>
+      {sub && <div className="text-xs text-text-tertiary mt-1.5">{sub}</div>}
+    </div>
+  );
 }
 
-const TONE: Record<string, string> = {
-  blue: "var(--color-primary)",
-  green: "var(--color-success)",
-  amber: "var(--color-warning)",
-  red: "var(--color-danger)",
-};
-
-export function StatCard({ label, value, sub, subTone = "muted", size = "md", icon, tone = "blue" }: {
-  label: string; value: string; sub?: string;
-  subTone?: "muted" | "success"; size?: "md" | "sm";
-  icon?: ReactNode; tone?: "blue" | "green" | "amber" | "red";
+/**
+ * Wraps StatCards in a single bordered block. `cols` is the desktop
+ * column count; cells stack on mobile with horizontal rules instead.
+ */
+export function StatRow({ children, cols = 3, className = "" }: {
+  children: ReactNode; cols?: 2 | 3 | 4; className?: string;
 }) {
-  const m = value.match(/^(\D*)(\d[\d,]*)(.*)$/);
-  const target = m ? parseInt(m[2].replace(/,/g, ""), 10) : 0;
-  const n = useCountUp(target, !!m);
-  const shown = m ? `${m[1]}${Math.round(n)}${m[3]}` : value;
-  const toneVar = TONE[tone];
-  const subCls = subTone === "success" ? "text-success" : "text-text-tertiary";
-  const valueCls = size === "md" ? "text-4xl" : "text-3xl";
-
+  const grid = {
+    2: "sm:grid-cols-2",
+    3: "sm:grid-cols-3",
+    4: "grid-cols-2 sm:grid-cols-4",
+  }[cols];
   return (
-    <div className="h-full bg-surface border border-border rounded-xl p-6 transition-transform duration-300 hover:-translate-y-1">
-      {icon && (
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center mb-4"
-          style={{ background: `color-mix(in srgb, ${toneVar} 14%, transparent)`, color: toneVar }}
-        >
-          {icon}
-        </div>
-      )}
-      <div className="text-eyebrow mb-1.5">{label}</div>
-      <div className={`font-display ${valueCls} font-semibold text-text-primary tracking-tight mb-1 tabular-nums`}>{shown}</div>
-      {sub && <div className={`text-xs ${subCls}`}>{sub}</div>}
+    <div
+      className={`grid ${grid} border border-border rounded-lg bg-surface divide-y divide-border sm:divide-y-0 sm:divide-x ${className}`}
+    >
+      {children}
     </div>
   );
 }

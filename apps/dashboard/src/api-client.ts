@@ -15,16 +15,26 @@ function authHeaders(): Record<string, string> {
   return h;
 }
 
+/**
+ * The tenant every scoped route is addressed with. Throwing beats returning ""
+ * — an empty id built `/tenants//allowlist`, which the API answered with a 404
+ * whose message told the user nothing about the real cause (a session that
+ * carries no tenant).
+ */
 function tenantId(): string {
-  return _tid ?? "";
+  if (!_tid) {
+    throw new Error("No workspace in this session. Please sign in again.");
+  }
+  return _tid;
 }
 
 function getMockDataForUrl(url: string): any {
   if (url.includes("/auth/me")) {
-    return { tenantId: "mock-tenant-id", email: "admin@acme.com", isAdmin: true };
+    return { tenantId: "mock-tenant-id", email: "admin@example.com", isAdmin: true };
   }
   if (url.includes("/auth/admin/login")) {
-    return { token: "header.eyJ0ZW5hbnRJZCI6Im1vY2stdGVuYW50LWlkIiwiZW1haWwiOiJhZG1pbkBhY21lLmNvbSIsImlzQWRtaW4iOnRydWV9.signature" };
+    // Payload decodes to {"tenantId":"mock-tenant-id","email":"admin@example.com","isAdmin":true}
+    return { token: "header.eyJ0ZW5hbnRJZCI6Im1vY2stdGVuYW50LWlkIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsImlzQWRtaW4iOnRydWV9.signature" };
   }
   if (url.startsWith("/tenants/signup")) {
     return { message: "Signup successful" };
@@ -41,11 +51,11 @@ function getMockDataForUrl(url: string): any {
     }
     if (url.endsWith("/allowlist")) {
       return [
-        { id: "1", tenantId: "mock-tenant-id", email: "se1@acme.com", status: "verified", grantedAt: new Date().toISOString(), verifiedAt: new Date().toISOString(), revokedAt: null },
-        { id: "2", tenantId: "mock-tenant-id", email: "se2@acme.com", status: "granted", grantedAt: new Date().toISOString(), verifiedAt: null, revokedAt: null },
+        { id: "1", tenantId: "mock-tenant-id", email: "se1@example.com", status: "verified", grantedAt: new Date().toISOString(), verifiedAt: new Date().toISOString(), revokedAt: null },
+        { id: "2", tenantId: "mock-tenant-id", email: "se2@example.com", status: "granted", grantedAt: new Date().toISOString(), verifiedAt: null, revokedAt: null },
       ];
     }
-    return { id: "mock-tenant-id", companyName: "Acme Corporation", tier: 2, status: "active" };
+    return { id: "mock-tenant-id", companyName: "Example Workspace", tier: 2, status: "active" };
   }
   if (url.includes("/knowledge-base/documents")) {
     return {
@@ -58,7 +68,7 @@ function getMockDataForUrl(url: string): any {
   }
   if (url.includes("/clients/")) {
     return {
-      id: "c1", name: "John Doe", email: "john@stripe.com", company: "Stripe", status: "active", crmId: "crm_john", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: "c1", name: "Sample Client", email: "contact@example.com", company: "Example Ltd", status: "active", crmId: "crm_sample", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       interactions: [
         { id: "i1", type: "email", subject: "Question about API limits", aiSummary: "Client asked if they can exceed the default 100 req/sec limit. Suggested tier upgrade.", date: new Date().toISOString(), classification: "upgrade_query", productConfidence: 0.95, clientHistoryConfidence: 0.88, recommendation: "Approve limit increase to 150 req/sec" }
       ]
@@ -67,8 +77,8 @@ function getMockDataForUrl(url: string): any {
   if (url.includes("/clients")) {
     return {
       data: [
-        { id: "c1", name: "John Doe", email: "john@stripe.com", company: "Stripe", status: "active", crmId: "crm_john", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: "c2", name: "Jane Smith", email: "jane@netflix.com", company: "Netflix", status: "active", crmId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: "c1", name: "Sample Client", email: "contact@example.com", company: "Example Ltd", status: "active", crmId: "crm_sample", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: "c2", name: "Second Client", email: "second@example.com", company: "Example Two", status: "active", crmId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       ],
       meta: { total: 2, lastPage: 1, currentPage: 1, limit: 10, prev: null, next: null }
     };
@@ -90,17 +100,20 @@ function getMockDataForUrl(url: string): any {
   }
   if (url.includes("/analytics/gaps/alerts")) {
     return [
-      { id: "g1", topic: "Stripe Connect API changes", occurrences: 12, resolved: false, tenantId: "mock-tenant-id", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: "g1", topic: "bulk order lead time", occurrences: 12, resolved: false, tenantId: "mock-tenant-id", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       { id: "g2", topic: "SAML SSO setup steps", occurrences: 8, resolved: false, tenantId: "mock-tenant-id", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ];
   }
   if (url.includes("/analytics/activity")) {
+    // `time` is a full ISO timestamp and `confidence` is 0–1, because that is
+    // what /analytics/activity actually returns. Mocks that answer in a
+    // friendlier shape than the API hide the bugs they exist to catch.
     return {
       data: [
-        { id: "act1", time: "14:22", client: "John Doe", company: "Stripe", classification: "Sales Inquiry", confidence: 92, action: "Replied" },
-        { id: "act2", time: "12:05", client: "Jane Smith", company: "Netflix", classification: "Support", confidence: 85, action: "Drafted" },
+        { id: "act1", time: new Date().toISOString(), client: "Sample Client", company: "Example Ltd", classification: "Sales Inquiry", confidence: 0.92, action: "Replied" },
+        { id: "act2", time: new Date().toISOString(), client: "Second Client", company: "Example Two", classification: "Support", confidence: 0.85, action: "Drafted" },
       ],
-      meta: { total: 2, lastPage: 1, currentPage: 1, limit: 50, prev: null, next: null }
+      meta: { total: 2, page: 1, limit: 50, totalPages: 1 }
     };
   }
   if (url.includes("/analytics/escalations")) {
@@ -109,7 +122,7 @@ function getMockDataForUrl(url: string): any {
         {
           id: "esc1",
           messageId: "msg-esc-1",
-          accountEmail: "se1@acme.com",
+          accountEmail: "se1@example.com",
           severity: "high",
           reason: "Contract termination threat & legal escalation",
           status: "pending",
@@ -117,11 +130,11 @@ function getMockDataForUrl(url: string): any {
           reviewedAt: null,
           createdAt: new Date().toISOString(),
           analysis: { intent: "sensitive", intentConfidence: 0.95, isUrgent: true, urgencyReason: "Legal threat", reasoning: "Customer threatened legal action over contract clause", supervisorLabel: "red", createdAt: new Date().toISOString() },
-          client: { name: "John Customer", email: "john@enterprise.com", company: "Enterprise Co" },
+          client: { name: "Escalation Sample", email: "escalation@example.com", company: "Example Three" },
           subject: "URGENT: Contract Violation Notice",
         },
       ],
-      meta: { total: 1, lastPage: 1, currentPage: 1, limit: 50, prev: null, next: null }
+      meta: { total: 1, page: 1, limit: 50, totalPages: 1 }
     };
   }
   return {};
@@ -139,10 +152,47 @@ const CREDENTIAL_ROUTES = [
   "/platform/auth/login",
 ];
 
+/**
+ * A failed API call, with the parts of the body the UI needs to branch on.
+ *
+ * `message` stays exactly what it always was, so every existing `err.message`
+ * check keeps working. `code` and `subscriptionStatus` are the fields the
+ * backend already sends and this client used to throw away: the paywall
+ * replies with `code: "SUBSCRIPTION_REQUIRED"` precisely so the dashboard can
+ * tell "you never subscribed" from "your card failed" without matching English.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly subscriptionStatus?: SubscriptionStatus;
+
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    subscriptionStatus?: SubscriptionStatus,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.subscriptionStatus = subscriptionStatus;
+  }
+}
+
+/** Long enough that no real call hits it; short enough that a hung socket
+ *  eventually surfaces instead of leaving a spinner up forever. Uploads opt
+ *  out — a large file on a slow line legitimately takes longer. */
+const REQUEST_TIMEOUT_MS = 60_000;
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   try {
+    // A file upload has no business being cut off at a fixed deadline, so the
+    // timeout is skipped whenever the body is a FormData.
+    const isUpload = init?.body instanceof FormData;
     const res = await fetch(`${BASE}${url}`, {
       ...init,
+      signal: init?.signal ?? (isUpload ? undefined : AbortSignal.timeout(REQUEST_TIMEOUT_MS)),
       headers: { ...authHeaders(), ...init?.headers },
     });
     if (!res.ok) {
@@ -150,7 +200,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       if (res.status === 401 && !isCredentialCheck) {
         clearSession();
         window.location.replace("/signin");
-        throw new Error("Session expired");
+        throw new ApiError("Session expired", 401);
       }
       const body = await res.text().catch(() => "");
       // Prefer the API's own message. Nest puts a human sentence in `message`,
@@ -158,21 +208,38 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       // provider is already connected, or why an MCP URL was rejected —
       // detail that "400 Bad Request: {…}" throws away.
       let apiMessage = "";
+      let apiCode: string | undefined;
+      let apiSubscriptionStatus: SubscriptionStatus | undefined;
       try {
-        const parsed = JSON.parse(body) as { message?: string | string[] };
+        const parsed = JSON.parse(body) as {
+          message?: string | string[];
+          code?: string;
+          subscriptionStatus?: SubscriptionStatus;
+        };
         apiMessage = Array.isArray(parsed.message)
           ? parsed.message.join(", ")
           : (parsed.message ?? "");
+        apiCode = parsed.code;
+        apiSubscriptionStatus = parsed.subscriptionStatus;
       } catch {
         // Not JSON — fall through to the status line.
       }
-      if (res.status === 403 && apiMessage === "This account is not active") {
+      // Deactivated or suspended workspace. The backend has no code for this
+      // one yet, so the sentence is still matched — but a code, once it exists,
+      // wins, and the match is no longer the only thing holding the logout up.
+      if (
+        res.status === 403 &&
+        (apiCode === "ACCOUNT_INACTIVE" || apiMessage === "This account is not active")
+      ) {
         clearSession();
         window.location.replace("/signin");
-        throw new Error("Account deactivated");
+        throw new ApiError("Account deactivated", 403, apiCode);
       }
-      throw new Error(
+      throw new ApiError(
         apiMessage || `${res.status} ${res.statusText}: ${body}`,
+        res.status,
+        apiCode,
+        apiSubscriptionStatus,
       );
     }
     if (res.status === 204) return undefined as T;
@@ -183,6 +250,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     if (USE_MOCKS) {
       console.warn("API request failed, using mock data (VITE_USE_MOCKS):", url, err);
       return getMockDataForUrl(url) as T;
+    }
+    // "signal timed out" is what the platform says; nobody reading a toast
+    // knows what that means.
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError("The server took too long to respond. Please try again.", 0);
     }
     throw err;
   }
@@ -213,9 +285,6 @@ export const auth = {
       method: "POST",
       ...json({ email, password, tenantId: tid }),
     }),
-
-  me: () =>
-    request<{ tenantId: string; email: string; isAdmin: boolean }>("/auth/me"),
 };
 
 // ─── Tenants & Onboarding ────────────────────────────────────
@@ -291,6 +360,7 @@ export interface KBDocument {
   qualityReport: QualityReport | null;
 }
 
+/** What the shared Prisma paginator returns: clients, knowledge base, platform. */
 export interface PaginationMeta {
   total: number;
   lastPage: number;
@@ -298,6 +368,19 @@ export interface PaginationMeta {
   limit: number;
   prev: number | null;
   next: number | null;
+}
+
+/**
+ * The analytics module paginates by hand and returns a different shape —
+ * `page`/`totalPages` instead of `currentPage`/`lastPage`, and no prev/next.
+ * Typing those responses as PaginationMeta compiled fine and handed back
+ * `undefined` at runtime for every field that is missing.
+ */
+export interface AnalyticsPageMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface RubricCriterion {
@@ -436,15 +519,29 @@ export const knowledgeBase = {
         if (xhr.status === 401) {
           clearSession();
           window.location.replace("/signin");
-          reject(new Error("Session expired"));
+          reject(new ApiError("Session expired", 401));
           return;
         }
         if (xhr.status >= 200 && xhr.status < 300) {
           try { resolve(JSON.parse(xhr.responseText)); } catch { resolve(undefined as any); }
         } else {
           let msg = "";
-          try { msg = JSON.parse(xhr.responseText)?.message ?? ""; } catch { /* */ }
-          reject(new Error(msg || `${xhr.status} ${xhr.statusText}`));
+          let code: string | undefined;
+          try {
+            const parsed = JSON.parse(xhr.responseText) as { message?: string; code?: string };
+            msg = parsed?.message ?? "";
+            code = parsed?.code;
+          } catch { /* */ }
+          // Same deactivated-workspace handling `request()` does — an upload is
+          // not a special case, and leaving it out meant one route in the app
+          // where a dead session produced a bare error instead of a sign-out.
+          if (xhr.status === 403 && (code === "ACCOUNT_INACTIVE" || msg === "This account is not active")) {
+            clearSession();
+            window.location.replace("/signin");
+            reject(new ApiError("Account deactivated", 403, code));
+            return;
+          }
+          reject(new ApiError(msg || `${xhr.status} ${xhr.statusText}`, xhr.status, code));
         }
       });
       xhr.addEventListener("error", () => reject(new Error("Network error")));
@@ -550,11 +647,6 @@ export const clients = {
 
   get: (id: string) =>
     request<Client & { interactions: Interaction[] }>(`/clients/${id}`),
-
-  interactions: (clientId: string, page = 1, limit = 20) =>
-    request<{ data: Interaction[]; meta: PaginationMeta }>(
-      `/clients/${clientId}/interactions?page=${page}&limit=${limit}`
-    ),
 };
 
 // ─── CRM Integration ────────────────────────────────────────
@@ -645,19 +737,19 @@ export interface KnowledgeGap {
 
 export interface ActivityEntry {
   id: string;
-  /** HH:MM formatted local time */
+  /** Full ISO timestamp of the interaction — the UI formats it, not the API. */
   time: string;
   client: string;
   company: string;
   classification: string | null;
-  /** Raw confidence value — confirm 0-100 vs 0-1 scale with backend before using directly */
-  confidence: number | null; // TODO: confirm 0-100 vs 0-1 scale with backend
+  /** `productConfidence`, on a 0–1 scale. Multiply by 100 to show a percentage. */
+  confidence: number | null;
   action: string | null;
 }
 
 export interface ActivityPage {
   data: ActivityEntry[];
-  meta: PaginationMeta;
+  meta: AnalyticsPageMeta;
 }
 
 export interface EscalationItem {
@@ -689,7 +781,7 @@ export interface EscalationItem {
 
 export interface EscalationsPage {
   data: EscalationItem[];
-  meta: PaginationMeta;
+  meta: AnalyticsPageMeta;
 }
 
 export interface TeamMemberStats {
@@ -711,9 +803,6 @@ export const analytics = {
     request<KnowledgeGap[]>(
       `/analytics/gaps/alerts?threshold=${threshold}&includeResolved=${includeResolved}`,
     ),
-
-  reportGap: (messageId: string) =>
-    request<KnowledgeGap & { reportAdded: boolean }>("/analytics/gaps", { method: "POST", ...json({ messageId }) }),
 
   resolveGap: (gapId: string) =>
     request<KnowledgeGap>(`/analytics/gaps/${gapId}/resolve`, { method: "PATCH" }),
@@ -754,16 +843,18 @@ export const payments = {
       method: "POST",
       ...json({ tier }),
     }),
-
-  getSession: (sessionId: string) =>
-    request<{ id: string; metadata: Record<string, string> }>(`/payments/session/${sessionId}`),
 };
 
 // ─── Session helpers ─────────────────────────────────────────
 
 function parseJwtPayload(token: string): Record<string, unknown> {
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    // JWT segments are base64URL: `-` and `_` stand in for `+` and `/`, and the
+    // padding is dropped. atob() rejects both, and a payload it refuses to
+    // decode would silently cost us the tenant id and the email.
+    const seg = token.split(".")[1] ?? "";
+    const b64 = seg.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(seg.length / 4) * 4, "=");
+    return JSON.parse(atob(b64));
   } catch {
     return {};
   }

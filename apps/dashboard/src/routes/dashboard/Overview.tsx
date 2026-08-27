@@ -1,122 +1,161 @@
 import { useEffect } from "react";
-import { BookOpen, Users, Link2, BarChart2, ChevronRight, CheckCircle2 } from "lucide-react";
+import { BookOpen, Users, Link2, ArrowRight } from "lucide-react";
 import type { Screen } from "../../types";
 import { Shell } from "../../components/Shell";
+import { Card } from "../../components/Card";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
-import { useDocuments, useTenant, useCrmStatus, useTeamStats } from "../../hooks/queries";
+import {
+  useTenant, useTeamStats, useKnowledgeGaps,
+  useAnalyticsSummary, useActivityFeed,
+} from "../../hooks/queries";
 import { useAuthStore } from "../../store/auth";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
-function cardKeyDown(fn: () => void) {
-  return (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
-  };
+// KPI accent colours — theme vars so they mute in dark mode
+const KPI_ACCENT = {
+  cyan: "var(--brand-cyan)",
+  orange: "var(--brand-orange)",
+  iron: "var(--brand-iron)",
+  aqua: "var(--brand-aqua)",
+};
+
+function fmt(n: number | undefined | null) {
+  if (n == null) return "—";
+  return n.toLocaleString("en-US");
+}
+
+// Map an activity classification to a coloured dot
+function dotColor(classification: string | null): string {
+  switch (classification) {
+    case "reply_sent": case "answered": return "#0A9396";
+    case "escalation": case "low_confidence": case "unanswered": return "#AE2012";
+    case "upgrade_query": case "pricing": return "#CA6702";
+    default: return "#005F73";
+  }
 }
 
 export function Overview({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
-  const kb = useDocuments(1, 1);
   const tenant = useTenant();
-  const crmStatus = useCrmStatus();
   const teamStats = useTeamStats();
+  const summary = useAnalyticsSummary(30);
+  const gaps = useKnowledgeGaps(3);
+  const activity = useActivityFeed(1, 6);
 
-  const hasTeamMembers = (teamStats.data ?? []).some(m => m.status !== "revoked");
-  const status = {
-    docs: (kb.data?.meta?.total ?? 0) > 0,
-    team: hasTeamMembers,
-    crm: crmStatus.data?.connected ?? false,
-  };
-  const loading = kb.isLoading || tenant.isLoading || crmStatus.isLoading || teamStats.isLoading;
-
+  const user = useAuthStore(s => s.user);
   const setCompany = useAuthStore(s => s.setCompany);
   useEffect(() => {
     if (tenant.data?.companyName) setCompany(tenant.data.companyName);
   }, [tenant.data?.companyName, setCompany]);
 
-  const steps = [
-    { icon: <BookOpen size={20} strokeWidth={1.5} className="text-accent-cool" />, title: "Upload your first document",
-      desc: "Add product docs, FAQs, or pricing sheets so the AI has accurate knowledge to draw from.",
-      action: "Go to Knowledge Base", target: "knowledge-base" as Screen, step: "Step 1", done: status.docs },
-    { icon: <Users size={20} strokeWidth={1.5} className="text-accent-cool" />, title: "Invite your first Sales Engineer",
-      desc: "Add team members so they can access AI suggestions inside Gmail.",
-      action: "Go to Team", target: "team" as Screen, step: "Step 2", done: status.team },
+  const activeSEs = (teamStats.data ?? []).filter(m => m.status !== "revoked").length;
+  const openGaps = (gaps.data ?? []).filter(g => !g.resolved).length;
+  const s = summary.data;
+
+  const kpis = [
+    { label: "Emails Processed", value: fmt(s?.totalEmailsProcessed), accent: KPI_ACCENT.cyan },
+    { label: "Replies Sent", value: fmt(s?.replies?.threads), accent: KPI_ACCENT.orange },
+    { label: "Knowledge Gaps", value: fmt(openGaps), accent: KPI_ACCENT.iron },
+    { label: "Active SEs", value: fmt(activeSEs), accent: KPI_ACCENT.aqua },
   ];
-  const completed = steps.filter(s => s.done).length;
+
+  const actions = [
+    { title: "Upload Knowledge", desc: "Add docs, FAQs & pricing", icon: <BookOpen size={20} strokeWidth={1.75} />, target: "knowledge-base" as Screen, bg: "var(--brand-teal)", fg: "#FFFFFF", sub: "rgba(255,255,255,0.75)" },
+    { title: "Invite Team", desc: "Add your sales engineers", icon: <Users size={20} strokeWidth={1.75} />, target: "team" as Screen, bg: "var(--brand-orange)", fg: "var(--on-warm)", sub: "rgba(0,18,25,0.65)" },
+    { title: "Connect CRM", desc: "Sync HubSpot or Zoho", icon: <Link2 size={20} strokeWidth={1.75} />, target: "crm" as Screen, bg: "var(--brand-wheat)", fg: "var(--on-warm)", sub: "rgba(0,18,25,0.6)" },
+  ];
+
+  const items = activity.data?.data ?? [];
 
   return (
     <Shell active="overview" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[88rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
-        <PageHeader title="Welcome to Inbox Sales Copilot" subtitle="Complete setup to start using AI-assisted replies." />
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+        <PageHeader
+          title="Overview"
+          subtitle={`Welcome back${user.name ? `, ${user.name.split(" ")[0]}` : ""}`}
+        />
 
-        {/* Setup progress */}
-        <Reveal>
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[13px] font-medium text-text-primary">Setup progress</span>
-            <span className="text-[13px] text-text-tertiary">
-              {loading ? "Checking…" : `${completed} of ${steps.length} complete`}
-            </span>
-          </div>
-          <div className="w-full h-1.5 bg-surface-secondary rounded-full overflow-hidden">
-            <div className="h-1.5 bg-accent-cool rounded-full transition-all duration-500" style={{ width: loading ? "0%" : `${(completed / steps.length) * 100}%` }} />
-          </div>
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {kpis.map((k, i) => (
+            <Reveal key={k.label} delay={i * 60}>
+              <Card className="px-6 py-5 flex flex-col gap-1.5 shadow-1">
+                {/* top accent bar — matches Analytics KPI cards */}
+                <span className="w-9 h-[3px] rounded-full" style={{ backgroundColor: k.accent }} />
+                <div className="text-xs font-medium text-text-tertiary">{k.label}</div>
+                <div className="text-[28px] font-bold leading-none text-text-primary">{k.value}</div>
+              </Card>
+            </Reveal>
+          ))}
         </div>
-        </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-          {steps.map((card, i) => (
-            <Reveal key={card.title} delay={i * 70}>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => onNav(card.target)}
-              onKeyDown={cardKeyDown(() => onNav(card.target))}
-              className={`text-left bg-surface border rounded-lg p-6 flex flex-col gap-4 hover:border-secondary/50 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-md bg-accent-cool-light flex items-center justify-center">{card.icon}</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-eyebrow">{card.step}</span>
-                  {card.done && <CheckCircle2 size={14} strokeWidth={1.5} className="text-success" />}
+        {/* Action cards — brand backgrounds work in both themes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+          {actions.map((a, i) => (
+            <Reveal key={a.title} delay={i * 70}>
+              <button
+                onClick={() => onNav(a.target)}
+                className={`group w-full text-left rounded-xl p-5 flex items-center gap-4 transition-transform duration-200 hover:-translate-y-0.5 cursor-pointer ${focusRing}`}
+                style={{ backgroundColor: a.bg, color: a.fg }}
+              >
+                <div
+                  className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
+                >
+                  {a.icon}
                 </div>
-              </div>
-              <div>
-                <h2 className="text-subheading text-text-primary mb-1">{card.title}</h2>
-                <p className="text-body text-text-secondary">{card.desc}</p>
-              </div>
-              <span className="flex items-center gap-1 text-[13px] font-medium text-accent-cool mt-auto">
-                {card.done ? "View" : card.action} <ChevronRight size={13} strokeWidth={1.5} />
-              </span>
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-semibold">{a.title}</div>
+                  <div className="text-[12px] mt-0.5" style={{ color: a.sub }}>{a.desc}</div>
+                </div>
+                <ArrowRight size={18} strokeWidth={2} className="flex-shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
+              </button>
             </Reveal>
           ))}
         </div>
 
-        <div className="mb-3"><span className="text-eyebrow">Optional</span></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[
-            { icon: <Link2 size={17} strokeWidth={1.5} className={status.crm ? "text-success" : "text-text-tertiary"} />, title: "Connect your CRM", desc: status.crm ? "HubSpot connected." : "Sync HubSpot for richer client history context.", target: "crm" as Screen, done: status.crm },
-            { icon: <BarChart2 size={17} strokeWidth={1.5} className="text-text-tertiary" />, title: "View analytics", desc: "See how your team is using AI replies.", target: "analytics" as Screen, done: false },
-          ].map((card, i) => (
-            <Reveal key={card.title} delay={i * 70}>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => onNav(card.target)}
-              onKeyDown={cardKeyDown(() => onNav(card.target))}
-              className={`text-left bg-surface border rounded-lg p-5 flex items-start gap-3.5 hover:border-secondary/40 transition-colors cursor-pointer ${card.done ? "border-success/40" : "border-border"} ${focusRing}`}
-            >
-              <div className="w-9 h-9 rounded-md bg-surface-secondary flex items-center justify-center shrink-0">{card.icon}</div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-sm font-semibold text-text-primary mb-0.5">{card.title}</h2>
-                <p className="text-xs text-text-tertiary leading-relaxed">{card.desc}</p>
-              </div>
-              {card.done ? <CheckCircle2 size={14} strokeWidth={1.5} className="text-success mt-0.5 shrink-0" /> : <ChevronRight size={14} strokeWidth={1.5} className="text-text-tertiary mt-0.5 shrink-0" />}
+        {/* Recent Activity */}
+        <Reveal>
+          <Card>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-[15px] font-semibold text-text-primary">Recent Activity</h2>
+              <button
+                onClick={() => onNav("activity-feed")}
+                className={`text-[14px] font-medium flex items-center gap-1 cursor-pointer rounded text-primary hover:text-primary-hover ${focusRing}`}
+              >
+                View all <ArrowRight size={13} strokeWidth={2} />
+              </button>
             </div>
-            </Reveal>
-          ))}
-        </div>
+
+            <div className="divide-y divide-border">
+              {activity.isLoading ? (
+                <div className="px-6 py-8 text-center text-[14px] text-text-tertiary">Loading activity…</div>
+              ) : items.length === 0 ? (
+                <div className="px-6 py-8 text-center text-[14px] text-text-tertiary">No activity yet.</div>
+              ) : (
+                items.map((it, idx) => (
+                  <div key={it.id ?? idx} className="flex items-center gap-3.5 px-6 py-3.5">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: dotColor(it.classification) }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] truncate text-text-primary">
+                        <span className="font-medium">{it.client}</span>
+                        {it.company ? ` · ${it.company}` : ""}
+                        {it.action ? ` — ${it.action}` : ""}
+                      </p>
+                    </div>
+                    {it.time && (
+                      <span className="text-[12px] flex-shrink-0 text-text-tertiary">{it.time}</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </Reveal>
       </div>
     </Shell>
   );

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Inbox, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import type { Screen } from "../types";
 import { isLoggedIn } from "../api-client";
 import { useAuthStore } from "../store/auth";
 import { Card } from "../components/Card";
+import { Btn } from "../components/Btn";
 
 export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
   const [params] = useSearchParams();
@@ -54,44 +55,50 @@ export function AuthCallback({ onNav }: { onNav: (s: Screen) => void }) {
     );
   }, [params, onNav]);
 
+  const iconWrap = "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5";
+
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-      <div className="w-full max-w-[28rem]">
+    <div className="min-h-[100dvh] bg-surface-secondary flex items-center justify-center px-5 py-10 font-body">
+      <div className="w-full max-w-[26rem]">
+        {/* Logo */}
         <div className="flex items-center gap-2.5 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            <Inbox size={15} strokeWidth={1.5} className="text-text-on-primary" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#0A9396" }}>
+            <span className="text-white font-bold text-[15px] leading-none">S</span>
           </div>
-          <span className="font-body font-semibold text-base text-text-primary">Inbox Sales Copilot</span>
+          <span className="font-semibold text-[16px] text-text-primary tracking-tight">SalesBox</span>
         </div>
 
-        <Card className="p-6 sm:p-8 text-center">
+        <Card className="p-8 text-center">
           {state === "loading" && (
             <>
-              <Loader2 size={28} strokeWidth={1.5} className="text-accent-cool mx-auto mb-4 animate-spin" />
-              <p className="text-body text-text-secondary">Processing authentication…</p>
+              <div className={iconWrap} style={{ backgroundColor: "rgba(148, 210, 189, 0.12)" }}>
+                <Loader2 size={28} strokeWidth={1.5} className="text-secondary animate-spin" />
+              </div>
+              <h1 className="text-[22px] font-bold text-text-primary mb-2">Processing</h1>
+              <p className="text-[15px] text-text-secondary">Verifying your authentication…</p>
             </>
           )}
 
           {state === "success" && (
             <>
-              <CheckCircle2 size={28} strokeWidth={1.5} className="text-success mx-auto mb-4" />
-              <h1 className="text-heading text-text-primary mb-2">Connected</h1>
-              <p className="text-body text-text-secondary">{message}</p>
+              <div className={iconWrap} style={{ backgroundColor: "rgba(10, 147, 150, 0.12)" }}>
+                <CheckCircle2 size={28} strokeWidth={1.5} className="text-success" />
+              </div>
+              <h1 className="text-[22px] font-bold text-text-primary mb-2">Connected</h1>
+              <p className="text-[15px] text-text-secondary">{message}</p>
             </>
           )}
 
           {state === "error" && (
             <>
-              <AlertCircle size={28} strokeWidth={1.5} className="text-danger mx-auto mb-4" />
-              <h1 className="text-heading text-text-primary mb-2">Authentication Failed</h1>
-              <p className="text-body text-text-secondary mb-5">{message}</p>
-              <button
-                type="button"
-                onClick={() => onNav("signin")}
-                className="px-5 py-2.5 text-[13px] font-medium text-text-on-primary bg-primary rounded-sm hover:opacity-90 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-              >
+              <div className={iconWrap} style={{ backgroundColor: "rgba(174, 32, 18, 0.1)" }}>
+                <AlertCircle size={28} strokeWidth={1.5} className="text-danger" />
+              </div>
+              <h1 className="text-[22px] font-bold text-text-primary mb-2">Authentication Failed</h1>
+              <p className="text-[15px] text-text-secondary mb-6">{message}</p>
+              <Btn variant="primary" onClick={() => onNav("signin")} className="w-full">
                 Back to Sign In
-              </button>
+              </Btn>
             </>
           )}
         </Card>

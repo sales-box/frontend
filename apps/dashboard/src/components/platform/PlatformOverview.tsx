@@ -8,24 +8,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  AlertCircle,
-  BookOpen,
-  Building2,
-  CheckCircle2,
-  CreditCard,
-  Mail,
-  PauseCircle,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import type { PlatformStats, SubscriptionStatus } from "../../platform-client";
 import { usePlatformStats } from "../../hooks/platformQueries";
 import { metric, statsView } from "../../lib/platformStats";
 import { useChartColors } from "../../hooks/useChartColors";
 import { friendlyError } from "../../lib/platformFormat";
 import { Card } from "../Card";
-import { StatCard } from "../StatCard";
+import { StatCard, StatRow } from "../StatCard";
 
 /**
  * Subscription state in the operator's words.
@@ -105,67 +95,19 @@ export function PlatformOverview() {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Total tenants"
-          value={metric(v.total)}
-          icon={<Building2 size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Active"
-          value={metric(v.active)}
-          icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
-          tone="green"
-          size="sm"
-        />
-        <StatCard
-          label="Suspended"
-          value={metric(v.suspended)}
-          icon={<PauseCircle size={16} strokeWidth={1.5} />}
-          tone="amber"
-          size="sm"
-        />
-        <StatCard
-          label="New this week"
-          value={metric(v.newThisWeek)}
-          icon={<Sparkles size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-      </div>
+      <StatRow cols={4} className="mb-4">
+        <StatCard label="Total tenants" value={metric(v.total)} />
+        <StatCard label="Active" value={metric(v.active)} />
+        <StatCard label="Suspended" value={metric(v.suspended)} />
+        <StatCard label="New this week" value={metric(v.newThisWeek)} />
+      </StatRow>
 
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Paying tenants"
-          value={metric(v.paying)}
-          icon={<CreditCard size={16} strokeWidth={1.5} />}
-          tone="green"
-          size="sm"
-        />
-        <StatCard
-          label="Sales engineers"
-          value={metric(v.seats)}
-          icon={<Users size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Documents"
-          value={metric(v.documents)}
-          icon={<BookOpen size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Emails analysed"
-          value={metric(v.emailsAnalysed)}
-          icon={<Mail size={16} strokeWidth={1.5} />}
-          tone="amber"
-          size="sm"
-        />
-      </div>
+      <StatRow cols={4} className="mb-4">
+        <StatCard label="Paying tenants" value={metric(v.paying)} />
+        <StatCard label="Sales engineers" value={metric(v.seats)} />
+        <StatCard label="Documents" value={metric(v.documents)} />
+        <StatCard label="Emails analysed" value={metric(v.emailsAnalysed)} />
+      </StatRow>
 
       <div className="mb-8 grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col p-5 lg:col-span-2">
