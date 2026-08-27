@@ -1,16 +1,8 @@
 import type { TenantStatus } from "../platform-client";
 import { PlatformApiError } from "./platformError";
 
-/** Mirrors `data/pricingTiers.ts` — a tier number is never shown bare. */
-export const TIER_NAMES: Record<number, string> = {
-  1: "Starter",
-  2: "Growth",
-  3: "Enterprise",
-};
-
-export function tierLabel(tier: number): string {
-  return TIER_NAMES[tier] ?? `Tier ${tier}`;
-}
+// Tier names come from data/pricingTiers.ts — the one place plans are defined.
+export { TIER_NAMES, tierName as tierLabel } from "../data/pricingTiers";
 
 const STATUS_LABELS: Record<TenantStatus, string> = {
   pending: "Pending",
@@ -28,9 +20,12 @@ type BadgeVariant = "success" | "warning" | "danger" | "muted";
 
 const STATUS_VARIANTS: Record<TenantStatus, BadgeVariant> = {
   active: "success",
+  // Suspended and pending both need an operator to act; offboarded and
+  // abandoned are both terminal. Pending and abandoned previously shared
+  // one grey pill despite being opposite outcomes.
   suspended: "warning",
+  pending: "warning",
   offboarded: "danger",
-  pending: "muted",
   abandoned: "muted",
 };
 

@@ -99,7 +99,7 @@ export function EmailCategoryList({ category, emails = [], loading = false, onBa
                   ) : email.status === 'needs-review' ? (
                     <Badge variant="warning">Review</Badge>
                   ) : email.status === 'manual' ? (
-                    <Badge variant="danger">Manual</Badge>
+                    <Badge variant="muted">Manual</Badge>
                   ) : (
                     <Badge variant="muted">Not reviewed</Badge>
                   )}

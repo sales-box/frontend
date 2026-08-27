@@ -4,10 +4,10 @@ import { useSearchParams } from "react-router-dom";
 import type { Screen } from "../types";
 import { auth } from "../api-client";
 import { useAuthStore } from "../store/auth";
+import { AuthLayout } from "../components/AuthLayout";
 import { Card } from "../components/Card";
 import { FormInput } from "../components/FormInput";
 import { Btn } from "../components/Btn";
-import { MinimalHeader } from "../components/MinimalHeader";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,103 +69,98 @@ export function SetPassword({ onNav }: { onNav: (s: Screen) => void }) {
 
   if (done) {
     return (
-      <div className="min-h-[100dvh] bg-surface-tertiary flex items-center justify-center px-4 py-10 font-body">
-        <Card className="w-full max-w-[28rem] p-6 sm:p-8 text-center">
-          <h1 className="text-heading text-text-primary mb-2">Password set!</h1>
-          <p className="text-body text-text-secondary">Signing you in…</p>
+      <div className="min-h-[100dvh] bg-surface-secondary flex items-center justify-center px-4 py-10 font-body">
+        <Card className="w-full max-w-[26rem] p-8 text-center">
+          <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: "rgba(10, 147, 150, 0.12)" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-success"><polyline points="20 6 9 17 4 12" /></svg>
+          </div>
+          <h1 className="text-[22px] font-bold text-text-primary mb-2">Password set!</h1>
+          <p className="text-[15px] text-text-secondary">Signing you in…</p>
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] bg-surface-tertiary font-body flex flex-col">
-      {/* FLAG FOR PRODUCT: this lets someone abandon signup mid-flow with no
-          confirmation. Decide if that's fine (they can just sign up again) or
-          if this needs a "are you sure?" step before leaving. */}
-      <MinimalHeader onBack={() => onNav("landing")} />
-      <div className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-[28rem]">
-          <Card className="p-6 sm:p-8">
-          <div className="mb-6 text-center">
-            <h1 className="text-heading text-text-primary mb-1">Set your password</h1>
-            <p className="text-body text-text-secondary">Create a password for your admin account.</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <FormInput
-              label="Email"
-              type="email"
-              placeholder="you@company.com"
-              value={email}
-              onChange={v => { setEmail(v); setServerError(""); }}
-              onBlur={() => setTouched(t => ({ ...t, email: true }))}
-              error={touched.email ? errs.email : ""}
-              autoComplete="email"
-              required
-            />
-
-            <FormInput
-              label="Tenant ID"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              value={tenantId}
-              onChange={v => { setTenantId(v); setServerError(""); }}
-              onBlur={() => setTouched(t => ({ ...t, tenantId: true }))}
-              error={touched.tenantId ? errs.tenantId : ""}
-              hint="Your company's tenant ID from signup"
-              required
-            />
-
-            <FormInput
-              label="Password"
-              type={showPass ? "text" : "password"}
-              placeholder="Minimum 8 characters"
-              value={password}
-              onChange={v => { setPassword(v); setServerError(""); }}
-              onBlur={() => setTouched(t => ({ ...t, password: true }))}
-              error={touched.password ? errs.password : ""}
-              autoComplete="new-password"
-              required
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowPass(p => !p)}
-                  className="text-text-tertiary hover:text-text-secondary cursor-pointer"
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                >
-                  {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-                </button>
-              }
-            />
-
-            <FormInput
-              label="Confirm password"
-              type={showPass ? "text" : "password"}
-              placeholder="Re-enter your password"
-              value={confirm}
-              onChange={v => { setConfirm(v); setServerError(""); }}
-              onBlur={() => setTouched(t => ({ ...t, confirm: true }))}
-              error={touched.confirm ? errs.confirm : ""}
-              autoComplete="new-password"
-              required
-            />
-
-            {serverError && (
-              <p className="text-xs text-danger text-center">{serverError}</p>
-            )}
-
-            <Btn type="submit" loading={submitting} disabled={submitting} className="w-full mt-1">
-              Set password
-            </Btn>
-          </form>
-        </Card>
-
-        <p className="text-center text-sm text-text-secondary mt-5">
-          Already have a password?{" "}
-          <button onClick={() => onNav("signin")} className={`text-secondary font-medium hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
-        </p>
+    <AuthLayout onBack={() => onNav("landing")}>
+      <div className="mb-6">
+        <h1 className="text-[26px] font-bold text-text-primary tracking-tight leading-tight mb-1.5">
+          Set your password
+        </h1>
+        <p className="text-[15px] text-text-secondary">Create a password for your admin account.</p>
       </div>
-    </div>
-  </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormInput
+          label="Email"
+          type="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={v => { setEmail(v); setServerError(""); }}
+          onBlur={() => setTouched(t => ({ ...t, email: true }))}
+          error={touched.email ? errs.email : ""}
+          autoComplete="email"
+          required
+        />
+
+        <FormInput
+          label="Tenant ID"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          value={tenantId}
+          onChange={v => { setTenantId(v); setServerError(""); }}
+          onBlur={() => setTouched(t => ({ ...t, tenantId: true }))}
+          error={touched.tenantId ? errs.tenantId : ""}
+          hint="Your company's tenant ID from signup"
+          required
+        />
+
+        <FormInput
+          label="Password"
+          type={showPass ? "text" : "password"}
+          placeholder="Minimum 8 characters"
+          value={password}
+          onChange={v => { setPassword(v); setServerError(""); }}
+          onBlur={() => setTouched(t => ({ ...t, password: true }))}
+          error={touched.password ? errs.password : ""}
+          autoComplete="new-password"
+          required
+          trailing={
+            <button
+              type="button"
+              onClick={() => setShowPass(p => !p)}
+              className="text-text-tertiary hover:text-text-secondary cursor-pointer"
+              aria-label={showPass ? "Hide password" : "Show password"}
+            >
+              {showPass ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
+            </button>
+          }
+        />
+
+        <FormInput
+          label="Confirm password"
+          type={showPass ? "text" : "password"}
+          placeholder="Re-enter your password"
+          value={confirm}
+          onChange={v => { setConfirm(v); setServerError(""); }}
+          onBlur={() => setTouched(t => ({ ...t, confirm: true }))}
+          error={touched.confirm ? errs.confirm : ""}
+          autoComplete="new-password"
+          required
+        />
+
+        {serverError && (
+          <p className="text-xs text-danger text-center">{serverError}</p>
+        )}
+
+        <Btn type="submit" loading={submitting} disabled={submitting} className="w-full mt-1">
+          Set password
+        </Btn>
+      </form>
+
+      <p className="text-center text-[14px] text-text-secondary mt-6">
+        Already have a password?{" "}
+        <button onClick={() => onNav("signin")} className={`text-secondary font-semibold hover:underline cursor-pointer ${focusRing}`}>Sign in</button>
+      </p>
+    </AuthLayout>
   );
 }

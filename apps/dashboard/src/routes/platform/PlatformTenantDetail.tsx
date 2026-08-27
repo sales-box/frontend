@@ -3,12 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
-  BookOpen,
-  Clock,
-  Mail,
   PauseCircle,
   PlayCircle,
-  Users,
 } from "lucide-react";
 import {
   usePlatformTenant,
@@ -28,7 +24,7 @@ import { Btn } from "../../components/Btn";
 import { Modal } from "../../components/Modal";
 import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
+import { StatCard, StatRow } from "../../components/StatCard";
 import { useToast } from "../../components/Toast";
 
 const TIERS = [1, 2, 3];
@@ -134,36 +130,14 @@ export function PlatformTenantDetail() {
       </div>
 
       {/* ── Usage ────────────────────────────────────────────── */}
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Sales engineers"
-          value={String(tenant.seCount)}
-          icon={<Users size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Documents"
-          value={String(tenant.docCount)}
-          icon={<BookOpen size={16} strokeWidth={1.5} />}
-          tone="green"
-          size="sm"
-        />
-        <StatCard
-          label="Emails analysed"
-          value={String(tenant.emailCount)}
-          icon={<Mail size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Last activity"
-          value={relativeTime(tenant.lastActivityAt)}
-          icon={<Clock size={16} strokeWidth={1.5} />}
-          tone="amber"
-          size="sm"
-        />
-      </div>
+      {/* Three counts and a timestamp. The timestamp keeps the same cell
+          shape but is deliberately not styled as another big number. */}
+      <StatRow cols={4} className="mb-8">
+        <StatCard label="Sales engineers" value={String(tenant.seCount)} />
+        <StatCard label="Documents" value={String(tenant.docCount)} />
+        <StatCard label="Emails analysed" value={String(tenant.emailCount)} />
+        <StatCard label="Last activity" value={relativeTime(tenant.lastActivityAt)} />
+      </StatRow>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* ── Access ─────────────────────────────────────────── */}

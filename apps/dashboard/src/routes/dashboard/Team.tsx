@@ -10,10 +10,25 @@ import { Modal } from "../../components/Modal";
 import { PageHeader } from "../../components/PageHeader";
 import { Reveal } from "../../components/Reveal";
 import { useToast } from "../../components/Toast";
+import { seatCap, TIER_NAMES } from "../../data/pricingTiers";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
-const SEAT_CAP: Record<number, number> = { 1: 3, 2: 10, 3: 50 };
+
+// Membership status → Figma-tinted pill. Brand vars so the text mutes in
+// dark mode; the 0.12 tint stays subtle in both themes.
+function statusBadge(status: string) {
+  const b = status === "verified"
+    ? { label: "Active", bg: "rgba(10, 147, 150, 0.12)", fg: "var(--brand-cyan)" }
+    : status === "granted"
+      ? { label: "Invited", bg: "rgba(238, 155, 0, 0.12)", fg: "var(--brand-orange)" }
+      : { label: "Revoked", bg: "rgba(155, 34, 38, 0.12)", fg: "var(--brand-iron)" };
+  return (
+    <span className="inline-flex items-center rounded px-2.5 py-1 text-[12px] font-medium" style={{ backgroundColor: b.bg, color: b.fg }}>
+      {b.label}
+    </span>
+  );
+}
 
 export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -40,9 +55,10 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
   }));
   const sending = grantAccess.isPending;
 
-  const total = SEAT_CAP[tenant?.tier ?? 1] ?? 3;
+  const total = seatCap(tenant?.tier);
   const used = members.filter(m => m.status !== "revoked").length;
   const atLimit = used >= total;
+  const planName = tenant?.tier != null ? TIER_NAMES[tenant.tier] : undefined;
   const emailError = !newEmail.trim() ? "Email is required" : !EMAIL_RE.test(newEmail) ? "Enter a valid email" : "";
 
   const closeModal = () => { setShowModal(false); setNewEmail(""); setEmailTouched(false); };
@@ -76,87 +92,89 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
 
   return (
     <Shell active="team" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[88rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader
           title="Team"
-          subtitle="Manage who has Gmail extension access."
+          subtitle={`${used} of ${total} seats used${planName ? ` · ${planName} plan` : ""}`}
           actions={
-            <>
-              <span className="text-sm text-text-tertiary"><span className="font-semibold text-text-primary">{used}</span> / {total} seats</span>
-              <Btn
-                variant="primary" size="sm" disabled={atLimit}
-                onClick={() => setShowModal(true)}
-                aria-label={atLimit ? "Add Sales Engineer — seat limit reached, upgrade tier" : "Add Sales Engineer"}
-              >
-                <Plus size={14} strokeWidth={2} /> Add Sales Engineer
-              </Btn>
-            </>
+            <button
+              onClick={() => setShowModal(true)}
+              disabled={atLimit}
+              aria-label={atLimit ? "Invite Member — seat limit reached, upgrade tier" : "Invite Member"}
+              className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold shrink-0 cursor-pointer bg-(--brand-orange) hover:bg-(--brand-caramel) text-(--on-warm) transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-(--brand-orange) ${focusRing}`}
+            >
+              <Plus size={16} strokeWidth={2.25} /> Invite Member
+            </button>
           }
         />
 
+        {/* Seat usage bar — Figma: thin card, orange progress */}
+        <Reveal>
+        <Card className="px-6 py-3.5 mb-5">
+          <div className="h-2 rounded-full bg-surface-tertiary overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, (used / total) * 100)}%`, backgroundColor: "var(--brand-orange)" }}
+            />
+          </div>
+        </Card>
+        </Reveal>
+
         {atLimit && (
-          <div className="flex items-center gap-3 bg-warning-light border border-warning/20 rounded-lg px-4 py-3 mb-5 text-[13px]" role="status">
+          <div className="flex items-center gap-3 bg-warning-light border border-warning/20 rounded-lg px-4 py-3 mb-5 text-[14px]" role="status">
             <AlertTriangle size={14} strokeWidth={1.5} className="text-warning shrink-0" />
             <span className="text-warning">You've used all {total} seats on your current plan.</span>
-            <button className={`text-warning underline font-medium ml-auto cursor-pointer rounded-sm ${focusRing}`}>Upgrade tier</button>
+            <button onClick={() => onNav("plans")} className={`text-warning underline font-medium ml-auto cursor-pointer rounded-sm ${focusRing}`}>Upgrade tier</button>
           </div>
         )}
 
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-          <Reveal>
-            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+        {/* Summary cards — items-stretch + h-full keeps all three equal height */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5 items-stretch">
+          <Reveal className="h-full">
+            <Card className="p-5 h-full">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-                  <Users size={18} strokeWidth={1.5} className="text-primary" />
-                </div>
-                <div className="text-xs text-text-tertiary">Total Members</div>
+                <Users size={18} strokeWidth={1.5} className="text-text-tertiary" />
+                <div className="text-[12px] text-text-tertiary">Total Members</div>
               </div>
               <div className="text-2xl font-display font-bold text-text-primary">{used}</div>
-              <div className="text-xs text-text-tertiary mt-1">of {total} seats used</div>
+              <div className="text-[12px] text-text-tertiary mt-1">of {total} seats used</div>
               <div className="w-full h-2 rounded-full bg-surface-tertiary overflow-hidden mt-3">
                 <div className={`h-full rounded-full transition-all duration-500 ${used / total >= 0.8 ? "bg-warning" : "bg-primary"}`} style={{ width: `${(used / total) * 100}%` }} />
               </div>
             </Card>
           </Reveal>
 
-          <Reveal delay={70}>
-            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+          <Reveal delay={70} className="h-full">
+            <Card className="p-5 h-full">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-success) 14%, transparent)" }}>
-                  <Shield size={18} strokeWidth={1.5} className="text-success" />
-                </div>
-                <div className="text-xs text-text-tertiary">Verified</div>
+                <Shield size={18} strokeWidth={1.5} className="text-text-tertiary" />
+                <div className="text-[12px] text-text-tertiary">Verified</div>
               </div>
               <div className="text-2xl font-display font-bold text-text-primary">
                 {members.filter(m => m.lastLoginAt).length}
               </div>
-              <div className="text-xs text-success mt-1">Logged in at least once</div>
+              <div className="text-[12px] text-success mt-1">Logged in at least once</div>
             </Card>
           </Reveal>
 
-          <Reveal delay={140}>
-            <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
+          <Reveal delay={140} className="h-full">
+            <Card className="p-5 h-full">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-warning) 14%, transparent)" }}>
-                  <Clock size={18} strokeWidth={1.5} className="text-warning" />
-                </div>
-                <div className="text-xs text-text-tertiary">Pending</div>
+                <Clock size={18} strokeWidth={1.5} className="text-text-tertiary" />
+                <div className="text-[12px] text-text-tertiary">Pending</div>
               </div>
               <div className="text-2xl font-display font-bold text-text-primary">{members.filter(m => m.status === "granted").length}</div>
-              <div className="text-xs text-warning mt-1">Awaiting activation</div>
+              <div className="text-[12px] text-warning mt-1">Awaiting activation</div>
             </Card>
           </Reveal>
         </div>
 
         {/* Members table */}
         <Reveal>
-          <Card className="overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+          <Card className="overflow-hidden">
             <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-                <Users size={18} strokeWidth={1.5} className="text-primary" />
-              </div>
-              <h2 className="text-subheading text-text-primary">Team members</h2>
+              <Users size={18} strokeWidth={1.5} className="text-text-tertiary" />
+              <h2 className="text-subheading text-text-primary">Members</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[46rem]">
@@ -172,40 +190,42 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">Loading team…</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-[14px] text-text-tertiary">Loading team…</td></tr>
                   ) : error ? (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-danger">Failed to load team members.</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-[14px] text-danger">Failed to load team members.</td></tr>
                   ) : members.length === 0 ? (
-                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-[14px] text-text-tertiary">No team members yet. Invite your first Sales Engineer above.</td></tr>
                   ) : members.map((m, i) => (
                     <tr key={m.email} className={`border-b border-border last:border-0 hover:bg-surface-secondary/30 transition-colors ${i % 2 === 1 ? "bg-surface-secondary/40" : ""}`}>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{m.initials}</div>
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-semibold shrink-0"
+                            style={{ backgroundColor: "var(--brand-teal)" }}
+                          >
+                            {m.initials}
+                          </div>
                           <div className="min-w-0">
-                            <div className="text-[13px] font-medium text-text-primary truncate">{m.email}</div>
-                            <div className="text-xs text-text-tertiary truncate">{m.role}</div>
+                            <div className="text-[14px] font-medium text-text-primary truncate">{m.email}</div>
+                            <div className="text-[12px] text-text-tertiary truncate">{m.role}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${m.status === "verified" ? "bg-success" : m.status === "granted" ? "bg-warning" : "bg-danger"}`} />
-                          <span className={`text-xs font-medium capitalize ${m.status === "verified" ? "text-success" : m.status === "granted" ? "text-warning" : "text-danger"}`}>{m.status}</span>
-                        </div>
+                        {statusBadge(m.status)}
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt ? new Date(m.grantedAt).toLocaleDateString() : '—'}</td>
-                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{m.lastLoginAt ? new Date(m.lastLoginAt).toLocaleDateString() : '—'}</td>
-                      <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-[12px] text-text-tertiary font-mono whitespace-nowrap">{m.grantedAt ? new Date(m.grantedAt).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3.5 text-[12px] text-text-tertiary font-mono whitespace-nowrap">{m.lastLoginAt ? new Date(m.lastLoginAt).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3.5 text-[12px] text-text-tertiary font-mono whitespace-nowrap">
                         {m.emailsReceived > 0 ? `${m.repliesSent}/${m.emailsReceived} (${Math.round(m.replyRate * 100)}%)` : "—"}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         {m.status === "revoked" ? (
-                          <span className="text-xs text-text-tertiary">—</span>
+                          <span className="text-[12px] text-text-tertiary">—</span>
                         ) : confirmRevoke === m.email ? (
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setConfirmRevoke(null)} className={`text-xs text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>Cancel</button>
-                            <button onClick={() => revoke(m.email)} className={`text-xs text-danger font-medium cursor-pointer rounded-sm ${focusRing}`}>Confirm</button>
+                            <button onClick={() => setConfirmRevoke(null)} className={`text-[12px] text-text-tertiary hover:text-text-primary cursor-pointer rounded-sm ${focusRing}`}>Cancel</button>
+                            <button onClick={() => revoke(m.email)} className={`text-[12px] text-danger font-medium cursor-pointer rounded-sm ${focusRing}`}>Confirm</button>
                           </div>
                         ) : (
                           <button
@@ -238,7 +258,7 @@ export function Team({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout
         }
       >
         <FormInput
-          label="Work email" type="email" placeholder="rep@acme.com" required
+          label="Work email" type="email" placeholder="name@yourcompany.com" required
           value={newEmail} onChange={setNewEmail}
           onBlur={() => setEmailTouched(true)}
           error={emailTouched ? emailError : undefined}

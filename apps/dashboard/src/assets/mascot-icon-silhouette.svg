@@ -3,20 +3,20 @@
     <style>
       .main-line {
         fill: none;
-        stroke: #6C4FE8;
+        stroke: #005F73;
         stroke-width: 36;
         stroke-linecap: round;
         stroke-linejoin: round;
       }
       .face-line {
         fill: none;
-        stroke: #6C4FE8;
+        stroke: #005F73;
         stroke-width: 28;
         stroke-linecap: round;
         stroke-linejoin: round;
       }
       .filled {
-        fill: #6C4FE8;
+        fill: #005F73;
       }
     </style>
   </defs>

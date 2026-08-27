@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 
 export function Btn({ children, variant = "primary", size = "md", disabled, loading, type = "button", onClick, className = "", ...aria }: {
   children: ReactNode;
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "inverse" | "gradient";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "inverse";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   loading?: boolean;
@@ -25,7 +25,6 @@ export function Btn({ children, variant = "primary", size = "md", disabled, load
     ghost: "text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-colors",
     danger: "bg-danger text-white hover:opacity-90 shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
     inverse: "bg-surface text-primary hover:bg-surface-secondary shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
-    gradient: "bg-[image:var(--gradient-brand-cool)] text-white hover:shadow-[var(--shadow-glow-primary)] shadow-1 hover:shadow-2 hover:-translate-y-0.5 active:translate-y-px",
   };
   const isDisabled = disabled || loading;
   return (

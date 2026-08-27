@@ -2,12 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
-  Building2,
-  CheckCircle2,
   ChevronRight,
-  PauseCircle,
   Search,
-  Sparkles,
 } from "lucide-react";
 import type { TenantStatus } from "../../platform-client";
 import {
@@ -27,7 +23,7 @@ import { Btn } from "../../components/Btn";
 import { EmptyState } from "../../components/EmptyState";
 import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
+import { StatCard, StatRow } from "../../components/StatCard";
 
 const FILTERS: { label: string; value: TenantStatus | "" }[] = [
   { label: "All", value: "" },
@@ -83,36 +79,12 @@ export function PlatformTenants() {
           <span>Couldn&apos;t load platform totals — {friendlyError(stats.error)}</span>
         </div>
       )}
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Total tenants"
-          value={metric(stats.data?.total, statsUnavailable)}
-          icon={<Building2 size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-        <StatCard
-          label="Active"
-          value={metric(stats.data?.byStatus.active, statsUnavailable)}
-          icon={<CheckCircle2 size={16} strokeWidth={1.5} />}
-          tone="green"
-          size="sm"
-        />
-        <StatCard
-          label="Suspended"
-          value={metric(stats.data?.byStatus.suspended, statsUnavailable)}
-          icon={<PauseCircle size={16} strokeWidth={1.5} />}
-          tone="amber"
-          size="sm"
-        />
-        <StatCard
-          label="New this week"
-          value={metric(stats.data?.newThisWeek, statsUnavailable)}
-          icon={<Sparkles size={16} strokeWidth={1.5} />}
-          tone="blue"
-          size="sm"
-        />
-      </div>
+      <StatRow cols={4} className="mb-8">
+        <StatCard label="Total tenants" value={metric(stats.data?.total, statsUnavailable)} />
+        <StatCard label="Active" value={metric(stats.data?.byStatus.active, statsUnavailable)} />
+        <StatCard label="Suspended" value={metric(stats.data?.byStatus.suspended, statsUnavailable)} />
+        <StatCard label="New this week" value={metric(stats.data?.newThisWeek, statsUnavailable)} />
+      </StatRow>
 
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

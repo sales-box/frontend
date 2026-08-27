@@ -233,7 +233,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
         </div>
 
         <div className="px-4 py-4 border-b border-[var(--color-border)]">
-          <div className="rounded-[var(--radius-lg)] bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20 px-3.5 py-3 flex gap-3">
+          <div className="border-l-2 border-[var(--color-warning)] pl-3 py-1 flex gap-3">
             <AlertTriangle size={16} strokeWidth={1.5} className="text-[var(--color-warning)] flex-shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <p className="text-subheading text-[var(--color-warning)] mb-0.5" style={{ fontFamily: 'var(--font-body)' }}>
@@ -252,15 +252,15 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
         <div className="px-4 py-4 border-b border-[var(--color-border)]">
           <p className="text-eyebrow mb-3">AVAILABLE CONTEXT</p>
           <div className="flex flex-wrap gap-2" aria-label="Context sources available">
-            <Badge variant={data.missingContext.hasProductDocs ? 'success' : 'danger'}>
+            <Badge variant={data.missingContext.hasProductDocs ? 'success' : 'muted'}>
               <BookOpen size={11} strokeWidth={1.5} aria-hidden="true" />
               Product documentation
             </Badge>
-            <Badge variant={data.missingContext.hasPreviousEmails ? 'success' : 'danger'}>
+            <Badge variant={data.missingContext.hasPreviousEmails ? 'success' : 'muted'}>
               <Mail size={11} strokeWidth={1.5} aria-hidden="true" />
               Previous email threads
             </Badge>
-            <Badge variant={data.missingContext.hasAccountHistory ? 'success' : 'danger'}>
+            <Badge variant={data.missingContext.hasAccountHistory ? 'success' : 'muted'}>
               <Users size={11} strokeWidth={1.5} aria-hidden="true" />
               Account history
             </Badge>

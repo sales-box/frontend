@@ -5,19 +5,29 @@ import type { Screen } from "../../types";
 import { useClients } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
-import { Badge } from "../../components/Badge";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
+// Figma-tinted status pill. Colour follows the axis the status sits on:
+// Active is a healthy state (cyan), At risk demands attention (red), and a
+// neutral stage like New stays grey — no judgement.
 const statusBadge = (s: string) => {
-  const v = s === "Active" ? "success" as const
-    : s === "New" ? "warning" as const
-    : s === "At risk" ? "danger" as const
-    : "muted" as const;
-  return <Badge variant={v}>{s}</Badge>;
+  const style = s === "Active"
+    ? { bg: "rgba(10, 147, 150, 0.12)", fg: "#0A9396" }
+    : s === "At risk"
+      ? { bg: "rgba(174, 32, 18, 0.12)", fg: "#AE2012" }
+      : { bg: "rgba(102, 107, 112, 0.12)", fg: "#666B70" };
+  return (
+    <span
+      className="inline-flex items-center rounded px-2.5 py-1 text-[12px] font-medium"
+      style={{ backgroundColor: style.bg, color: style.fg }}
+    >
+      {s}
+    </span>
+  );
 };
 
 export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
@@ -43,12 +53,12 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
 
   return (
     <Shell active="clients" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[88rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader
           title="Clients"
-          subtitle="Client pipeline and interaction history."
+          subtitle="Everyone your team has corresponded with."
           actions={
-            <span className="text-sm text-text-tertiary">
+            <span className="text-[14px] text-text-tertiary">
               <span className="font-mono font-semibold text-text-primary">{total}</span> clients
             </span>
           }
@@ -62,23 +72,21 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
             onChange={e => onSearchChange(e.target.value)}
             placeholder="Search by name or company…"
             aria-label="Search clients"
-            className="w-full pl-9 pr-3.5 py-2.5 text-sm font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors"
+            className="w-full pl-9 pr-3.5 py-2.5 text-[14px] font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 placeholder:text-text-tertiary transition-colors"
           />
         </div>
 
         <Reveal>
         <Card className="overflow-hidden">
           <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-primary) 14%, transparent)" }}>
-              <Contact size={18} strokeWidth={1.5} className="text-primary" />
-            </div>
-            <h2 className="text-subheading text-text-primary">Client Pipeline</h2>
+            <Contact size={18} strokeWidth={1.5} className="text-text-tertiary" />
+            <h2 className="text-subheading text-text-primary">All contacts</h2>
           </div>
 
           {isLoading ? (
-            <div className="px-5 py-10 text-center text-sm text-text-tertiary">Loading clients…</div>
+            <div className="px-5 py-10 text-center text-[14px] text-text-tertiary">Loading clients…</div>
           ) : error ? (
-            <div className="px-5 py-10 text-center text-sm text-danger">{error ? (error as Error).message : null}</div>
+            <div className="px-5 py-10 text-center text-[14px] text-danger">{error ? (error as Error).message : null}</div>
           ) : data.length === 0 ? (
             <EmptyState
               icon={<Contact size={20} strokeWidth={1.5} />}
@@ -109,17 +117,22 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                       >
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary text-xs font-semibold shrink-0">{initials}</div>
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 text-primary"
+                              style={{ backgroundColor: "rgba(148, 210, 189, 0.3)" }}
+                            >
+                              {initials}
+                            </div>
                             <div className="min-w-0">
-                              <div className="text-[13px] font-medium text-text-primary truncate">{c.name || c.email}</div>
-                              <div className="text-xs text-text-tertiary truncate">{c.email}</div>
+                              <div className="text-[14px] font-medium text-text-primary truncate">{c.name || c.email}</div>
+                              <div className="text-[12px] text-text-tertiary truncate">{c.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 text-[13px] text-text-secondary truncate">{c.company}</td>
+                        <td className="px-5 py-3.5 text-[14px] text-text-secondary truncate">{c.company}</td>
                         <td className="px-5 py-3.5">{statusBadge(c.status)}</td>
-                        <td className="px-5 py-3.5 text-xs text-text-tertiary">{c.crmId ?? "—"}</td>
-                        <td className="px-5 py-3.5 text-xs text-text-tertiary font-mono whitespace-nowrap">{c.updatedAt}</td>
+                        <td className="px-5 py-3.5 text-[12px] text-text-tertiary">{c.crmId ?? "—"}</td>
+                        <td className="px-5 py-3.5 text-[12px] text-text-tertiary font-mono whitespace-nowrap">{c.updatedAt}</td>
                         <td className="px-5 py-3.5 text-right">
                           <ChevronRight size={14} strokeWidth={1.5} className="text-text-tertiary" />
                         </td>
@@ -136,15 +149,15 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                className={`text-[12px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
               >
                 Previous
               </button>
-              <span className="text-xs text-text-tertiary">Page {page} of {totalPages}</span>
+              <span className="text-[12px] text-text-tertiary">Page {page} of {totalPages}</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className={`text-xs font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
+                className={`text-[12px] font-medium text-text-secondary disabled:text-text-tertiary disabled:cursor-not-allowed cursor-pointer ${focusRing}`}
               >
                 Next
               </button>

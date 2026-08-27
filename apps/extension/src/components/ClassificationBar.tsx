@@ -37,11 +37,14 @@ export function ClassificationBar({ routing, intent, isUrgent }: ClassificationI
         </Badge>
       )}
 
+      {/* Urgency is a separate axis from routing. A red routing pill and a
+          red urgency pill next to each other read as one doubled alarm, so
+          urgency is marked with weight and the icon instead of a third pill. */}
       {isUrgent && (
-        <Badge variant="danger">
+        <span className="inline-flex items-center gap-1 text-small font-semibold text-[var(--color-danger)]">
           <Zap size={10} strokeWidth={1.5} aria-hidden="true" />
           Urgent
-        </Badge>
+        </span>
       )}
     </div>
   )

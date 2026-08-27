@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Database, Link2, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Database, Link2 } from "lucide-react";
 import type { Screen } from "../../types";
 import {
   useCrmStatus,
@@ -11,7 +11,6 @@ import {
 } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
-import { Badge } from "../../components/Badge";
 import { Btn } from "../../components/Btn";
 import { FormInput } from "../../components/FormInput";
 import { Modal } from "../../components/Modal";
@@ -111,85 +110,86 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
 
   return (
     <Shell active="crm" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-10 py-10">
-        <PageHeader title="CRM Connect" subtitle="Connect one CRM to give replies client context — and to let the assistant file work back to it, with your approval." />
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+        <PageHeader title="CRM Connect" subtitle="Connect your CRM to sync contacts and enrich email context." />
 
-        <div className="flex items-start gap-2.5 text-[13px] text-text-secondary bg-surface-secondary rounded-lg px-4 py-3 mb-6">
+        <div className="flex items-start gap-2.5 text-[14px] text-text-secondary bg-surface-secondary rounded-lg px-4 py-3 mb-6">
           <Database size={14} strokeWidth={1.5} className="mt-0.5 flex-shrink-0 text-text-tertiary" />
           <span><strong className="text-text-primary">CRM integration is optional.</strong> Your product knowledge comes from Knowledge Base uploads. A connected CRM adds client history to replies, and lets the assistant propose records for you to approve. <strong className="text-text-primary">One CRM per workspace</strong> — disconnect before switching.</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* HubSpot Card */}
-          <Card className={`p-6 ${connected ? "ring-1 ring-success" : ""}`}>
-            <div className="flex items-start justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md bg-surface-secondary border border-border flex items-center justify-center">
-                  <span className="text-danger font-bold text-[13px] font-mono">Hs</span>
-                </div>
-                <div><div className="text-sm font-semibold text-text-primary">HubSpot</div><div className="text-xs text-text-tertiary">CRM</div></div>
-              </div>
-              {connected ? <Badge variant="success"><CheckCircle2 size={11} strokeWidth={1.5} /> Connected</Badge> : <Badge variant="muted">Not connected</Badge>}
+        {/* Provider cards — Figma: 48px icon box, 20px title, status pill/action */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          {/* HubSpot */}
+          <div className={`bg-surface rounded-2xl p-5 flex flex-col gap-3 ${connected ? "border-2 border-secondary" : "border border-border"}`}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10">
+              <span className="text-secondary font-bold text-lg leading-none">H</span>
             </div>
-
-            {connected ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-[13px] text-success"><CheckCircle2 size={13} strokeWidth={1.5} /> Connected to HubSpot</div>
-                {syncInfo ? (
-                  <>
-                    <div className="text-xs text-text-tertiary flex items-center gap-1.5"><RefreshCw size={11} strokeWidth={1.5} /> Last synced: {syncInfo.lastSync}</div>
-                    <div className="text-xs text-text-tertiary">{syncInfo.importedCount} records imported</div>
-                  </>
-                ) : (
-                  <div className="text-xs text-text-tertiary">Not yet synced</div>
-                )}
-                <Btn variant="secondary" size="sm" loading={disconnecting} onClick={disconnect}>Disconnect</Btn>
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Imports your contacts for client history, and lets the assistant propose contacts, deals, tasks and notes — each one written only after you approve it.</p>
-                {mcpConnected ? (
-                  <p className="text-xs text-text-tertiary">Disconnect Zoho first — one CRM per workspace.</p>
-                ) : (
-                  <Btn variant="primary" size="sm" onClick={() => setShowKeyModal(true)}>
-                    <Link2 size={13} strokeWidth={1.5} /> Connect HubSpot
-                  </Btn>
-                )}
-              </div>
-            )}
-          </Card>
-
-          {/* Zoho MCP Card */}
-          <Card className={`p-6 ${mcpConnected ? "ring-1 ring-success" : ""}`}>
-            <div className="flex items-start justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md bg-surface-secondary border border-border flex items-center justify-center">
-                  <span className="text-accent-cool font-bold text-[13px] font-mono">Zo</span>
-                </div>
-                <div><div className="text-sm font-semibold text-text-primary">Zoho (via MCP)</div><div className="text-xs text-text-tertiary">CRM Agent</div></div>
-              </div>
-              {mcpConnected ? <Badge variant="success"><CheckCircle2 size={11} strokeWidth={1.5} /> Connected</Badge> : <Badge variant="muted">Not connected</Badge>}
+            <div>
+              <div className="text-lg font-semibold text-text-primary">HubSpot</div>
+              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Sync contacts, deals, and company data from HubSpot CRM.</p>
             </div>
+            <div className="mt-auto">
+              {connected ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="inline-flex items-center rounded-lg px-4 py-2 text-[14px] font-semibold bg-success-light text-success">Connected</span>
+                  <Btn variant="secondary" size="sm" loading={disconnecting} onClick={disconnect}>Disconnect</Btn>
+                </div>
+              ) : mcpConnected ? (
+                <p className="text-[12px] text-text-tertiary">Disconnect Zoho first — one CRM per workspace.</p>
+              ) : (
+                <Btn variant="primary" size="sm" onClick={() => setShowKeyModal(true)}>
+                  <Link2 size={13} strokeWidth={1.5} /> Connect HubSpot
+                </Btn>
+              )}
+            </div>
+          </div>
 
-            {mcpConnected ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-[13px] text-success"><CheckCircle2 size={13} strokeWidth={1.5} /> Connected to Zoho MCP</div>
-                <Btn variant="secondary" size="sm" loading={mcpDisconnecting} onClick={disconnectZohoMcp}>Disconnect</Btn>
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-text-tertiary mb-4 leading-relaxed">Imports your contacts for client history, and lets the assistant propose leads, deals, tasks and notes — each one written only after you approve it. Needs your presigned Zoho MCP Server URL.</p>
-                {connected ? (
-                  <p className="text-xs text-text-tertiary">Disconnect HubSpot first — one CRM per workspace.</p>
-                ) : (
-                  <Btn variant="primary" size="sm" onClick={() => setShowMcpModal(true)}>
-                    <Link2 size={13} strokeWidth={1.5} /> Connect Zoho MCP
-                  </Btn>
-                )}
-              </div>
-            )}
-          </Card>
+          {/* Zoho (via MCP) */}
+          <div className={`bg-surface rounded-2xl p-5 flex flex-col gap-3 ${mcpConnected ? "border-2 border-secondary" : "border border-border"}`}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10">
+              <span className="text-secondary font-bold text-lg leading-none">Z</span>
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-text-primary">Zoho CRM</div>
+              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Import leads and contacts from your Zoho workspace (via MCP).</p>
+            </div>
+            <div className="mt-auto">
+              {mcpConnected ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="inline-flex items-center rounded-lg px-4 py-2 text-[14px] font-semibold bg-success-light text-success">Connected</span>
+                  <Btn variant="secondary" size="sm" loading={mcpDisconnecting} onClick={disconnectZohoMcp}>Disconnect</Btn>
+                </div>
+              ) : connected ? (
+                <p className="text-[12px] text-text-tertiary">Disconnect HubSpot first — one CRM per workspace.</p>
+              ) : (
+                <Btn variant="primary" size="sm" onClick={() => setShowMcpModal(true)}>
+                  <Link2 size={13} strokeWidth={1.5} /> Connect Zoho MCP
+                </Btn>
+              )}
+            </div>
+          </div>
+
         </div>
+
+        {/* HubSpot Sync Status — real data, shown when connected */}
+        {connected && (
+          <Card className="p-5 flex flex-col gap-2.5">
+            <h3 className="text-base font-semibold text-text-primary">HubSpot Sync Status</h3>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[14px] text-text-tertiary">Contacts synced</span>
+              <span className="text-[14px] font-semibold text-secondary">{syncInfo?.importedCount ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[14px] text-text-tertiary">Last sync</span>
+              <span className="text-[14px] font-semibold text-text-primary">{syncInfo?.lastSync ?? "just now"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[14px] text-text-tertiary">Sync errors</span>
+              <span className="text-[14px] font-semibold text-text-tertiary">0</span>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* HubSpot Modal */}

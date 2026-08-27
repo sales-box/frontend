@@ -1,24 +1,38 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Mail, Send, Users, Gauge, Tag, AlertTriangle, HelpCircle, Wifi } from "lucide-react";
+import { CheckCircle2, AlertTriangle, HelpCircle, Wifi } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import type { ReactNode } from "react";
 import type { Screen } from "../../types";
 import { useAnalyticsSummary, useKnowledgeGaps, useResolveGap, useTeamStats, useTenant } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
-import { Badge } from "../../components/Badge";
-import { StatCard } from "../../components/StatCard";
 import { PageHeader } from "../../components/PageHeader";
+import { Badge } from "../../components/Badge";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
 import { useToast } from "../../components/Toast";
+import { TIER_NAMES } from "../../data/pricingTiers";
 
-type Kpi = { label: string; value: string; sub: string; subTone?: "success" | "muted"; tone: "blue" | "green" | "amber" | "red"; icon: ReactNode; size?: "md" | "sm" };
+type Kpi = { label: string; value: string; sub: string; accent: string };
+
+// KPI card matching the Figma: white surface, #E8E6E0 border, radius 12,
+// a 36×3 accent bar on top, 12px label, 28px bold value. Keeps the `sub`
+// caption from our data so no information is lost.
+function KpiCard({ kpi, delay = 0 }: { kpi: Kpi; delay?: number }) {
+  return (
+    <Reveal delay={delay}>
+      <Card className="px-6 py-5 h-full flex flex-col gap-1.5 shadow-1">
+        <span className="w-9 h-[3px] rounded-full" style={{ backgroundColor: kpi.accent }} />
+        <div className="text-xs font-medium text-text-tertiary">{kpi.label}</div>
+        <div className="text-[28px] font-bold leading-none text-text-primary">{kpi.value}</div>
+        <div className="text-xs mt-0.5 text-text-tertiary">{kpi.sub}</div>
+      </Card>
+    </Reveal>
+  );
+}
 
 const WINDOW_DAYS = 30;
-const PLAN_NAMES: Record<number, string> = { 1: "Starter", 2: "Growth", 3: "Enterprise" };
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40";
 
@@ -102,27 +116,26 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
   const emailData: EmailChartPoint[] = s?.dailyCounts ?? [];
   const repData: RepChartPoint[] = team.map(m => ({ name: m.email.split("@")[0], sent: m.repliesSent }));
 
-  // Every card is built from real data — no static fallback. Past the loading
-  // guard, `s` is defined; each field renders "—" rather than a fabricated
-  // number when the underlying signal is empty.
-  const momSub = (pct: number | null) =>
-    pct === null ? "no previous data" : `${pct >= 0 ? "+" : ""}${pct}% vs previous ${WINDOW_DAYS} days`;
-
+  // Every figure is built from real data — no static fallback. Past the
+  // loading guard, `s` is defined; each field renders "—" rather than a
+  // fabricated number when the underlying signal is empty.
   const classEntries = Object.entries(s?.byClassification ?? {});
   const topClass = classEntries.length > 0 ? classEntries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
   const total = s?.totalEmailsProcessed ?? 0;
   const reviewed = s?.aiReviewed.count ?? 0;
 
+  // Volume: what came in and what went out.
   const kpiRow1: Kpi[] = s ? [
-    { label: "Emails Processed", value: String(total), sub: momSub(s.momChangePct), subTone: (s.momChangePct ?? 0) >= 0 ? "success" : "muted", tone: "blue", icon: <Mail size={17} strokeWidth={1.5} /> },
-    { label: "Replies Sent", value: String(s.replies.threads), sub: s.replies.threads > 0 ? "threads replied" : "no replies yet", tone: "green", icon: <Send size={17} strokeWidth={1.5} /> },
-    { label: "Active Sales Engineers", value: String(activeCount), sub: `of ${invitedCount} invited`, tone: activeCount > 0 ? "green" : "red", icon: <Users size={17} strokeWidth={1.5} /> },
+    { label: "Emails Processed", value: String(total), sub: `in the last ${WINDOW_DAYS} days`, accent: "var(--brand-cyan)" },
+    { label: "Replies Sent", value: String(s.replies.threads), sub: s.replies.threads > 0 ? "threads replied" : "no replies yet", accent: "var(--brand-orange)" },
+    { label: "Active Sales Engineers", value: String(activeCount), sub: `of ${invitedCount} invited`, accent: "var(--brand-aqua)" },
   ] : [];
 
+  // Quality: how the drafts behaved.
   const kpiRow2: Kpi[] = s ? [
-    { label: "Avg Confidence Score", value: reviewed > 0 ? `${Math.round(s.averageConfidence * 100)}%` : "—", sub: reviewed > 0 ? "across AI-reviewed emails" : "no reviewed emails yet", subTone: "success", tone: "blue", icon: <Gauge size={17} strokeWidth={1.5} />, size: "sm" },
-    { label: "Most Common Type", value: topClass ? topClass[0] : "—", sub: topClass && total > 0 ? `${Math.round((topClass[1] / total) * 100)}% of processed` : "no emails yet", tone: "green", icon: <Tag size={17} strokeWidth={1.5} />, size: "sm" },
-    { label: "Escalated to Human", value: reviewed > 0 ? `${Math.round((s.aiReviewed.escalated / reviewed) * 100)}%` : "—", sub: `${s.aiReviewed.escalated} of ${reviewed} AI-reviewed`, tone: "amber", icon: <AlertTriangle size={17} strokeWidth={1.5} />, size: "sm" },
+    { label: "Avg Confidence Score", value: reviewed > 0 ? `${Math.round(s.averageConfidence * 100)}%` : "—", sub: reviewed > 0 ? "across AI-reviewed emails" : "no reviewed emails yet", accent: "var(--brand-teal)" },
+    { label: "Most Common Type", value: topClass ? topClass[0] : "—", sub: topClass && total > 0 ? `${Math.round((topClass[1] / total) * 100)}% of processed` : "no emails yet", accent: "var(--brand-caramel)" },
+    { label: "Escalated to Human", value: reviewed > 0 ? `${Math.round((s.aiReviewed.escalated / reviewed) * 100)}%` : "—", sub: `${s.aiReviewed.escalated} of ${reviewed} AI-reviewed`, accent: "var(--brand-iron)" },
   ] : [];
 
   const resolvedCount = gaps.filter(g => g.resolved).length;
@@ -134,11 +147,11 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
     toast(`Marked “${gap.topic}” resolved`);
   };
 
-  const planName = tenantQuery.data?.tier ? PLAN_NAMES[tenantQuery.data.tier] : undefined;
+  const planName = tenantQuery.data?.tier ? TIER_NAMES[tenantQuery.data.tier] : undefined;
 
   return (
     <Shell active="analytics" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[88rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
+      <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader title="Analytics" subtitle={`Last ${WINDOW_DAYS} days${planName ? ` · ${planName} plan` : ""}`} />
 
         {loading ? (
@@ -147,54 +160,50 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
           <div className="py-20 text-center text-sm text-danger">{error}</div>
         ) : <>
 
-        {/* 6 KPI cards — two rows of 3 */}
+        {/* Two rows of three KPIs — white card, #E8E6E0 border, top accent bar */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-          {kpiRow1.map((k, i) => (
-            <Reveal key={k.label} delay={i * 70} className="h-full">
-              <StatCard {...k} />
-            </Reveal>
-          ))}
+          {kpiRow1.map((k, i) => <KpiCard key={k.label} kpi={k} delay={i * 60} />)}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {kpiRow2.map((k, i) => (
-            <Reveal key={k.label} delay={i * 70} className="h-full">
-              <StatCard {...k} />
-            </Reveal>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {kpiRow2.map((k, i) => <KpiCard key={k.label} kpi={k} delay={i * 60} />)}
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-          <Reveal className="lg:col-span-2">
-          <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
-            <div className="font-display text-[15px] font-semibold text-text-primary mb-4 tracking-tight">Emails processed over time</div>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={emailData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={c.border} />
-                <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} />
-                <YAxis tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: c.border }} />
-                <Line type="monotone" dataKey="emails" stroke={c.primary} strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
+        {/* Charts — white card, #E8E6E0 border, radius 12, title 15px semibold */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <Reveal>
+          <Card className="p-5">
+            <div className="text-[15px] font-semibold mb-4 text-text-primary">Emails processed over time</div>
+            <div className="rounded-lg p-2 bg-surface-secondary">
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={emailData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={c.border} />
+                  <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} />
+                  <YAxis tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: c.border }} />
+                  <Line type="monotone" dataKey="emails" stroke={c.primary} strokeWidth={2} dot={false} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
           </Reveal>
 
           <Reveal delay={90}>
-          <Card className="p-5 transition-transform duration-300 hover:-translate-y-1">
-            <div className="font-display text-[15px] font-semibold text-text-primary mb-4 tracking-tight">Replies per rep</div>
+          <Card className="p-5">
+            <div className="text-[15px] font-semibold mb-4 text-text-primary">Replies per rep</div>
             {repData.length === 0 ? (
-              <div className="h-[200px] flex items-center justify-center text-xs text-text-tertiary">No replies yet</div>
+              <div className="h-[160px] flex items-center justify-center text-xs text-text-tertiary">No replies yet</div>
             ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={repData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke={c.border} horizontal={false} />
-                <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={axisTick} axisLine={false} tickLine={false} width={55} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: c.border, fillOpacity: 0.3 }} />
-                <Bar dataKey="sent" fill={c.primary} radius={[0, 4, 4, 0]} name="Replies sent" isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="rounded-lg p-2 bg-surface-secondary">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={repData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={c.border} horizontal={false} />
+                  <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" tick={axisTick} axisLine={false} tickLine={false} width={110} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: c.border, fillOpacity: 0.3 }} />
+                  <Bar dataKey="sent" fill={c.primary} radius={[0, 4, 4, 0]} name="Replies sent" isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             )}
           </Card>
           </Reveal>
@@ -202,15 +211,13 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
         {/* Knowledge gaps */}
         <Reveal>
-        <Card className="p-5 mb-5 transition-transform duration-300 hover:-translate-y-1">
-          <div className="flex items-center justify-between mb-2 gap-3">
+        <Card className="p-5 sm:p-6 mb-4">
+          <div className="flex items-center justify-between mb-3 gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-warning) 14%, transparent)" }}>
-                <HelpCircle size={18} strokeWidth={1.5} className="text-warning" />
-              </div>
-              <h2 className="text-subheading text-text-primary">Knowledge gaps</h2>
+              <HelpCircle size={18} strokeWidth={1.5} className="text-text-tertiary" />
+              <h2 className="text-base font-semibold text-text-primary">Knowledge Gaps</h2>
             </div>
-            <span className="text-xs text-text-tertiary text-right">Questions AI couldn't confidently answer</span>
+            <span className="text-xs text-right text-text-tertiary">Questions AI couldn't confidently answer</span>
           </div>
 
           {gaps.length > 0 && (
@@ -234,7 +241,7 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
                       : <AlertTriangle size={15} strokeWidth={1.5} className={gapSeverity(g.occurrences) === "danger" ? "text-danger" : gapSeverity(g.occurrences) === "warning" ? "text-warning" : "text-text-tertiary"} />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className={`text-[13px] font-medium ${g.resolved ? "line-through text-text-tertiary" : "text-text-primary"}`}>{gapTitle(g.topic)}</div>
+                      <div className={`text-sm font-medium ${g.resolved ? "line-through text-text-tertiary" : "text-text-primary"}`}>{gapTitle(g.topic)}</div>
                       <div className="text-xs text-text-tertiary mt-0.5 font-mono">First seen {new Date(g.createdAt).toLocaleString()}</div>
                     </div>
                     <Badge variant={g.resolved ? "success" : gapSeverity(g.occurrences)}>{g.resolved ? "Resolved" : `${g.occurrences} occurrence${g.occurrences === 1 ? "" : "s"}`}</Badge>
@@ -252,9 +259,9 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
                   {(g.evidence?.length ?? 0) > 0 && (
                     <div className="ml-7 mt-2 space-y-2">
                       {g.evidence!.map((item, index) => (
-                        <div key={`${item.emailDate}-${item.sender.email}-${index}`} className="rounded-lg border border-border bg-surface-tertiary px-3 py-2">
+                        <div key={`${item.emailDate}-${item.sender.email}-${index}`} className="border-l-2 border-border pl-3 py-1">
                           <div className="text-xs font-medium text-text-primary">{item.subject}</div>
-                          <div className="text-[11px] text-text-tertiary mt-0.5">
+                          <div className="text-xs text-text-tertiary mt-0.5">
                             {item.sender.name || item.sender.email} · {new Date(item.emailDate).toLocaleString()}
                           </div>
                           {item.summary && <div className="text-xs text-text-secondary mt-1">{item.summary.slice(0, 220)}</div>}
@@ -271,13 +278,11 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
 
         {/* Sales Engineer activity */}
         <Reveal>
-        <Card className="p-5">
+        <Card className="p-5 sm:p-6">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--color-text-tertiary) 14%, transparent)" }}>
-              <Wifi size={18} strokeWidth={1.5} className="text-text-tertiary" />
-            </div>
+            <Wifi size={18} strokeWidth={1.5} className="text-text-tertiary" />
             <div className="flex-1">
-              <h2 className="text-subheading text-text-primary">Sales Engineer activity</h2>
+              <h2 className="text-base font-semibold text-text-primary">Sales Engineer activity</h2>
               <p className="text-xs text-text-tertiary">Last login and reply rate per rep.</p>
             </div>
           </div>
@@ -288,7 +293,7 @@ export function Analytics({ onNav, onLogout }: { onNav: (s: Screen) => void; onL
               {team.map(m => (
                 <div key={m.email} className="flex items-center gap-3 py-2.5">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${m.status === "verified" ? "bg-success" : m.status === "granted" ? "bg-warning" : "bg-danger"}`} />
-                  <span className="text-[13px] text-text-primary truncate flex-1">{m.email}</span>
+                  <span className="text-sm text-text-primary truncate flex-1">{m.email}</span>
                   <span className="text-xs text-text-tertiary whitespace-nowrap">
                     {m.lastLoginAt ? new Date(m.lastLoginAt).toLocaleString() : "Never logged in"}
                   </span>

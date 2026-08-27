@@ -13,13 +13,10 @@ import { Modal } from "../../components/Modal";
 import { FormInput } from "../../components/FormInput";
 import { PageHeader } from "../../components/PageHeader";
 import { useToast } from "../../components/Toast";
+import { tierName, tierBlurb } from "../../data/pricingTiers";
 
 
-const TIERS: Record<number, { name: string; blurb: string }> = {
-  1: { name: "Starter", blurb: "$49/mo · Up to 3 seats · 25 documents" },
-  2: { name: "Growth", blurb: "$149/mo · Up to 10 seats · 200 documents" },
-  3: { name: "Enterprise", blurb: "Custom · Unlimited seats · Unlimited documents" },
-};
+
 
 export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
@@ -27,6 +24,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
   const { data: tenant } = useTenant();
   const offboard = useOffboard();
   const setAuthCompany = useAuthStore(s => s.setCompany);
+  const user = useAuthStore(s => s.user);
 
   const [company, setCompany] = useState("");
   const [savingCompany, setSavingCompany] = useState(false);
@@ -41,7 +39,9 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
     }
   }, [tenant?.companyName, setAuthCompany]);
 
-  const tier = tenant?.tier ? TIERS[tenant.tier] : undefined;
+  const tier = tenant?.tier
+    ? { name: tierName(tenant.tier), blurb: tierBlurb(tenant.tier) }
+    : undefined;
   const companyName = tenant?.companyName ?? "";
 
   const closeOffboard = () => { setShowOffboard(false); setStep(1); setTyped(""); };
@@ -74,53 +74,60 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
 
   return (
     <Shell active="settings" onNav={onNav} onLogout={onLogout}>
-      <div className="max-w-[52rem] mx-auto px-5 sm:px-8 lg:px-10 py-10">
-        <PageHeader title="Settings" subtitle="Manage your company and subscription." />
+      <div className="max-w-[72rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+        <PageHeader title="Settings" subtitle="Manage your account, plan and workspace." />
 
-        {/* Company */}
-        <Card className="p-6 mb-5">
-          <h2 className="text-subheading text-text-primary mb-4">Company</h2>
-          <div className="space-y-4 max-w-md">
-            <FormInput label="Company name" value={company} onChange={setCompany} />
-            <Btn
-              variant="secondary"
-              size="sm"
-              loading={savingCompany}
-              onClick={handleSaveCompany}
-            >
-              Save changes
-            </Btn>
-          </div>
-        </Card>
-
-        {/* Current plan */}
-        <Card className="p-6 mb-5">
-          <h2 className="text-subheading text-text-primary mb-4">Current plan</h2>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-text-primary text-sm">{tier?.name ?? "—"}</span>
-                {tenant?.status === "active" && <Badge variant="success">Active</Badge>}
+        {/* Account — Figma: label/value rows; company stays editable */}
+        <Card className="p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-5">Account</h2>
+          <div className="flex flex-col gap-5">
+            {/* Company (editable) */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-[14px] font-medium text-text-tertiary sm:w-32 shrink-0">Company</span>
+              <div className="flex items-center gap-2 flex-1 max-w-md">
+                <input
+                  value={company}
+                  onChange={e => setCompany(e.target.value)}
+                  aria-label="Company name"
+                  className="flex-1 px-3.5 py-2 text-[14px] font-body bg-surface text-text-primary rounded-md border border-border focus:outline-none focus:border-border-focus focus:ring-2 focus:ring-primary/25 transition-colors"
+                />
+                <Btn variant="secondary" size="sm" loading={savingCompany} onClick={handleSaveCompany}>Save</Btn>
               </div>
-              <div className="text-sm text-text-secondary">{tier?.blurb ?? "Loading plan…"}</div>
             </div>
-            <Btn variant="secondary" size="sm" onClick={() => onNav("plans")}>Change plan</Btn>
+
+            {/* Email (read-only) */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+              <span className="text-[14px] font-medium text-text-tertiary sm:w-32 shrink-0">Email</span>
+              <span className="text-[14px] text-text-primary">{user.email || "—"}</span>
+            </div>
+
+            {/* Plan (read-only + change) */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-[14px] font-medium text-text-tertiary sm:w-32 shrink-0">Plan</span>
+              <span className="text-[14px] text-text-primary flex-1 flex items-center gap-2">
+                {tier ? `${tier.name} · ${tier.blurb}` : "—"}
+                {tenant?.status === "active" && <Badge variant="success">Active</Badge>}
+              </span>
+              <Btn variant="secondary" size="sm" onClick={() => onNav("plans")}>Change plan</Btn>
+            </div>
           </div>
         </Card>
 
-     
-        <Card className="p-6 border-danger/25">
-          <h2 className="text-subheading text-danger mb-1">Danger zone</h2>
-          <p className="text-xs text-text-tertiary mb-4">This action is immediate and cannot be undone.</p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-3 border-t border-danger/10">
+        {/* Danger Zone — Figma: red heading + 2px red-bordered action box */}
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--brand-iron)" }}>Danger Zone</h2>
+          <div
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg"
+            style={{ border: "2px solid var(--brand-iron)" }}
+          >
             <div>
-              <div className="text-sm font-medium text-text-primary">Offboard team</div>
-              <div className="text-xs text-text-tertiary mt-0.5">
-                Revokes all SE access and sets your tenant to offboarded.
+              <div className="text-[14px] font-semibold text-text-primary">Offboard all Sales Engineers</div>
+              <div className="text-[14px] text-text-tertiary mt-1">
+                Revokes all SE access and sets your tenant to offboarded. Client data is preserved but unreachable.
               </div>
             </div>
             <Btn variant="danger" size="sm" onClick={() => setShowOffboard(true)}>
-              Offboard all Sales Engineers
+              Offboard all
             </Btn>
           </div>
         </Card>
@@ -158,25 +165,25 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               <div className="w-10 h-10 rounded-lg bg-danger-light flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} strokeWidth={1.5} className="text-danger" />
               </div>
-              <p className="text-[13px] text-text-secondary leading-relaxed">
+              <p className="text-[14px] text-text-secondary leading-relaxed">
                 This will immediately offboard every Sales Engineer on your team. It will:
               </p>
             </div>
-            <div className="bg-danger-light border border-danger/15 rounded-lg p-4">
+            <div className="border-l-2 border-danger pl-4 py-1">
               <ul className="space-y-1.5">
                 {[
                   "Revoke Gmail extension access for all Sales Engineers",
                   "Remove them from your team allowlist",
                   "Set your tenant status to offboarded",
                 ].map(item => (
-                  <li key={item} className="flex items-start gap-2 text-[13px] text-danger">
+                  <li key={item} className="flex items-start gap-2 text-[14px] text-danger">
                     <X size={13} strokeWidth={1.5} className="mt-0.5 shrink-0" />
                     {item}
                   </li>
                 ))}
               </ul>
             </div>
-            <p className="text-xs text-text-tertiary mt-4">
+            <p className="text-[12px] text-text-tertiary mt-4">
               Your client data is preserved but becomes unreachable while offboarded.
             </p>
           </div>
@@ -186,7 +193,7 @@ export function Settings({ onNav, onLogout }: { onNav: (s: Screen) => void; onLo
               <div className="w-10 h-10 rounded-lg bg-danger-light flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} strokeWidth={1.5} className="text-danger" />
               </div>
-              <p className="text-[13px] text-text-secondary leading-relaxed">
+              <p className="text-[14px] text-text-secondary leading-relaxed">
                 Type <strong className="text-text-primary font-mono">{companyName}</strong> to confirm.
               </p>
             </div>

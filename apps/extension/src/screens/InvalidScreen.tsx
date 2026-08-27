@@ -40,7 +40,7 @@ export function InvalidScreen({ email, errorMsg, onClose, onSwitchAccount }: Inv
 
         {/* Email in mono — data, not hero */}
         {email && (
-          <div className="mb-6 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border)]">
+          <div className="mb-6 px-3 py-2">
             <span
               className="text-mono text-[var(--color-text-secondary)]"
               style={{ fontFamily: 'var(--font-mono)' }}
@@ -51,9 +51,9 @@ export function InvalidScreen({ email, errorMsg, onClose, onSwitchAccount }: Inv
         )}
 
         {errorMsg && (
-          <div className="mb-6 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-tertiary)] border border-red-500 max-w-[240px] text-left">
+          <div className="mb-6 border-l-2 border-[var(--color-danger)] pl-3 py-1 max-w-[240px] text-left">
             <span
-              className="text-mono text-red-500 text-xs break-words"
+              className="text-mono text-[var(--color-danger)] text-xs break-words"
               style={{ fontFamily: 'var(--font-mono)' }}
             >
               {errorMsg}
