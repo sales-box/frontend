@@ -43,6 +43,7 @@ export function InboxOverviewScreen({ data, onClose, onSelectCategory }: InboxOv
       { label: 'Support',         count: null, key: 'support' },
       { label: 'Follow-up',       count: null, key: 'follow-up' },
       { label: 'Sensitive',       count: null, key: 'sensitive' },
+      { label: 'Auto Replied',    count: null, key: 'auto-replied' },
     ]
 
   return (

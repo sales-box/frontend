@@ -40,8 +40,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         authUrl.searchParams.set('client_id', clientId)
         authUrl.searchParams.set('redirect_uri', redirectUrl)
         authUrl.searchParams.set('response_type', 'code')
-        // The backend's shared exchangeCodeForEmail() calls Gmail's users.getProfile to resolve the SE's email, and that call 403s without this scope
-        authUrl.searchParams.set('scope', 'openid email profile https://www.googleapis.com/auth/gmail.readonly')
+        authUrl.searchParams.set(
+          'scope',
+          'openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send'
+        )
         authUrl.searchParams.set('access_type', 'offline')
         authUrl.searchParams.set('prompt', 'consent select_account')
 
