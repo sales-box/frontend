@@ -1,4 +1,4 @@
-import { Inbox, Clock, AlertTriangle, ChevronRight, Tag, CheckCircle2, AlertCircle, FileText } from 'lucide-react'
+import { Inbox, Clock, AlertTriangle, ChevronRight, Tag } from 'lucide-react'
 import { PanelHeader } from '../components/PanelHeader'
 import { Skeleton } from '../components/Skeleton'
 
@@ -119,62 +119,7 @@ export function InboxOverviewScreen({ data, onClose, onSelectCategory }: InboxOv
           </div>
         </div>
 
-        {/* 4. Replied */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-eyebrow text-[var(--color-text-secondary)]">REPLIED — AI CONFIDENCE</h3>
-          <div className="flex gap-2">
-            <button
-              className="flex-1 p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-tertiary)] hover:border-[var(--color-success)]/40 transition-colors cursor-pointer text-center"
-              onClick={() => onSelectCategory('ready')}
-            >
-              <CheckCircle2 size={16} className="mx-auto mb-1 text-[var(--color-success)]" />
-              <div className="text-caption text-[var(--color-text-secondary)] mb-1">Ready</div>
-              {data.reviewedBreakdown ? (
-                <div className="text-body font-semibold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {data.reviewedBreakdown.ready}
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <Skeleton width="w-6" height="h-4" />
-                </div>
-              )}
-            </button>
-            <button
-              className="flex-1 p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-tertiary)] hover:border-[var(--color-warning)]/40 transition-colors cursor-pointer text-center"
-              onClick={() => onSelectCategory('needs-review')}
-            >
-              <AlertCircle size={16} className="mx-auto mb-1 text-[var(--color-warning)]" />
-              <div className="text-caption text-[var(--color-text-secondary)] mb-1">Needs review</div>
-              {data.reviewedBreakdown ? (
-                <div className="text-body font-semibold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {data.reviewedBreakdown.needsReview}
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <Skeleton width="w-6" height="h-4" />
-                </div>
-              )}
-            </button>
-            <button
-              className="flex-1 p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-tertiary)] hover:border-[var(--color-danger)]/40 transition-colors cursor-pointer text-center"
-              onClick={() => onSelectCategory('manual')}
-            >
-              <FileText size={16} className="mx-auto mb-1 text-[var(--color-danger)]" />
-              <div className="text-caption text-[var(--color-text-secondary)] mb-1">Manual</div>
-              {data.reviewedBreakdown ? (
-                <div className="text-body font-semibold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {data.reviewedBreakdown.manual}
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <Skeleton width="w-6" height="h-4" />
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* 5. Bottom text */}
+        {/* 4. Bottom text */}
         {data.notYetReviewedCount !== undefined && (
           <div className="text-center pb-2">
             <button
