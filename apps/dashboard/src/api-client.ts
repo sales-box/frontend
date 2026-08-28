@@ -765,6 +765,8 @@ export interface ActivityEntry {
   /** `productConfidence`, on a 0–1 scale. Multiply by 100 to show a percentage. */
   confidence: number | null;
   action: string | null;
+  /** True when the email was answered automatically from the FAQ document. */
+  faqAutoReplied: boolean;
 }
 
 export interface ActivityPage {
@@ -848,6 +850,59 @@ export const analytics = {
       method: "PATCH",
       ...json({ status }),
     }),
+};
+
+// ─── FAQ Auto-Reply ──────────────────────────────────────────
+
+export interface FaqDocument {
+  id: string;
+  filename: string;
+  uploadedBy: string | null;
+  uploadedAt: string;
+  _count: { items: number };
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  embedded: boolean;
+}
+
+export interface FaqItemsPage {
+  data: FaqItem[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export const faq = {
+  /** GET /knowledge-base/faq/documents */
+  listDocuments: () => request<FaqDocument[]>("/knowledge-base/faq/documents"),
+
+  /** GET /knowledge-base/faq/items */
+  listItems: (page = 1, limit = 50) =>
+    request<FaqItemsPage>(`/knowledge-base/faq/items?page=${page}&limit=${limit}`),
+
+  /** POST /knowledge-base/faq/upload */
+  upload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return request<{ filename: string; itemsCreated: number }>("/knowledge-base/faq/upload", {
+      method: "POST",
+      body: fd,
+    });
+  },
+
+  /** DELETE /knowledge-base/faq/documents/:id */
+  deleteDocument: (id: string) =>
+    request<void>(`/knowledge-base/faq/documents/${id}`, { method: "DELETE" }),
+
+  /** DELETE /knowledge-base/faq/items/:id */
+  deleteItem: (id: string) =>
+    request<void>(`/knowledge-base/faq/items/${id}`, { method: "DELETE" }),
+
+  /** DELETE /knowledge-base/faq/documents */
+  deleteAll: () =>
+    request<{ deleted: number }>("/knowledge-base/faq/documents", { method: "DELETE" }),
 };
 
 // ─── Payments ───────────────────────────────────────────────

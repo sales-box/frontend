@@ -19,6 +19,7 @@ export interface ActivityRow {
   classification: string | null;
   confidence: number | null;
   action: string | null;
+  faqAutoReplied?: boolean;
 }
 
 function confidenceColor(score: number) {
@@ -278,7 +279,15 @@ export function ActivityFeed({ onNav, onLogout }: { onNav: (s: Screen) => void; 
                         <span className={`text-[15px] font-mono font-semibold ${conf != null ? confidenceColor(conf) : "text-text-tertiary"}`}>
                           {conf != null ? `${conf}%` : "—"}
                         </span>
-                        <span className={`text-[13px] font-medium ${actionColor(row.action)}`}>{row.action ?? "—"}</span>
+                        <span className={`text-[13px] font-medium ${actionColor(row.action)}`}>
+                          {row.faqAutoReplied ? (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: 'color-mix(in srgb, var(--brand-cyan) 14%, transparent)', color: 'var(--brand-cyan)' }}>
+                              Auto-replied (FAQ)
+                            </span>
+                          ) : (
+                            row.action ?? "—"
+                          )}
+                        </span>
                       </div>
                     );
                   })}
