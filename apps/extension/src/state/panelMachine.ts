@@ -13,7 +13,7 @@ export type RepliedSummary = {
 export type PanelState =
   | { type: 'collapsed' }
   | { type: 'auth' }
-  | { type: 'invalid'; email?: string; errorMsg?: string }
+  | { type: 'invalid'; email?: string; errorMsg?: string; unreachableHost?: string }
   | { type: 'loading' }
   | { type: 'overview'; data: InboxOverviewData }
   | {
@@ -33,7 +33,8 @@ export type PanelState =
 export type PanelAction =
   | { type: 'EXPAND' }
   | { type: 'COLLAPSE' }
-  | { type: 'AUTH_FAILED'; email?: string; errorMsg?: string }
+  /** `unreachableHost` marks a dead backend, which the screen must not call a rejection. */
+  | { type: 'AUTH_FAILED'; email?: string; errorMsg?: string; unreachableHost?: string }
   | { type: 'AUTH_SUCCESS' }
   | { type: 'REVOKED' }
   | { type: 'LOAD_BRIEFING' }
@@ -54,7 +55,7 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
   switch (action.type) {
     case 'EXPAND':              return { type: 'auth' }
     case 'COLLAPSE':            return { type: 'collapsed' }
-    case 'AUTH_FAILED':         return { type: 'invalid', email: action.email, errorMsg: action.errorMsg }
+    case 'AUTH_FAILED':         return { type: 'invalid', email: action.email, errorMsg: action.errorMsg, unreachableHost: action.unreachableHost }
     case 'AUTH_SUCCESS':        return { type: 'loading' }
     case 'REVOKED':             return { type: 'revoked' }
     case 'LOAD_BRIEFING':       return { type: 'loading' }

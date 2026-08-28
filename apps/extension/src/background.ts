@@ -8,6 +8,21 @@
 // OAuth client_id (Chrome Extension type) is set in manifest.json → oauth2.client_id.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://salesbox.dev'
+
+/**
+ * Shapes a caught fetch failure for the panel.
+ *
+ * `status` is only assigned once a response comes back, so an undefined status
+ * means the request never reached the host at all. The panel has to tell that
+ * apart from a real 401/403: without it, a backend running somewhere other than
+ * API_BASE is reported to the SE as an account that was turned away, and they
+ * go hunting for a permissions problem that does not exist.
+ */
+function fetchFailure(err: unknown, status: number | undefined) {
+  const error = err instanceof Error ? err.message : String(err)
+  return status === undefined ? { error, unreachable: true, host: API_BASE } : { error, status }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // ── GET_SE_AUTH_CODE ──────────────────────────────────────────────────────
   // Obtains a Google OAuth *authorization code* via launchWebAuthFlow.
@@ -80,7 +95,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] SE_LOGIN Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse(fetchFailure(err, status))
       }
     })()
     return true
@@ -103,7 +118,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ...data, status: res.status })
       } catch (err) {
         console.error('[Background] GET_AUTH_ME Error:', err)
-        sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+        sendResponse(fetchFailure(err, status))
       }
     })()
     return true
@@ -374,7 +389,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse({ ...transformedData, status: res.status })
     } catch (err) {
       console.error('[Background] GET_INBOX_STATS Error:', err)
-      sendResponse({ error: err instanceof Error ? err.message : String(err), status })
+      sendResponse(fetchFailure(err, status))
     }
   })()
   return true
