@@ -12,6 +12,7 @@ import {
 } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
+import { formatDate } from "../../lib/formatDate";
 import { Btn } from "../../components/Btn";
 import { FormInput } from "../../components/FormInput";
 import { Modal } from "../../components/Modal";
@@ -60,12 +61,11 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
     status?.provider === "zoho" ? "Zoho Sync Status" : "HubSpot Sync Status";
 
   const runSync = async () => {
-    try {
-      const res = await syncCrm.mutateAsync();
-      toast(res.message);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Sync failed");
-    }
+    // A failure is already surfaced in red by the global mutation handler, the
+    // same as every other mutation on this page. Catching it here only added a
+    // second, contradictory toast beside it.
+    const res = await syncCrm.mutateAsync();
+    toast(res.message);
   };
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
@@ -153,7 +153,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             </div>
             <div>
               <div className="text-lg font-semibold text-text-primary">HubSpot</div>
-              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Sync contacts, deals, and company data from HubSpot CRM.</p>
+              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Import your HubSpot contacts, and let the assistant propose CRM records for you to approve.</p>
             </div>
             <div className="mt-auto">
               {connected ? (
@@ -216,11 +216,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[14px] text-text-tertiary">Last sync</span>
-              <span className="text-[14px] font-semibold text-text-primary">{syncInfo?.lastSync ?? "just now"}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[14px] text-text-tertiary">Sync errors</span>
-              <span className="text-[14px] font-semibold text-text-tertiary">0</span>
+              <span className="text-[14px] font-semibold text-text-primary">{syncInfo ? formatDate(syncInfo.lastSync) : "just now"}</span>
             </div>
           </Card>
         )}

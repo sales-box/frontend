@@ -1,4 +1,5 @@
 import { Activity, Calendar, Loader2, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { formatDate } from "../../lib/formatDate";
 import { useState } from "react";
 import type { Screen } from "../../types";
 import { Shell } from "../../components/Shell";
@@ -37,12 +38,6 @@ function formatTime(raw: string): string {
   const d = new Date(raw);
   if (isNaN(d.getTime())) return raw;
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
-function formatDate(raw: string): string {
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return raw;
-  return d.toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 

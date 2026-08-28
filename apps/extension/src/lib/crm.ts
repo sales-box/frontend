@@ -9,6 +9,21 @@
 export interface CrmSuggestion {
   index: number
   summary: string
+  /**
+   * Which tool call this suggestion is for.
+   *
+   * Decisions used to be paired to actions by their POSITION in this list, and
+   * the panel's approval map was keyed the same way. When the list changed
+   * underneath — a different email, a reload, a re-analysis — an approval
+   * silently re-targeted whatever now sat at that index. Keying on this instead
+   * means an unrecognised action falls back to 'reject', so the worst case is
+   * that nothing is written rather than the wrong thing.
+   *
+   * Optional: a backend that predates it still pairs positionally.
+   */
+  toolCallId?: string
+  /** The tool name, e.g. createNote — lets a reviewer tell actions apart. */
+  action?: string
 }
 
 export interface CrmSuggestionResult {
@@ -18,7 +33,17 @@ export interface CrmSuggestionResult {
 }
 
 /** One SE verdict on a suggested CRM action. */
-export type CrmDecision = { type: 'approve' | 'reject' }
+export type CrmDecision = { type: 'approve' | 'reject'; toolCallId?: string }
+
+/**
+ * The key an approval is remembered under.
+ *
+ * Prefers the tool call id and falls back to the index only when the backend
+ * did not send one, so behaviour is unchanged against an older backend.
+ */
+export function decisionKey(s: CrmSuggestion): string {
+  return s.toolCallId ?? `index:${s.index}`
+}
 
 /**
  * Turn a failed submission into something an SE can act on.
