@@ -9,7 +9,7 @@
 ╚═╝╚═╝  ╚═══╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
 ```
 
-<h3>🤖 AI-Powered Sales Reply Assistant for Gmail</h3>
+<h3>AI-Powered Sales Reply Assistant for Gmail</h3>
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -22,27 +22,27 @@
 
 ---
 
-## 📜 About The Project
+## About The Project
 
 **Inbox Sales Copilot** is an AI-powered sales assistant that helps sales engineers respond to emails faster and smarter. The frontend is a **pnpm monorepo** containing two applications:
 
 - **Dashboard** — A full-featured admin SPA for managing tenants, knowledge bases, CRM data, analytics, and AI pipeline settings.
 - **Chrome Extension** — A Gmail sidebar panel (Manifest V3) that shows AI-generated reply suggestions, contact briefs, and confidence scores in real time.
 
-### ✨ Key Features
+### Key Features
 
-- 🧠 **AI Reply Suggestions** — Drafts generated from your knowledge base, with hallucination detection
-- 📊 **Analytics Dashboard** — Email volume, response times, AI accuracy, and confidence breakdowns
-- 🔐 **Multi-Tenant Platform** — Isolated workspaces with role-based access and Stripe billing
-- 📧 **Gmail Integration** — Chrome Extension injects a sidebar panel directly into Gmail via Shadow DOM
-- 🎯 **Smart Routing** — Emails triaged as Auto-worthy / Needs Review / Manual Reply with reason codes
-- 📚 **Knowledge Base Management** — Upload, chunk, and embed documents for RAG retrieval
-- 💳 **Subscription Paywall** — Stripe-powered billing with fail-closed route guards
-- 🌙 **Dark Mode** — Full dark theme with CSS custom properties
+- **AI Reply Suggestions** — Drafts generated from your knowledge base, with hallucination detection
+- **Analytics Dashboard** — Email volume, response times, AI accuracy, and confidence breakdowns
+- **Multi-Tenant Platform** — Isolated workspaces with role-based access and Stripe billing
+- **Gmail Integration** — Chrome Extension injects a sidebar panel directly into Gmail via Shadow DOM
+- **Smart Routing** — Emails triaged as Auto-worthy / Needs Review / Manual Reply with reason codes
+- **Knowledge Base Management** — Upload, chunk, and embed documents for RAG retrieval
+- **Subscription Paywall** — Stripe-powered billing with fail-closed route guards
+- **Dark Mode** — Full dark theme with CSS custom properties
 
 ---
 
-## 🎬 Screenshots
+## Screenshots
 
 <div align="center">
 
@@ -66,7 +66,7 @@
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -135,7 +135,7 @@ pnpm build
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 frontend/
@@ -175,7 +175,7 @@ frontend/
 
 ---
 
-## 🧩 Technical Highlights
+## Technical Highlights
 
 ### Architecture Patterns
 
@@ -190,7 +190,6 @@ frontend/
 // Content script injects an isolated Shadow DOM into Gmail
 const host = document.createElement('inbox-sales-panel');
 const shadow = host.attachShadow({ mode: 'open' });
-// ⚠ BOUNDARY CROSSING — all DOM access goes through this single function
 ```
 
 - Styles are fully encapsulated — Gmail CSS cannot leak in
@@ -230,7 +229,7 @@ All pointing to `VITE_API_BASE_URL` (default `http://localhost:3000`).
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Core
 
@@ -277,13 +276,13 @@ All pointing to `VITE_API_BASE_URL` (default `http://localhost:3000`).
 | ---------- | ------- |
 | pnpm 11.9.0 | Monorepo package management |
 | Docker (nginx:alpine) | Production container |
-| GitHub Actions | CI/CD (lint → build → Trivy scan → deploy) |
+| GitHub Actions | CI/CD (lint, build, Trivy scan, deploy) |
 | Docker Hub | Container registry |
 | AWS EC2 | Production hosting |
 
 ---
 
-## 🎨 Design System
+## Design System
 
 The project uses **Tailwind CSS v4** with CSS-native configuration — no `tailwind.config.js` needed.
 
@@ -307,7 +306,7 @@ Full dark theme via CSS custom properties, toggled by `data-theme="dark"` on the
 
 ---
 
-## 🐳 Deployment
+## Deployment
 
 ### Docker Build
 
@@ -335,7 +334,7 @@ Both pipelines use:
 
 ---
 
-## 📝 Available Scripts
+## Available Scripts
 
 | Script | Description |
 | ------ | ----------- |
@@ -348,7 +347,7 @@ Both pipelines use:
 
 ---
 
-## 👥 Team
+## Team
 
 <table>
   <tr>
@@ -395,19 +394,7 @@ Both pipelines use:
 
 ---
 
-## 🔮 Future Enhancements
-
-- [ ] Client-side error reporting (Sentry integration)
-- [ ] LLM tracing dashboard (LangSmith / Langfuse)
-- [ ] Offline-capable extension with service worker caching
-- [ ] Mobile-responsive dashboard
-- [ ] Real-time notifications via WebSocket
-- [ ] Multi-language support (i18n)
-- [ ] Extension published to Chrome Web Store (production)
-
----
-
-## 📄 License
+## License
 
 This project is proprietary. All rights reserved.
 
@@ -415,8 +402,8 @@ This project is proprietary. All rights reserved.
 
 <div align="center">
 
-**Built with ❤️ by the Inbox Sales Team**
+**Built with love by the Inbox Sales Team**
 
-[⬆ back to top](#top)
+[back to top](#top)
 
 </div>
