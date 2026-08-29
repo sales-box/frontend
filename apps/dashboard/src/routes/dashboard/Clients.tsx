@@ -5,6 +5,7 @@ import type { Screen } from "../../types";
 import { useClients } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
+import { formatDate } from "../../lib/formatDate";
 import { PageHeader } from "../../components/PageHeader";
 import { EmptyState } from "../../components/EmptyState";
 import { Reveal } from "../../components/Reveal";
@@ -155,7 +156,7 @@ export function Clients({ onNav, onLogout }: { onNav: (s: Screen) => void; onLog
                         <td className="px-5 py-3.5 text-[14px] text-text-secondary truncate">{c.company}</td>
                         <td className="px-5 py-3.5">{statusBadge(c.status)}</td>
                         <td className="px-5 py-3.5 text-[12px] text-text-tertiary">{c.crmId ?? "—"}</td>
-                        <td className="px-5 py-3.5 text-[12px] text-text-tertiary font-mono whitespace-nowrap">{c.updatedAt}</td>
+                        <td className="px-5 py-3.5 text-[12px] text-text-tertiary whitespace-nowrap">{formatDate(c.updatedAt)}</td>
                         <td className="px-5 py-3.5 text-right">
                           <ChevronRight size={14} strokeWidth={1.5} className="text-text-tertiary" />
                         </td>

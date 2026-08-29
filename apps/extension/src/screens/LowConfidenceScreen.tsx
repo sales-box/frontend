@@ -7,6 +7,7 @@ import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
 import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
+import { decisionKey } from '../lib/crm'
 
 /** `routing` is always 'red' here — this screen IS the red state. */
 export interface LowConfidenceData extends ClassificationInfo {
@@ -69,18 +70,19 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
   const [reportAdded, setReportAdded] = useState(false)
 
   // Per-suggestion decision map — defaults to 'reject' (ignore)
-  const [crmDecisions, setCrmDecisions] = useState<Record<number, 'approve' | 'reject'>>(() => {
-    const defaults: Record<number, 'approve' | 'reject'> = {}
-    crmSuggestions?.suggestions.forEach(s => { defaults[s.index] = 'reject' })
-    return defaults
-  })
+  // Keyed by tool call id, not by list position. An approval used to stick to a
+  // POSITION and re-target whatever action later occupied it; keyed this way an
+  // unrecognised action simply has no entry and defaults to reject, so a stale
+  // map writes nothing instead of writing the wrong thing.
+  const [crmDecisions, setCrmDecisions] = useState<Record<string, 'approve' | 'reject'>>({})
 
   const suggestions = crmSuggestions?.suggestions ?? []
 
   const handleCrmSubmit = () => {
     if (!crmSuggestions || !onResolveCrmActions) return
     const decisions = crmSuggestions.suggestions.map(s => ({
-      type: crmDecisions[s.index] ?? 'reject',
+      toolCallId: s.toolCallId,
+      type: crmDecisions[decisionKey(s)] ?? 'reject',
     }))
     onResolveCrmActions(decisions)
   }
@@ -315,7 +317,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
             <>
               <ul className="flex flex-col gap-2">
                 {suggestions.map((s) => {
-                  const decision = crmDecisions[s.index] ?? 'reject'
+                  const decision = crmDecisions[decisionKey(s)] ?? 'reject'
                   const isApproved = decision === 'approve'
                   return (
                     <li
@@ -339,7 +341,7 @@ export function LowConfidenceScreen({ data, onClose, onRefresh, onComposeManuall
                         id={`ext-lc-crm-approve-${s.index}`}
                         onClick={() => setCrmDecisions(prev => ({
                           ...prev,
-                          [s.index]: isApproved ? 'reject' : 'approve',
+                          [decisionKey(s)]: isApproved ? 'reject' : 'approve',
                         }))}
                         aria-pressed={isApproved}
                         title={isApproved ? 'Approved — click to undo' : 'Approve this action'}

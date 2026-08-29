@@ -9,6 +9,19 @@ import {
   type SupervisorLabel,
 } from './routing'
 
+/**
+ * Which client statuses read as a live deal on the briefing badge.
+ *
+ * The badge is binary — "Active deal" or "New" — and it used to compare against
+ * the literal 'active', a value no backend path writes since the CRM lifecycle
+ * mapping landed. Every sender therefore showed "New", including one HubSpot
+ * marks as a customer. The vocabulary is new_inquiry / qualified / opportunity /
+ * customer; an open opportunity is as much a live deal as a closed one.
+ *
+ * 'active' is kept for any row written before the mapping existed.
+ */
+const ACTIVE_DEAL_STATUSES = new Set(['customer', 'opportunity', 'active'])
+
 export interface PipelineResponse {
   alreadyReplied?: boolean
   notSalesbox?: boolean
@@ -70,7 +83,9 @@ export function derivePipelineScreen(raw: PipelineResponse): DerivedScreen {
     productConfidence,
     clientHistoryConfidence,
     suggestedReply: raw.draft?.draftText ?? '',
-    dealStatus: (raw.client?.status === 'active' ? 'active' : 'prospect') as 'active' | 'prospect',
+    dealStatus: (ACTIVE_DEAL_STATUSES.has(raw.client?.status ?? '')
+      ? 'active'
+      : 'prospect') as 'active' | 'prospect',
     routing,
     intent: raw.classification?.intent ?? null,
     isUrgent: raw.classification?.isUrgent ?? false,

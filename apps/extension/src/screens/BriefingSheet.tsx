@@ -7,6 +7,7 @@ import { Badge } from '../components/Badge'
 import { ClassificationBar } from '../components/ClassificationBar'
 import { reasonText, type ClassificationInfo } from '../lib/routing'
 import type { CrmSuggestionResult, CrmDecision } from '../lib/crm'
+import { decisionKey } from '../lib/crm'
 
 /**
  * Extends ClassificationInfo so intent, urgency and the supervisor's routing
@@ -74,18 +75,19 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
   const [reportError, setReportError] = useState<string | null>(null)
   const [reportAdded, setReportAdded] = useState(false)
   // Defaults to 'reject' (ignore) — the user must explicitly approve.
-  const [crmDecisions, setCrmDecisions] = useState<Record<number, 'approve' | 'reject'>>(() => {
-    const defaults: Record<number, 'approve' | 'reject'> = {}
-    crmSuggestions?.suggestions.forEach(s => { defaults[s.index] = 'reject' })
-    return defaults
-  })
+  // Keyed by tool call id, not by list position. An approval used to stick to a
+  // POSITION and re-target whatever action later occupied it; keyed this way an
+  // unrecognised action simply has no entry and defaults to reject, so a stale
+  // map writes nothing instead of writing the wrong thing.
+  const [crmDecisions, setCrmDecisions] = useState<Record<string, 'approve' | 'reject'>>({})
 
   const suggestions = crmSuggestions?.suggestions ?? []
 
   const handleCrmSubmit = () => {
     if (!crmSuggestions || !onResolveCrmActions) return
     const decisions = crmSuggestions.suggestions.map(s => ({
-      type: crmDecisions[s.index] ?? 'reject',
+      toolCallId: s.toolCallId,
+      type: crmDecisions[decisionKey(s)] ?? 'reject',
     }))
     onResolveCrmActions(decisions)
   }
@@ -336,7 +338,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
           <>
             <ul className="flex flex-col gap-2">
               {suggestions.map((s) => {
-                const decision = crmDecisions[s.index] ?? 'reject'
+                const decision = crmDecisions[decisionKey(s)] ?? 'reject'
                 const isApproved = decision === 'approve'
                 return (
                   <li
@@ -363,7 +365,7 @@ export function BriefingSheet({ data, onClose, onRefresh, onInsertInGmail, onRep
                       id={`ext-crm-approve-${s.index}`}
                       onClick={() => setCrmDecisions(prev => ({
                         ...prev,
-                        [s.index]: isApproved ? 'reject' : 'approve',
+                        [decisionKey(s)]: isApproved ? 'reject' : 'approve',
                       }))}
                       aria-pressed={isApproved}
                       title={isApproved ? 'Approved — click to undo' : 'Approve this action'}

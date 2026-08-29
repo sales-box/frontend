@@ -249,4 +249,29 @@ describe('derivePipelineScreen', () => {
       expect(out.data.dealStatus).toBe('prospect')
     }
   })
+
+  // The badge compared against the literal 'active', which no backend path has
+  // written since the CRM lifecycle mapping landed, so every sender read "New"
+  // — including a contact HubSpot marks as a customer.
+  describe('dealStatus against the real status vocabulary', () => {
+    const withStatus = (status: string) =>
+      derivePipelineScreen(
+        makeResponse({ client: { name: 'Alice', company: 'Acme', status } }),
+      )
+
+    it.each(['customer', 'opportunity', 'active'])('reads %s as a live deal', (status) => {
+      const out = withStatus(status)
+      expect(out.kind).toBe('briefing')
+      if (out.kind === 'briefing') expect(out.data.dealStatus).toBe('active')
+    })
+
+    it.each(['new_inquiry', 'qualified', '', 'something_new'])(
+      'reads %p as a prospect',
+      (status) => {
+        const out = withStatus(status)
+        expect(out.kind).toBe('briefing')
+        if (out.kind === 'briefing') expect(out.data.dealStatus).toBe('prospect')
+      },
+    )
+  })
 })

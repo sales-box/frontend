@@ -12,6 +12,7 @@ import {
 } from "../../hooks/queries";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
+import { formatDate } from "../../lib/formatDate";
 import { Btn } from "../../components/Btn";
 import { FormInput } from "../../components/FormInput";
 import { Modal } from "../../components/Modal";
@@ -59,13 +60,18 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
   const syncTitle =
     status?.provider === "zoho" ? "Zoho Sync Status" : "HubSpot Sync Status";
 
+  // Zoho splits people across Contacts and Leads and the import reads both, so
+  // a Zoho workspace showing 10 contacts syncs 23 records. Labelling that
+  // "Contacts synced" reads as a mismatch against the CRM's own screen.
+  const syncedLabel =
+    status?.provider === "zoho" ? "Contacts and leads synced" : "Contacts synced";
+
   const runSync = async () => {
-    try {
-      const res = await syncCrm.mutateAsync();
-      toast(res.message);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Sync failed");
-    }
+    // A failure is already surfaced in red by the global mutation handler, the
+    // same as every other mutation on this page. Catching it here only added a
+    // second, contradictory toast beside it.
+    const res = await syncCrm.mutateAsync();
+    toast(res.message);
   };
 
   const keyError = !apiKey.trim() ? "API key is required" : "";
@@ -153,7 +159,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
             </div>
             <div>
               <div className="text-lg font-semibold text-text-primary">HubSpot</div>
-              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Sync contacts, deals, and company data from HubSpot CRM.</p>
+              <p className="text-[14px] text-text-tertiary mt-1 leading-relaxed">Import your HubSpot contacts, and let the assistant propose CRM records for you to approve.</p>
             </div>
             <div className="mt-auto">
               {connected ? (
@@ -211,16 +217,12 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
               </Btn>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[14px] text-text-tertiary">Contacts synced</span>
+              <span className="text-[14px] text-text-tertiary">{syncedLabel}</span>
               <span className="text-[14px] font-semibold text-secondary">{syncInfo?.importedCount ?? 0}</span>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="text-[14px] text-text-tertiary">Last sync</span>
-              <span className="text-[14px] font-semibold text-text-primary">{syncInfo?.lastSync ?? "just now"}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[14px] text-text-tertiary">Sync errors</span>
-              <span className="text-[14px] font-semibold text-text-tertiary">0</span>
+              <span className="text-[14px] font-semibold text-text-primary">{syncInfo ? formatDate(syncInfo.lastSync) : "just now"}</span>
             </div>
           </Card>
         )}
@@ -269,7 +271,7 @@ export function CRMConnect({ onNav, onLogout }: { onNav: (s: Screen) => void; on
           value={mcpUrl} onChange={setMcpUrl}
           onBlur={() => setMcpUrlTouched(true)}
           error={mcpUrlTouched ? mcpUrlError : undefined}
-          hint="Paste the presigned URL provided by your Zoho MCP service."
+          hint="From mcp.zoho.com → your server → Connect. Set Authorization Type to “Authorization via Connection” first — the default pushes sign-in onto the client and will be rejected here."
           autoComplete="off"
         />
       </Modal>
