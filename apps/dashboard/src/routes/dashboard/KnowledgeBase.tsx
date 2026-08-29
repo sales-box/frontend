@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, Fragment } from "react";
-import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown } from "lucide-react";
+import { Upload, FileText, Trash2, CheckCircle2, AlertTriangle, Clock, Search, BookOpen, Zap, FileWarning, X, Loader2, ChevronDown, MessageSquare } from "lucide-react";
 import type { Screen } from "../../types";
 import { useDocuments, useDeleteDocument, useDeleteAllDocuments, useQualityCriteria, useTenant } from "../../hooks/queries";
-import { knowledgeBase, type QualityReport, type KbSearchResult, type KbMatchStrength, type QualityPreview } from "../../api-client";
+import { knowledgeBase, faq, type QualityReport, type KbSearchResult, type KbMatchStrength, type QualityPreview } from "../../api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "../../components/Shell";
 import { Card } from "../../components/Card";
@@ -527,9 +527,200 @@ type UploadEntry = {
   error?: string;
 };
 
+// ─── FAQ Tab ──────────────────────────────────────────────────────────────────
+
+function FaqTab() {
+  const toast = useToast();
+  const faqFileRef = useRef<HTMLInputElement>(null);
+  const [faqDocs, setFaqDocs] = useState<Awaited<ReturnType<typeof faq.listDocuments>> | null>(null);
+  const [faqItems, setFaqItems] = useState<{ data: { id: string; question: string; answer: string; embedded: boolean }[]; meta: { total: number; page: number; limit: number; totalPages: number } } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const [docs, items] = await Promise.all([
+        faq.listDocuments(),
+        faq.listItems(),
+      ]);
+      setFaqDocs(docs);
+      setFaqItems(items);
+    } catch {
+      toast("Failed to load FAQ data");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { void reload(); }, [reload]);
+
+  const handleFaqUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const res = await faq.upload(file);
+      toast(`Uploaded "${res.filename}" — ${res.itemsCreated} FAQ item${res.itemsCreated === 1 ? "" : "s"} created`);
+      void reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async (id: string, filename: string) => {
+    setDeletingDocId(id);
+    try {
+      await faq.deleteDocument(id);
+      toast(`Deleted "${filename}"`);
+      void reload();
+    } catch {
+      toast("Failed to delete document");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    setDeletingItemId(id);
+    try {
+      await faq.deleteItem(id);
+      toast("FAQ item deleted");
+      void reload();
+    } catch {
+      toast("Failed to delete item");
+    } finally {
+      setDeletingItemId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Upload card */}
+      <Card className="p-5">
+        <div className="flex items-center gap-2.5 mb-3">
+          <MessageSquare size={18} strokeWidth={1.5} className="text-text-tertiary" />
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display text-[15px] font-semibold text-text-primary tracking-tight">Upload FAQ file</h2>
+            <p className="text-[12px] text-text-tertiary">
+              Supported: <span className="font-mono">.md</span> (Q:/A: sections),{" "}
+              <span className="font-mono">.csv</span> (two columns),{" "}
+              <span className="font-mono">.xlsx</span> (two columns). Max 25 MB.
+            </p>
+          </div>
+          <label className={`inline-flex items-center gap-2 font-body font-semibold rounded-lg px-4 py-2 text-[14px] border border-border bg-surface text-text-secondary hover:border-primary/50 hover:text-text-primary transition-colors cursor-pointer shrink-0 focus-within:ring-2 focus-within:ring-primary/25 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+            <input
+              ref={faqFileRef}
+              type="file"
+              className="sr-only"
+              accept=".md,.csv,.xlsx"
+              aria-label="Upload FAQ file"
+              disabled={uploading}
+              onChange={e => { const f = e.target.files?.[0]; if (f) void handleFaqUpload(f); e.target.value = ""; }}
+            />
+            {uploading ? <><Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> Uploading…</> : <><Upload size={14} strokeWidth={1.75} /> Upload FAQ</>}
+          </label>
+        </div>
+
+        <div className="bg-surface-secondary/50 rounded-lg px-4 py-3 text-[12px] text-text-tertiary space-y-1">
+          <p className="font-semibold text-text-secondary mb-1">Markdown format example:</p>
+          <pre className="font-mono whitespace-pre text-[11px] leading-relaxed overflow-x-auto">{`Q: Do you offer a free trial?
+A: Yes, all plans include a 14-day free trial.
+
+Q: What are your payment terms?
+A: We offer Net-30 invoicing for annual plans.`}</pre>
+        </div>
+      </Card>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={28} strokeWidth={1.5} className="animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          {/* Documents list */}
+          {faqDocs && faqDocs.length > 0 && (
+            <Card className="overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+                <FileText size={18} strokeWidth={1.5} className="text-text-tertiary" />
+                <h2 className="text-subheading text-text-primary">FAQ Documents</h2>
+                <span className="ml-auto text-[13px] text-text-tertiary">{faqDocs.length} file{faqDocs.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="divide-y divide-border">
+                {faqDocs.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-secondary/50 transition-colors">
+                    <span className="px-2 py-1 rounded shrink-0 text-[12px] font-semibold leading-none" style={{ backgroundColor: "var(--filetype-bg)", color: "var(--filetype-fg)" }}>
+                      {doc.filename.split(".").pop()?.toUpperCase() ?? "FILE"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-medium text-text-primary truncate">{doc.filename}</div>
+                      <div className="text-[12px] text-text-tertiary font-mono">
+                        {doc._count.items} item{doc._count.items === 1 ? "" : "s"} · {new Date(doc.uploadedAt).toLocaleDateString()}
+                        {doc.uploadedBy && ` · by ${doc.uploadedBy}`}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => void handleDeleteDoc(doc.id, doc.filename)}
+                      disabled={deletingDocId === doc.id}
+                      aria-label={`Delete ${doc.filename}`}
+                      className={`w-8 h-8 rounded-lg border border-border flex items-center justify-center text-text-tertiary hover:text-danger hover:border-danger/40 hover:bg-danger-light transition-colors cursor-pointer ${focusRing}`}
+                    >
+                      {deletingDocId === doc.id ? <Loader2 size={13} strokeWidth={1.5} className="animate-spin" /> : <Trash2 size={14} strokeWidth={1.5} />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Items list */}
+          {faqItems && faqItems.data.length > 0 ? (
+            <Card className="overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+                <MessageSquare size={18} strokeWidth={1.5} className="text-text-tertiary" />
+                <h2 className="text-subheading text-text-primary">FAQ Items</h2>
+                <span className="ml-auto text-[13px] text-text-tertiary">{faqItems.meta.total} total</span>
+              </div>
+              <div className="divide-y divide-border">
+                {faqItems.data.map(item => (
+                  <div key={item.id} className="px-5 py-3.5 hover:bg-surface-secondary/30 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-text-primary mb-1">{item.question}</p>
+                        <p className="text-[13px] text-text-secondary leading-relaxed">{item.answer}</p>
+                      </div>
+                      <button
+                        onClick={() => void handleDeleteItem(item.id)}
+                        disabled={deletingItemId === item.id}
+                        aria-label="Delete FAQ item"
+                        className={`w-7 h-7 mt-0.5 shrink-0 rounded-md border border-border flex items-center justify-center text-text-tertiary hover:text-danger hover:border-danger/40 hover:bg-danger-light transition-colors cursor-pointer ${focusRing}`}
+                      >
+                        {deletingItemId === item.id ? <Loader2 size={11} strokeWidth={1.5} className="animate-spin" /> : <X size={13} strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : faqDocs?.length === 0 ? (
+            <Card className="p-10 text-center">
+              <MessageSquare size={24} strokeWidth={1.5} className="text-text-tertiary mx-auto mb-3" />
+              <p className="text-[15px] font-medium text-text-secondary mb-1">No FAQ items yet</p>
+              <p className="text-[13px] text-text-tertiary">Upload a FAQ file above to start auto-replying to common questions.</p>
+            </Card>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+
 export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void; onLogout?: () => void }) {
   const toast = useToast();
   const qc = useQueryClient();
+  const [mainTab, setMainTab] = useState<"kb" | "faq">("kb");
   const [dragging, setDragging] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
@@ -659,16 +850,42 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
       <div className="max-w-[88rem] mx-auto px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
         <PageHeader
           title="Knowledge Base"
-          subtitle="Documents your AI uses to generate accurate replies."
+          subtitle="Documents and FAQ rules your AI uses to generate or auto-reply to emails."
           actions={
-            <button
-              onClick={() => uploadInputRef.current?.click()}
-              className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold text-white shrink-0 cursor-pointer bg-(--brand-cyan) hover:bg-(--brand-teal) transition-colors ${focusRing}`}
-            >
-              <Upload size={16} strokeWidth={1.75} /> Upload Document
-            </button>
+            mainTab === "kb" ? (
+              <button
+                onClick={() => uploadInputRef.current?.click()}
+                className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold text-white shrink-0 cursor-pointer bg-(--brand-cyan) hover:bg-(--brand-teal) transition-colors ${focusRing}`}
+              >
+                <Upload size={16} strokeWidth={1.75} /> Upload Document
+              </button>
+            ) : undefined
           }
         />
+
+        {/* Tab switcher */}
+        <div className="flex items-center gap-2 mb-6 border-b border-border pb-3">
+          <button
+            onClick={() => setMainTab("kb")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[14px] font-semibold transition-colors cursor-pointer ${focusRing} ${mainTab === "kb" ? "bg-primary text-text-on-primary" : "text-text-tertiary hover:bg-surface-secondary"}`}
+          >
+            <BookOpen size={16} strokeWidth={1.5} />
+            <span>Documents (RAG)</span>
+          </button>
+          <button
+            onClick={() => setMainTab("faq")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[14px] font-semibold transition-colors cursor-pointer ${focusRing} ${mainTab === "faq" ? "bg-primary text-text-on-primary" : "text-text-tertiary hover:bg-surface-secondary"}`}
+          >
+            <MessageSquare size={16} strokeWidth={1.5} />
+            <span>FAQ Auto-Reply</span>
+          </button>
+        </div>
+
+        {mainTab === "faq" ? (
+          <FaqTab />
+        ) : (
+          <>
+
 
         {/* Storage usage — Figma: "X of Y documents used" + progress bar */}
         {limit !== null && (
@@ -936,7 +1153,10 @@ export function KnowledgeBase({ onNav, onLogout }: { onNav: (s: Screen) => void;
         <Reveal>
         <TestKnowledgeBase />
         </Reveal>
+        </>
+        )}
       </div>
+
 
       {/* Emptying the KB starves the Matcher for every SE at once and there is
           no restore path, so it asks for the word to be typed — same treatment
