@@ -1,20 +1,59 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2VI+XS9lof6QxAe/St/5K6RtBRWl919L4o7p90xowV4OLKceX/57HEuecBg/mH50E5r79trp6d3wOrFAjWamlTKXuezqD4EJJEnu1IZuBM/g+brSQA7z1PVKQdTwO+96B+SHj7ffwf1QwLPAOS/tfe1kl1xDp+QRjVJaPBOU5HGT79o/wpriyMuRj/oMnxO3kuLDgaPJgd14krTbfE4lDacGeogHUCGfo1AxxrQNUyeZ5HyT1j302hqlbBDWmkvxhGjJT2NZdkjvt2F0oyRL2i+xbyBhGLV01/FwRkLPHrN4NcZeXifZIXfzEwDdQfISehhRW3pFwqv8zA+XG5ptNQIDAQAB",
   "name": "Inbox Sales Copilot",
   "version": "1.0.0",
-  "description": "Sales Copilot for Gmail",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
+  "description": "AI-powered sales reply assistant for Gmail",
+  "permissions": ["activeTab", "scripting", "storage", "identity"],
   "host_permissions": [
-    "https://mail.google.com/*"
+    "https://mail.google.com/*",
+    "https://salesbox.dev/*",
+    "https://*.salesbox.dev/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "icons": {
+    "16": "favicon-96x96.png",
+    "48": "favicon-96x96.png",
+    "128": "web-app-manifest-192x192.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "favicon-96x96.png",
+      "48": "favicon-96x96.png",
+      "128": "web-app-manifest-192x192.png"
+    }
+  },
+  "oauth2": {
+    "client_id": "676907443704-jms8lovn48lsl0tqjlhrjff12kfe1ojv.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.send"
+    ]
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
       "js": ["src/content.tsx"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/assets/fonts/Baloo2-latin.woff2",
+        "src/assets/fonts/PlusJakartaSans-latin.woff2",
+        "src/assets/fonts/JetBrainsMono-latin.woff2",
+        "src/assets/mascot-auth.png",
+        "src/assets/mascot-locked.png",
+        "src/assets/mascot-sleepy.png",
+        "src/assets/mascot-icon-silhouette.svg"
+      ],
+      "matches": ["https://mail.google.com/*"]
     }
   ]
 }

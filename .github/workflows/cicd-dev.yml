@@ -14,24 +14,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: |
-          npm run lint -w apps/dashboard
-          npm run lint -w apps/extension
+          pnpm --filter dashboard lint
+          pnpm --filter extension lint
 
       - name: Build
         run: |
-          npm run build -w apps/dashboard
-          npm run build -w apps/extension
+          pnpm --filter dashboard build
+          pnpm --filter extension build
 
       - name: Run Trivy vulnerability scanner (FS scan)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -69,6 +72,9 @@ jobs:
           tags: |
             mnagy156/salesbox-frontend-dev:latest
             mnagy156/salesbox-frontend-dev:${{ github.sha }}
+          build-args: |
+            - VITE_API_BASE_URL=https://salesbox.dev
+            - VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TOe07AXEKm3a0uyViZfkbmoa1FqE7bQkMvaAGPcB5RkCyedFWtVVF97IuHFiH6tuBwmxrOp1RytLfnvCpYLvM5c0022tcD4xt
 
   deploy-dev:
     runs-on: ubuntu-latest
@@ -82,8 +88,16 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd /home/ec2-user/app
-            docker compose down --remove-orphans
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+            [ -f .env ] && [ -n "$(tail -c 1 .env)" ] && echo "" >> .env
+            if grep -q "^FRONTEND_IMAGE_TAG=" .env 2>/dev/null; then
+              sed -i "s/^FRONTEND_IMAGE_TAG=.*/FRONTEND_IMAGE_TAG=${{ github.sha }}/" .env
+            else
+              echo "FRONTEND_IMAGE_TAG=${{ github.sha }}" >> .env
+            fi
+            export FRONTEND_IMAGE_TAG="${{ github.sha }}"
+            docker compose pull frontend
+            docker compose up -d --force-recreate frontend
             docker image prune -af
+            ./scripts/inspect.sh --env dev --frontend "${{ github.sha }}"

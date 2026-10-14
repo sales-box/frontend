@@ -6,6 +6,10 @@ import manifest from './manifest.json' with { type: 'json' }
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    sourcemap: false,
+    minify: false,
+  },
   plugins: [
     tailwindcss(),
     react(),

@@ -7,24 +7,30 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@inbox-sales/shared": "^1.0.0",
+    "@inbox-sales/shared": "workspace:*",
     "@tailwindcss/vite": "^4.3.2",
+    "@tanstack/react-query": "^5.101.2",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1",
-    "tailwindcss": "^4.3.2"
+    "react-router-dom": "^7.18.2",
+    "recharts": "^3.9.2",
+    "tailwindcss": "^4.3.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
   }
 }

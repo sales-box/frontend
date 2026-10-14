@@ -4,5 +4,11 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "dev": "pnpm --filter dashboard dev",
+    "dev:extension": "pnpm --filter extension dev",
+    "build": "pnpm -r build"
+  },
+  "packageManager": "pnpm@11.9.0"
 }

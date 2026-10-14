@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <style>
+      .main-line {
+        fill: none;
+        stroke: #005F73;
+        stroke-width: 36;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .face-line {
+        fill: none;
+        stroke: #005F73;
+        stroke-width: 28;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .filled {
+        fill: #005F73;
+      }
+    </style>
+  </defs>
+
+  <!-- Envelope Body -->
+  <path class="main-line" d="M 96 200 A 32 32 0 0 0 64 232 L 64 424 A 32 32 0 0 0 96 456 L 416 456 A 32 32 0 0 0 448 424 L 448 232 A 32 32 0 0 0 416 200" />
+
+  <!-- Envelope Flap -->
+  <path class="main-line" d="M 96 200 L 256 340 L 416 200" />
+
+  <!-- Robot Ears -->
+  <path class="main-line" d="M 144 144 A 24 24 0 0 0 144 192" />
+  <path class="main-line" d="M 368 144 A 24 24 0 0 1 368 192" />
+
+  <!-- Robot Head Outline -->
+  <rect class="main-line" x="144" y="96" width="224" height="152" rx="40" />
+
+  <!-- Antenna Line -->
+  <path class="main-line" d="M 256 96 L 256 64" />
+  <!-- Antenna Ball -->
+  <circle class="filled" cx="256" cy="44" r="20" />
+
+  <!-- Eyes (Happy Arcs) -->
+  <path class="face-line" d="M 192 164 Q 212 140 232 164" />
+  <path class="face-line" d="M 280 164 Q 300 140 320 164" />
+
+  <!-- Smile -->
+  <path class="face-line" d="M 230 196 Q 256 226 282 196" />
+
+</svg>

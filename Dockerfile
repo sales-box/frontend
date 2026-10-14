@@ -4,20 +4,33 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy root configurations and dependency manifests to cache layers
-COPY package.json package-lock.json ./
+# pnpm via corepack, so the version comes from packageManager in package.json
+# rather than being pinned twice and drifting. A hardcoded pnpm@9 could not read
+# the overrides in pnpm-workspace.yaml and failed the frozen install.
+RUN corepack enable
+
+# Copy root configurations, workspace definition, and dependency manifests to cache layers
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/dashboard/package.json ./apps/dashboard/
 COPY apps/extension/package.json ./apps/extension/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install dependencies using clean install
-RUN npm ci
+# Install dependencies using pnpm
+RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the workspace files
 COPY . .
 
-# Build the dashboard app (which also builds and links @inbox-sales/shared)
-RUN npm run build -w apps/dashboard
+
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=https://salesbox.dev
+
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51TOe07AXEKm3a0uyViZfkbmoa1FqE7bQkMvaAGPcB5RkCyedFWtVVF97IuHFiH6tuBwmxrOp1RytLfnvCpYLvM5c0022tcD4xt
+
+
+# Build the dashboard app
+RUN pnpm --filter dashboard build
 
 # ----- Runtime Stage -----
 FROM nginx:alpine AS runtime

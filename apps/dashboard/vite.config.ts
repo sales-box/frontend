@@ -9,14 +9,23 @@ export default defineConfig({
     react()
   ],
   server: {
-    proxy: {
-      '/auth': 'http://localhost:3000',
-      '/clients': 'http://localhost:3000',
-      '/emails': 'http://localhost:3000',
-      '/knowledge-base': 'http://localhost:3000',
-      '/health': 'http://localhost:3000',
-      '/queue': 'http://localhost:3000',
-      '/gmail': 'http://localhost:3000'
-    }
+    proxy: Object.fromEntries(
+      [
+        '/platform',
+        '/auth',
+        '/tenants',
+        '/clients',
+        '/emails',
+        '/knowledge-base',
+        '/analytics',
+        '/external-content',
+        '/ai',
+        '/health',
+        '/queue',
+        '/gmail',
+        '/payments',
+        '/stripe'
+      ].map(p => [p, { target: process.env.VITE_API_BASE_URL || 'http://localhost:3000', changeOrigin: true, secure: false }])
+    )
   }
 })

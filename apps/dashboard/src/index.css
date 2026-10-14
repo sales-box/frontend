@@ -1,12 +1,32 @@
-@import "tailwindcss";
+@import "./theme.css";
 
-@theme {
-  --color-primary: #3b82f6; /* Placeholder primary color */
-  --font-sans: "Inter", system-ui, sans-serif;
+/* Guard against incidental horizontal overflow on small screens. */
+#root {
+  overflow-x: clip;
 }
 
-body {
-  font-family: var(--font-sans);
-  background-color: #f8fafc;
-  color: #0f172a;
+/* Editorial drop cap — one display-font flourish on a lead paragraph. */
+.dropcap::first-letter {
+  font-family: var(--font-display);
+  float: left;
+  font-size: 3.1em;
+  line-height: 0.72;
+  padding: 0.04em 0.12em 0 0;
+  color: var(--color-primary);
 }
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee var(--marquee-duration, 25s) linear infinite;
+}
+
+

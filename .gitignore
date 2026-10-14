@@ -101,3 +101,68 @@ docker-compose.override.yml
 # Misc
 # =========================
 *.pem
+
+# =========================
+# Generated & AI Tool Files
+# =========================
+repomix-output.xml
+repomix-output.txt
+repomix-output.md
+repomix-frontend-output.xml
+repomix.config.json
+*.xml
+.cursor/
+.claude/
+
+# =========================
+# Local Reference & Assets
+# =========================
+docs/
+design/*
+!design/theme.css
+DESIGN.md
+Inpox_Sales_Copilot_API_Endpoints.updated.json
+apps/extension/extension.pem
+
+# Graphify analysis artifacts (rebuildable from source)
+apps/extension/graphify-out/
+graphify-out/
+
+# Personal study notes (Arabic code walkthrough for the defense)
+WALKTHROUGH-AR.md
+apps/extension/WALKTHROUGH-AR.md
+
+# Pitch deck, presenter scripts, and everything that builds them.
+presentation/
+
+# Demo / seed corpus: fictional tenants, KB documents, .eml fixtures and the
+# binary attachments generated from them. Regenerable, ~30 MB, and none of it
+# is application code.
+demo-data/
+
+# Planning and pitch documents that live at the workspace root, plus the
+# scripts that render them to PDF.
+EXPERT-LOOP-*
+business-to-pdf.js
+
+# Personal analysis / defense notes (local only, never committed)
+CONTRIBUTIONS.md
+*-ANALYSIS.md
+*_ANALYSIS.md
+ANALYSIS-*.md
+
+# =========================
+# Planning / agent scratch (local only, never committed)
+# =========================
+# These normally live at the workspace root, OUTSIDE this repo. Listed here
+# defensively so they stay untracked if one is ever copied or created inside it.
+docs/superpowers/
+.superpowers/
+.sdd/
+.claude/
+.codex-collab/
+graphify-out/
+tasks/
+ad-assets/
+TEAM-TASKS.md
+SALESBOX-AD-ONESHOT-PROMPT.md

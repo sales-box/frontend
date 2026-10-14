@@ -1,93 +1,102 @@
 // src/api-client.ts
 
-// ── Admin / Tenant ───────────────────────────────────────────────
-export async function signup(company: string, email: string, password: string, tier: string): Promise<{ tenantId: string }> {
-  return { tenantId: "mock-tenant-001" };
-}
-
-export async function verifyEmail(token: string): Promise<{ verified: boolean }> {
-  return { verified: true };
-}
-
-// ── Knowledge Base ────────────────────────────────────────────────
-export async function listDocuments(): Promise<{ filename: string; uploadDate: string; chunkCount: number }[]> {
-  return [
-    { filename: "product-catalog.pdf", uploadDate: "2026-07-09", chunkCount: 42 },
-    { filename: "pricing-guide.docx", uploadDate: "2026-07-08", chunkCount: 18 },
-  ];
-}
-
-export async function uploadDocument(file: File): Promise<{ status: "ok" | "quality_warning"; message?: string }> {
-  return { status: "ok" };
-}
-
-export async function deleteDocument(filename: string): Promise<void> {}
-
-// ── Allowlist ─────────────────────────────────────────────────────
-export async function getAllowlist(tenantId: string): Promise<{ email: string; status: "pending" | "verified" | "revoked" }[]> {
-  return [
-    { email: "se1@company.com", status: "verified" },
-    { email: "se2@company.com", status: "pending" },
-  ];
-}
-
-export async function grantAccess(tenantId: string, email: string): Promise<void> {}
-export async function revokeAccess(tenantId: string, email: string): Promise<void> {}
-
-// ── CRM ───────────────────────────────────────────────────────────
-export async function getCRMStatus(tenantId: string): Promise<{ connected: boolean }> {
-  return { connected: false };
-}
-
-// ── Analytics (matches CONTRACTS.md Role 4 — Khaled) ─────────────
-export async function getAnalyticsSummary(days = 7): Promise<{
-  totalEmailsProcessed: number;
-  byClassification: Record<string, number>;
-  averageConfidence: number;
-  lowConfidenceCount: number;
-  topProducts: string[];
-}> {
-  return {
-    totalEmailsProcessed: 128,
-    byClassification: { product_inquiry: 74, meeting_request: 31, general: 23 },
-    averageConfidence: 0.78,
-    lowConfidenceCount: 14,
-    topProducts: ["Solar Panel X200", "Battery Unit Pro", "Grid Controller"],
-  };
-}
-
-export async function getKnowledgeGapAlerts(): Promise<{ id: string; topic: string; occurrences: number }[]> {
-  return [
-    { id: "gap-1", topic: "Warranty terms for X200", occurrences: 5 },
-    { id: "gap-2", topic: "Installation lead time", occurrences: 3 },
-  ];
-}
-
-export async function resolveGap(id: string): Promise<void> {}
+const API_BASE = 'https://salesbox.dev'
 
 // ── SE / Extension (matches CONTRACTS.md Role 2) ─────────────────
-export async function seLogin(googleToken: string): Promise<{ jwt: string } | { error: "invalid_allowlist" }> {
-  return { jwt: "mock-se-jwt-token" };
+
+/**
+ * Exchange a Google OAuth authorization code for an SE JWT.
+ * Real endpoint: POST /auth/se/login
+ * Returns { token } on 200, or { error: "invalid_allowlist" } on 403.
+ */
+export async function seLoginWithCode(code: string, redirectUri: string): Promise<{ token: string } | { error: "invalid_allowlist" }> {
+  const res = await fetch(`${API_BASE}/auth/se/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirectUri }),
+  })
+  if (res.status === 403) {
+    return { error: 'invalid_allowlist' }
+  }
+  if (!res.ok) {
+    throw new Error(`seLoginWithCode failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ token: string }>
 }
 
-export async function getClientContext(tenantId: string, email: string): Promise<{
-  isNewClient: boolean;
-  clientId: string | null;
-  status: string;
+/**
+ * Get current authenticated user details (tenantId, email, etc.)
+ * Real endpoint: GET /auth/me
+ */
+export async function getAuthMe(jwt: string): Promise<{ tenantId: string; email: string; isAdmin: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { 'Authorization': `Bearer ${jwt}` },
+  })
+  if (!res.ok) {
+    throw new Error(`getAuthMe failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ tenantId: string; email: string; isAdmin: boolean }>
+}
+
+/**
+ * Report a knowledge gap to the admin.
+ * The server resolves the tenant-scoped Interaction and derives the stable
+ * category; callers cannot choose arbitrary topic text.
+ */
+export async function reportKnowledgeGap(
+  jwt: string,
+  messageId: string,
+): Promise<{ occurrences: number; reportAdded: boolean }> {
+  const res = await fetch(`${API_BASE}/analytics/gaps`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({ messageId }),
+  })
+  if (!res.ok) {
+    throw new Error(`reportKnowledgeGap failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ occurrences: number; reportAdded: boolean }>
+}
+
+/**
+ * Get AI-generated reply suggestion for an email thread.
+ * ⚠️ MOCK — POST /ai/process always returns 501
+ * Returns suggested reply + dual confidence scores.
+ *
+ * Confidence fields (productConfidence, clientHistoryConfidence) come ONLY
+ * from this endpoint — never from getClientContext.
+ *
+ * Mock returns high-confidence data. To test LowConfidenceScreen,
+ * return productConfidence < 70 and clientHistoryConfidence < 60.
+ */
+export async function getSuggestion(
+  _tenantId: string,
+  _emailId: string,
+): Promise<{
+  reply: string;
+  productConfidence: number;   // 0–100 integer
+  clientHistoryConfidence: number;   // 0–100 integer
+  hasHallucination: boolean;
+  clientName: string;
   company: string;
-  productsDiscussed: string[];
-  history: { date: string; type: string; subject: string; summary: string | null }[];
-  crmId: string | null;
+  role: string;
+  dealStatus: "active" | "prospect";
+  emailTimestamp: string;
 }> {
+  // Mock: swap to low numbers (e.g. 45, 38) to trigger LowConfidenceScreen
   return {
-    isNewClient: false,
-    clientId: "client-mock-001",
-    status: "active",
-    company: "Acme Corp",
-    productsDiscussed: ["Solar Panel X200"],
-    history: [
-      { date: "2026-07-08", type: "inbound", subject: "Pricing inquiry", summary: "Asked about bulk pricing for X200", },
-    ],
-    crmId: "hubspot-mock-123",
+    reply:
+      "Hi Marcus,\n\nThanks for reaching out. Based on our conversation last week, I wanted to follow up on the Solar Panel X200 pricing you requested.\n\nOur standard bulk pricing for 50+ units starts at $2,400/unit with a 90-day delivery window. Happy to arrange a technical demo this week if helpful.\n\nBest,",
+    productConfidence: 82,
+    clientHistoryConfidence: 65,
+    hasHallucination: false,
+    clientName: "Marcus Reid",
+    company: "Brightwave Technologies",
+    role: "VP Engineering",
+    dealStatus: "active",
+    emailTimestamp: new Date().toISOString(),
   };
 }
